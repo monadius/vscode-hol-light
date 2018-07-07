@@ -1,0 +1,12 @@
+{
+    "prove": {
+        "prefix": "prove",
+        "body": [
+            "let ${1} = prove",
+            "  (`${2}`,",
+            "   ${3}",
+            "  );;"
+        ],
+        "description": "Prove a lemma"
+    }
+}

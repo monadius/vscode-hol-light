@@ -1,0 +1,86 @@
+{
+    "name": "hol-light-simple",
+    "displayName": "HOL Light (simple)",
+    "description": "An extension for VS Code which provides support for HOL Light",
+    "version": "0.0.1",
+    "license": "SEE LICENSE IN LICENSE",
+    "publisher": "monadius",
+    "engines": {
+        "vscode": "^1.25.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "keywords": [
+        "hol", "hol light", "theorem prover", "proof assistant"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/monadius/vscode-hol-light"
+    },
+    "bugs": "https://github.com/monadius/vscode-hol-light/issues",
+    "homepage": "https://github.com/monadius/vscode-hol-light/blob/master/README.md",
+    "icon": "images/hol-light-logo.png",
+    "activationEvents": [
+        "onCommand:extension.sayHello",
+        "onLanguage:hol-light"
+    ],
+    "main": "./out/extension",
+    "contributes": {
+        "commands": [
+            {
+                "command": "extension.sayHello",
+                "title": "Hello World"
+            }
+        ],
+        "languages": [
+            {
+                "id": "hol-light",
+                "aliases": [
+                    "HOL Light"
+                ],
+                "extensions": [
+                    ".hl"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "hol-light",
+                "scopeName": "source.hol-light",
+                "path": "./syntaxes/hol-light.json"
+            }
+        ],
+        "snippets": [
+            {
+                "language": "hol-light",
+                "path": "./snippets/hol-light.json"
+            }
+        ],
+        "configuration": {
+            "type": "object",
+            "title": "HOL Light configuration",
+            "properties": {
+                "support.function.hol-light": {
+                    "type": "string",
+                    "default": "rgba(255, 0, 0, 1.00)"
+                }
+            }
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "postinstall": "node ./node_modules/vscode/bin/install",
+        "test": "npm run compile && node ./node_modules/vscode/bin/test"
+    },
+    "devDependencies": {
+        "typescript": "^2.6.1",
+        "vscode": "^1.1.6",
+        "tslint": "^5.8.0",
+        "@types/node": "^7.0.43",
+        "@types/mocha": "^2.2.42"
+    }
+}

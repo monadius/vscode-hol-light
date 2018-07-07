@@ -1,0 +1,132 @@
+{
+    "name": "HOL Light",
+    "scopeName": "source.hol-light",
+    "fileTypes": ["hl"],
+    "repository": {
+        "term": {
+            "patterns": [
+                {
+                    "match": "/\\\\|\\\\/|==>|<=>",
+                    "name": "keyword.operator.logical.hol-light",
+                    "name1": "support.function.hol-light"
+                },
+                {
+                    "match": "\\w+\\s*:\\s*(\\w+)",
+                    "captures": {
+                        "1": {
+                            "name": "storage.type.hol-light"
+                        }
+                    }
+                }
+            ]
+        },
+        "comments": {
+            "patterns": [
+                {
+                    "begin": "\\(\\*",
+                    "end": "\\*\\)",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.comment.begin.ocaml"
+                        }
+                    },
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.comment.end.ocaml"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "include": "#comments"
+                        }
+                    ],
+                    "name": "comment.block.ocaml"
+                }
+            ]
+        }
+    },
+    "patterns": [
+        {
+            "include": "#comments"
+        },
+        {
+            "begin": "`",
+            "end": "`",
+            "patterns": [
+                {
+                    "include": "#term"
+                }
+            ],
+            "name": "string.quoted.single.hol-light",
+            "contentName": "strong"
+        },
+        {
+            "begin": "\"",
+            "end": "\"",
+            "beginCaptures": {
+                "0": {
+                    "name": "punctuation.definition.string.begin.ocaml"
+                }
+            },
+            "endCaptures": {
+                "0": {
+                    "name": "punctuation.definition.string.end.ocaml"
+                }
+            },
+            "patterns": [
+                {
+                    "match": "\\\\(x[a-fA-F0-9][a-fA-F0-9]|o[0-3][0-7][0-7]|[0-2]\\d\\d|[ bnrt'\"\\\\])",
+                    "name": "constant.character.string.escape.ocaml"
+                }
+            ],
+            "name": "string.quoted.double.ocaml"
+        },
+        {
+            "match": "'([^'\\\\]|\\\\(x[a-fA-F0-9][a-fA-F0-9]|o[0-3][0-7][0-7]|[0-2]\\d\\d|[ bnrt'\"\\\\]))'",
+            "name": "constant.character.ocaml"
+        },
+        {
+            "match": "\\b(true|false)\\b",
+            "name": "constant.language.boolean.ocaml"
+        },
+        {
+            "match": "\\b[-]?(\\d[\\d_]*|(0x|0X)[\\dA-Fa-f][\\dA-Fa-f_]*|(0o|0O)[0-7][0-7_]*|(0b|0B)[01][01_]*)(?![.eEpP])\\b",
+            "name": "constant.numeric.integer.ocaml"
+        },
+        {
+            "match": "\\b[-]?\\d[\\d_]*(\\.[\\d_]*)?([eE][+-]?\\d[\\d_]*)?\\b|\\b[-]?(0x|0X)[\\dA-Fa-f][\\dA-Fa-f_]*(\\.[\\dA-Fa-f_]*)?([pP][+-]?\\d[\\d_]*)?\\b",
+            "name": "constant.numeric.float.ocaml"
+        },
+        {
+            "match": "[*+/-]\\.?",
+            "name": "keyword.operator.infix.ocaml"
+        },
+        {
+            "match": "\\bnot\\b|&&|\\|\\|",
+            "name": "keyword.operator.logical.ocaml"
+        },
+        {
+            "match": ";;",
+            "name": "punctuation.terminator.expression.ocaml"
+        },
+        {
+            "match": "\\b(let|in|rec|fun|begin|end|ref)\\b",
+            "name": "keyword.other.ocaml"
+        },
+        {
+            "match": "\\b(if|then|else|while|match|with)\\b",
+            "name": "keyword.control.ocaml"
+        },
+
+        {
+            "match": "\\b(THEN|THENL|ORELSE)\\b",
+            "name": "keyword.other.hol-light",
+            "name2": "support.function.hol-light"
+        },
+        {
+            "match": "\\b(needs|loadt)\\b",
+            "name": "keyword.control.import.hol-light"
+        }
+        
+    ]
+}
