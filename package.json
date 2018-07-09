@@ -76,6 +76,11 @@
             },
             {
                 "category": "HOL Light",
+                "command": "hol-light.repl_rotate_goal",
+                "title": "Rotate Subgoals"
+            },
+            {
+                "category": "HOL Light",
                 "command": "hol-light.search",
                 "title": "Search Theorems"
             }
@@ -119,6 +124,11 @@
             {
                 "key": "ctrl+c ctrl+b",
                 "command": "hol-light.repl_back_proof",
+                "when": "editorLangId == hol-light"
+            },
+            {
+                "key": "ctrl+c ctrl+o",
+                "command": "hol-light.repl_rotate_goal",
                 "when": "editorLangId == hol-light"
             },
             {
@@ -199,6 +209,10 @@
                 },
                 {
                     "command": "hol-light.repl_back_proof",
+                    "when": "editorLangId == hol-light"
+                },
+                {
+                    "command": "hol-light.repl_rotate_goal",
                     "when": "editorLangId == hol-light"
                 }
             ],

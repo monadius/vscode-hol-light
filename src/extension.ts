@@ -224,6 +224,16 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
+        vscode.commands.registerCommand('hol-light.repl_rotate_goal', async () => {
+            if (!replTerm) {
+                vscode.window.showErrorMessage('No HOL Light REPL');
+                return;
+            }
+            replTerm!.sendText('r();;');
+        })
+    );
+
+    context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.search', async () => {
             await checkREPL();
             replTerm!.show(true);
