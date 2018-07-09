@@ -152,6 +152,18 @@ export function activate(context: vscode.ExtensionContext) {
             replTerm!.sendText('p();;');
         })
     );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('hol-light.search', async () => {
+            await checkREPL();
+            replTerm!.show(true);
+            const result = await vscode.window.showInputBox();
+            if (!result) {
+                return;
+            }
+            replTerm!.sendText(`search(\`${result}\`);;`);
+        })
+    );
 }
 
 // this method is called when your extension is deactivated

@@ -23,6 +23,7 @@
     "icon": "images/hol-light-logo.png",
     "activationEvents": [
         "onCommand:hol-light.repl",
+        "onCommand:hol-light.search",
         "onLanguage:hol-light"
     ],
     "main": "./out/extension",
@@ -67,6 +68,11 @@
                 "category": "HOL Light",
                 "command": "hol-light.repl_back_proof",
                 "title": "Revert One Proof Step"
+            },
+            {
+                "category": "HOL Light",
+                "command": "hol-light.search",
+                "title": "Search Theorems"
             }
         ],
         "keybindings": [
@@ -103,6 +109,11 @@
             {
                 "key": "ctrl+c ctrl+b",
                 "command": "hol-light.repl_back_proof",
+                "when": "editorLangId == hol-light"
+            },
+            {
+                "key": "ctrl+c ctrl+s",
+                "command": "hol-light.search",
                 "when": "editorLangId == hol-light"
             }
         ],
@@ -192,6 +203,11 @@
                     "command": "hol-light.repl_send_tactic_no_newline",
                     "when": "editorLangId == hol-light",
                     "group": "navigation@4"
+                },
+                {
+                    "command": "hol-light.search",
+                    "when": "editorLangId == hol-light",
+                    "group": "navigation@5"
                 }
             ]
         }
