@@ -62,7 +62,7 @@ export function activate(context: vscode.ExtensionContext) {
 
             if (!editor.selection.isEmpty) {
                 const statement = editor.document.getText(editor.selection);
-                replTerm!.sendText(statement + ';;');
+                replTerm!.sendText(statement + ';;\n');
                 return;
             }
 
@@ -80,7 +80,7 @@ export function activate(context: vscode.ExtensionContext) {
             }
             const statement = text.slice(start >= 0 ? start + 2 : 0, 
                                          end >= 0 ? end : Infinity).trim();
-            replTerm!.sendText(statement + ';;');
+            replTerm!.sendText(statement + ';;\n\n');
             
             let nextIndex = 0;
             if (end >= 0) {
@@ -242,7 +242,7 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.window.showErrorMessage('No HOL Light REPL');
                 return;
             }
-            replTerm!.sendText('r();;');
+            replTerm!.sendText('r(1);;');
         })
     );
 
@@ -254,7 +254,22 @@ export function activate(context: vscode.ExtensionContext) {
             if (!result) {
                 return;
             }
-            replTerm!.sendText(`search(\`${result}\`);;`);
+            const terms = result.split(',').map(s => {
+                s = s.trim();
+                if (s.startsWith('"') && s.endsWith('"')) {
+                    s = `name ${s}`;
+                }
+                else {
+                    if (!s.startsWith('`')) {
+                        s = '`' + s;
+                    }
+                    if (!s.endsWith('`')) {
+                        s = s + '`';
+                    }
+                }
+                return s;
+            });
+            replTerm!.sendText(`search([${terms.join('; ')}]);;`);
         })
     );
 }
