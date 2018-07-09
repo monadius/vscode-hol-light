@@ -63,12 +63,10 @@ export function activate(context: vscode.ExtensionContext) {
             const pos = editor.document.offsetAt(editor.selection.active);
             let start = text.lastIndexOf(';;', pos - 1);
             let end: number;
-            if (start < 0) {
-                start = 0;
-            }
-            if (text.slice(start, pos + 1).trim().endsWith(';;')) {
-                end = start;
-                start = text.lastIndexOf(';;', start - 1);
+            const start0 = start >= 0 ? start : 0;
+            if (text.slice(start0, pos + 1).trim().endsWith(';;')) {
+                end = start0;
+                start = text.lastIndexOf(';;', start0 - 1);
             }
             else {
                 end = text.indexOf(';;', pos);
@@ -124,22 +122,64 @@ export function activate(context: vscode.ExtensionContext) {
 
     const tacticRe = /^\s*(?:THEN\b|THENL\b(\s*\[)?)|\b(?:THEN|THENL(\s*\[)?)\s*$/g;
 
-    function selectTactic(): string {
+    function selectTacticOneLine(): string {
         const editor = vscode.window.activeTextEditor;
         if (!editor || !editor.selection) {
             return '';
         }
-        const line = editor.document.lineAt(editor.selection.active.line).text;
-        return line.replace(tacticRe, '').trim();
+        const lineText = editor.document.lineAt(editor.selection.active.line).text;
+        return lineText.replace(tacticRe, '').trim();
     }
+
+    function selectTactic(): {tactic: string, lines: number} | null {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor || !editor.selection) {
+            return null;
+        }
+        const lines = [];
+        const firstLine = editor.selection.active.line;
+        for (let line = firstLine; line < editor.document.lineCount; line++) {
+            const lineText = editor.document.lineAt(line).text;
+            if (line > firstLine && /^\s*(THEN\b|THENL\b(\s*\[)?)/.test(lineText)) {
+                break;
+            }
+            lines.push(lineText);
+            if (/\b(THEN|THENL(\s*\[)?)\s*$/.test(lineText)) {
+                break;
+            }
+        }
+        if (!lines.length) {
+            return null;
+        }
+        return {tactic: lines.join('\n').replace(tacticRe, '').trim(), lines: lines.length};
+    }
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('hol-light.repl_send_tactic_multline', async () => {
+            await checkREPL();
+            replTerm!.show(true);
+            const result = selectTactic();
+            if (result) {
+                replTerm!.sendText(`e(${result.tactic});;`);
+                const editor = vscode.window.activeTextEditor;
+                if (editor) {
+                    const pos = editor.selection.active;
+                    const newPos =  editor.document.validatePosition(
+                        new vscode.Position(pos.line + result.lines, pos.character));
+                    editor.selection = new vscode.Selection(newPos, newPos);
+                    editor.revealRange(editor.selection);
+                }
+            }
+        })
+    );
 
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.repl_send_tactic', async () => {
             await checkREPL();
             replTerm!.show(true);
-            const tactic = selectTactic();
-            if (tactic) {
-                replTerm!.sendText(`e(${tactic});;`);
+            const result = selectTacticOneLine();
+            if (result) {
+                replTerm!.sendText(`e(${result});;`);
                 const editor = vscode.window.activeTextEditor;
                 if (editor) {
                     const pos = editor.selection.active;
@@ -156,9 +196,9 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('hol-light.repl_send_tactic_no_newline', async () => {
             await checkREPL();
             replTerm!.show(true);
-            const tactic = selectTactic();
-            if (tactic) {
-                replTerm!.sendText(`e(${tactic});;`);
+            const result = selectTacticOneLine();
+            if (result) {
+                replTerm!.sendText(`e(${result});;`);
             }
         })
     );

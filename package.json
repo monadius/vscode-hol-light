@@ -61,6 +61,11 @@
             },
             {
                 "category": "HOL Light",
+                "command": "hol-light.repl_send_tactic_multline",
+                "title": "Execute Current Tactic (Multiple Lines)"
+            },
+            {
+                "category": "HOL Light",
                 "command": "hol-light.repl_print_goal",
                 "title": "Print Current Goal"
             },
@@ -99,6 +104,11 @@
             {
                 "key": "ctrl+c l",
                 "command": "hol-light.repl_send_tactic_no_newline",
+                "when": "editorTextFocus && editorLangId == hol-light"
+            },
+            {
+                "key": "ctrl+c ctrl+m",
+                "command": "hol-light.repl_send_tactic_multline",
                 "when": "editorTextFocus && editorLangId == hol-light"
             },
             {
@@ -177,6 +187,10 @@
                 },
                 {
                     "command": "hol-light.repl_send_tactic_no_newline",
+                    "when": "editorLangId == hol-light"
+                },
+                {
+                    "command": "hol-light.repl_send_tactic_multline",
                     "when": "editorLangId == hol-light"
                 },
                 {
