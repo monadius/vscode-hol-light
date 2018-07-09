@@ -56,9 +56,16 @@ export function activate(context: vscode.ExtensionContext) {
             await checkREPL();
             replTerm!.show(true);
             const editor = vscode.window.activeTextEditor;
-            if (!editor || !editor.selection) {
+            if (!editor) {
                 return;
             }
+
+            if (!editor.selection.isEmpty) {
+                const statement = editor.document.getText(editor.selection);
+                replTerm!.sendText(statement + ';;');
+                return;
+            }
+
             const text = editor.document.getText();
             const pos = editor.document.offsetAt(editor.selection.active);
             let start = text.lastIndexOf(';;', pos - 1);
@@ -124,11 +131,17 @@ export function activate(context: vscode.ExtensionContext) {
 
     function selectTacticOneLine(): string {
         const editor = vscode.window.activeTextEditor;
-        if (!editor || !editor.selection) {
+        if (!editor) {
             return '';
         }
-        const lineText = editor.document.lineAt(editor.selection.active.line).text;
-        return lineText.replace(tacticRe, '').trim();
+        let tacticText: string;
+        if (!editor.selection.isEmpty) {
+            tacticText = editor.document.getText(editor.selection);
+        }
+        else {
+            tacticText = editor.document.lineAt(editor.selection.active.line).text;
+        }
+        return tacticText.replace(tacticRe, '').trim();
     }
 
     function selectTactic(): {tactic: string, lines: number} | null {
