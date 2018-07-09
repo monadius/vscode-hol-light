@@ -146,9 +146,14 @@
             "type": "object",
             "title": "HOL Light configuration",
             "properties": {
-                "support.function.hol-light": {
-                    "type": "string",
-                    "default": "rgba(255, 0, 0, 1.00)"
+                "hol-light.exePaths": {
+                    "type": "array",
+                    "default": [
+                        "ocaml", 
+                        "/Users/monad/Work/projects/hol/hol_light",
+                        "/Users/monad/Work/projects/hol/hol_remote"
+                    ],
+                    "description": "Paths to HOL Light startup scripts"
                 }
             }
         },

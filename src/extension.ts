@@ -17,7 +17,17 @@ export function activate(context: vscode.ExtensionContext) {
 
     async function checkREPL() {
         if (!replTerm) {
-            const path = configuration.get<string>('hol-light-path', 'ocaml');
+            let paths = configuration.get<string[]>('exePaths', ['ocaml']);
+            if (!paths.length) {
+                paths = ['ocaml'];
+            }
+            let path = paths[0];
+            if (paths.length > 1) {
+                const result = await vscode.window.showQuickPick(paths, {canPickMany: false});
+                if (result) {
+                    path = result;
+                }
+            }
             replTerm = vscode.window.createTerminal('HOL Light', path);
         }
     }
