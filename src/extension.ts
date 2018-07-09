@@ -73,9 +73,21 @@ export function activate(context: vscode.ExtensionContext) {
             else {
                 end = text.indexOf(';;', pos);
             }
-            const statement = text.slice(start >= 0 ? start + 2 : 0, end >= 0 ? end : Infinity).trim();
-            console.log(statement);
+            const statement = text.slice(start >= 0 ? start + 2 : 0, 
+                                         end >= 0 ? end : Infinity).trim();
             replTerm!.sendText(statement + ';;');
+            
+            let nextIndex = 0;
+            if (end >= 0) {
+                const re = /\S/m;
+                nextIndex = text.slice(end + 2).search(re);
+                if (nextIndex < 0) {
+                    nextIndex = 0;
+                }
+            }
+            let newPos = editor.document.positionAt(end + 2 + nextIndex);
+            editor.selection = new vscode.Selection(newPos, newPos);
+            editor.revealRange(editor.selection);
         })
     );
 
@@ -128,6 +140,14 @@ export function activate(context: vscode.ExtensionContext) {
             const tactic = selectTactic();
             if (tactic) {
                 replTerm!.sendText(`e(${tactic});;`);
+                const editor = vscode.window.activeTextEditor;
+                if (editor) {
+                    const pos = editor.selection.active;
+                    const newPos =  editor.document.validatePosition(
+                        new vscode.Position(pos.line + 1, pos.character));
+                    editor.selection = new vscode.Selection(newPos, newPos);
+                    editor.revealRange(editor.selection);
+                }
             }
         })
     );
