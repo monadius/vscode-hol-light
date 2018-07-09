@@ -22,15 +22,89 @@
     "homepage": "https://github.com/monadius/vscode-hol-light/blob/master/README.md",
     "icon": "images/hol-light-logo.png",
     "activationEvents": [
-        "onCommand:extension.sayHello",
+        "onCommand:hol-light.repl",
+        "onCommand:hol-light.repl_send_statement",
         "onLanguage:hol-light"
     ],
     "main": "./out/extension",
     "contributes": {
         "commands": [
             {
-                "command": "extension.sayHello",
-                "title": "Hello World"
+                "category": "HOL Light",
+                "command": "hol-light.repl",
+                "title": "New HOL Light REPL Session"
+            },
+            {
+                "category": "HOL Light",
+                "command": "hol-light.repl_send_statement",
+                "title": "Send Current Statement to REPL"
+            },
+            {
+                "category": "HOL Light",
+                "command": "hol-light.repl_send_break",
+                "title": "Send ^C to REPL"
+            },
+            {
+                "category": "HOL Light",
+                "command": "hol-light.repl_send_goal",
+                "title": "Set Current Term as Goal"
+            },
+            {
+                "category": "HOL Light",
+                "command": "hol-light.repl_send_tactic",
+                "title": "Execute Current Tactic"
+            },
+            {
+                "category": "HOL Light",
+                "command": "hol-light.repl_send_tactic_no_newline",
+                "title": "Execute Current Tactic and do not Move to the Next Line"
+            },
+            {
+                "category": "HOL Light",
+                "command": "hol-light.repl_print_goal",
+                "title": "Print Current Goal"
+            },
+            {
+                "category": "HOL Light",
+                "command": "hol-light.repl_back_proof",
+                "title": "Revert One Proof Step"
+            }
+        ],
+        "keybindings": [
+            {
+                "key": "ctrl+c ctrl+e",
+                "command": "hol-light.repl_send_statement",
+                "when": "editorTextFocus && editorLangId == hol-light"
+            },
+            {
+                "key": "ctrl+c ctrl+c",
+                "command": "hol-light.repl_send_break",
+                "when": "editorLangId == hol-light"
+            },
+            {
+                "key": "ctrl+c ctrl+g",
+                "command": "hol-light.repl_send_goal",
+                "when": "editorTextFocus && editorLangId == hol-light"
+            },
+            {
+                "key": "ctrl+c ctrl+l",
+                "command": "hol-light.repl_send_tactic",
+                "when": "editorTextFocus && editorLangId == hol-light"
+            },
+            {
+                "key": "ctrl+c l",
+                "command": "hol-light.repl_send_tactic_no_newline",
+                "when": "editorTextFocus && editorLangId == hol-light"
+            },
+            {
+                "key": "ctrl+c ctrl+p",
+                "command": "hol-light.repl_print_goal",
+                "when": "editorLangId == hol-light"
+            },
+            {
+                "key": "ctrl+c ctrl+b",
+                "command": "hol-light.repl_back_proof",
+                "when": "editorLangId == hol-light"
             }
         ],
         "languages": [
