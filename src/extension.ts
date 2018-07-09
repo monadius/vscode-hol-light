@@ -15,7 +15,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     let replTerm: vscode.Terminal | null;
 
-    async function checkREPL() {
+    async function checkREPL(): Promise<vscode.Terminal> {
         if (!replTerm) {
             let paths = configuration.get<string[]>('exePaths', ['ocaml']);
             if (!paths.length) {
@@ -30,6 +30,7 @@ export function activate(context: vscode.ExtensionContext) {
             }
             replTerm = vscode.window.createTerminal('HOL Light', path);
         }
+        return replTerm;
     }
 
     context.subscriptions.push(
@@ -46,15 +47,15 @@ export function activate(context: vscode.ExtensionContext) {
                 replTerm.dispose();
                 replTerm = null;
             }
-            await checkREPL();
-            replTerm!.show(true);
+            const repl = await checkREPL();
+            repl.show(true);
         })
     );
 
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.repl_send_statement', async () => {
-            await checkREPL();
-            replTerm!.show(true);
+            const repl = await checkREPL();
+            repl.show(true);
             const editor = vscode.window.activeTextEditor;
             if (!editor) {
                 return;
@@ -62,7 +63,7 @@ export function activate(context: vscode.ExtensionContext) {
 
             if (!editor.selection.isEmpty) {
                 const statement = editor.document.getText(editor.selection);
-                replTerm!.sendText(statement + ';;\n');
+                repl.sendText(statement + ';;\n');
                 return;
             }
 
@@ -80,7 +81,7 @@ export function activate(context: vscode.ExtensionContext) {
             }
             const statement = text.slice(start >= 0 ? start + 2 : 0, 
                                          end >= 0 ? end : Infinity).trim();
-            replTerm!.sendText(statement + ';;\n\n');
+            repl.sendText(statement + ';;\n');
             
             let nextIndex = 0;
             if (end >= 0) {
@@ -102,14 +103,14 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.window.showErrorMessage('No HOL Light REPL');
                 return;
             }
-            replTerm!.sendText(String.fromCharCode(3));
+            replTerm.sendText(String.fromCharCode(3));
         })
     );
 
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.repl_send_goal', async () => {
-            await checkREPL();
-            replTerm!.show(true);
+            const repl = await checkREPL();
+            repl.show(true);
             const editor = vscode.window.activeTextEditor;
             if (!editor || !editor.selection) {
                 return;
@@ -123,7 +124,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             const term = text.slice(start, end + 1);
-            replTerm!.sendText(`g(${term});;`);
+            repl.sendText(`g(${term});;`);
         })
     );
 
@@ -169,11 +170,11 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.repl_send_tactic_multline', async () => {
-            await checkREPL();
-            replTerm!.show(true);
+            const repl = await checkREPL();
+            repl.show(true);
             const result = selectTactic();
             if (result) {
-                replTerm!.sendText(`e(${result.tactic});;`);
+                repl.sendText(`e(${result.tactic});;`);
                 const editor = vscode.window.activeTextEditor;
                 if (editor) {
                     const pos = editor.selection.active;
@@ -188,11 +189,11 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.repl_send_tactic', async () => {
-            await checkREPL();
-            replTerm!.show(true);
+            const repl = await checkREPL();
+            repl.show(true);
             const result = selectTacticOneLine();
             if (result) {
-                replTerm!.sendText(`e(${result});;`);
+                repl.sendText(`e(${result});;`);
                 const editor = vscode.window.activeTextEditor;
                 if (editor) {
                     const pos = editor.selection.active;
@@ -207,11 +208,11 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.repl_send_tactic_no_newline', async () => {
-            await checkREPL();
-            replTerm!.show(true);
+            const repl = await checkREPL();
+            repl.show(true);
             const result = selectTacticOneLine();
             if (result) {
-                replTerm!.sendText(`e(${result});;`);
+                repl.sendText(`e(${result});;`);
             }
         })
     );
@@ -222,7 +223,7 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.window.showErrorMessage('No HOL Light REPL');
                 return;
             }
-            replTerm!.sendText('b();;');
+            replTerm.sendText('b();;');
         })
     );
 
@@ -232,7 +233,7 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.window.showErrorMessage('No HOL Light REPL');
                 return;
             }
-            replTerm!.sendText('p();;');
+            replTerm.sendText('p();;');
         })
     );
 
@@ -242,14 +243,14 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.window.showErrorMessage('No HOL Light REPL');
                 return;
             }
-            replTerm!.sendText('r(1);;');
+            replTerm.sendText('r(1);;');
         })
     );
 
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.search', async () => {
-            await checkREPL();
-            replTerm!.show(true);
+            const repl = await checkREPL();
+            repl.show(true);
             const result = await vscode.window.showInputBox();
             if (!result) {
                 return;
@@ -269,7 +270,7 @@ export function activate(context: vscode.ExtensionContext) {
                 }
                 return s;
             });
-            replTerm!.sendText(`search([${terms.join('; ')}]);;`);
+            repl.sendText(`search([${terms.join('; ')}]);;`);
         })
     );
 }
