@@ -23,7 +23,6 @@
     "icon": "images/hol-light-logo.png",
     "activationEvents": [
         "onCommand:hol-light.repl",
-        "onCommand:hol-light.repl_send_statement",
         "onLanguage:hol-light"
     ],
     "main": "./out/extension",
@@ -47,7 +46,7 @@
             {
                 "category": "HOL Light",
                 "command": "hol-light.repl_send_goal",
-                "title": "Set Current Term as Goal"
+                "title": "Set Current Term as a Goal"
             },
             {
                 "category": "HOL Light",
@@ -57,7 +56,7 @@
             {
                 "category": "HOL Light",
                 "command": "hol-light.repl_send_tactic_no_newline",
-                "title": "Execute Current Tactic and do not Move to the Next Line"
+                "title": "Execute Current Tactic and do not Move the Cursor"
             },
             {
                 "category": "HOL Light",
@@ -141,6 +140,60 @@
                     "default": "rgba(255, 0, 0, 1.00)"
                 }
             }
+        },
+        "menus": {
+            "commandPalette": [
+                {
+                    "command": "hol-light.repl_send_statement",
+                    "when": "editorLangId == hol-light"
+                },
+                {
+                    "command": "hol-light.repl_send_break",
+                    "when": "editorLangId == hol-light"
+                },
+                {
+                    "command": "hol-light.repl_send_goal",
+                    "when": "editorLangId == hol-light"
+                },
+                {
+                    "command": "hol-light.repl_send_tactic",
+                    "when": "editorLangId == hol-light"
+                },
+                {
+                    "command": "hol-light.repl_send_tactic_no_newline",
+                    "when": "editorLangId == hol-light"
+                },
+                {
+                    "command": "hol-light.repl_print_goal",
+                    "when": "editorLangId == hol-light"
+                },
+                {
+                    "command": "hol-light.repl_back_proof",
+                    "when": "editorLangId == hol-light"
+                }
+            ],
+            "editor/context": [
+                {
+                    "command": "hol-light.repl",
+                    "when": "editorLangId == hol-light",
+                    "group": "navigation@1"
+                },
+                {
+                    "command": "hol-light.repl_send_statement",
+                    "when": "editorLangId == hol-light",
+                    "group": "navigation@2"
+                },
+                {
+                    "command": "hol-light.repl_send_goal",
+                    "when": "editorLangId == hol-light",
+                    "group": "navigation@3"
+                },
+                {
+                    "command": "hol-light.repl_send_tactic_no_newline",
+                    "when": "editorLangId == hol-light",
+                    "group": "navigation@4"
+                }
+            ]
         }
     },
     "scripts": {
