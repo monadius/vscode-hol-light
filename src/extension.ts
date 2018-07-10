@@ -137,8 +137,6 @@ export function activate(context: vscode.ExtensionContext) {
             return '';
         }
 
-        tactic.selectTactic(editor);
-
         let tacticText: string;
         if (!editor.selection.isEmpty) {
             tacticText = editor.document.getText(editor.selection);
@@ -176,17 +174,22 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('hol-light.repl_send_tactic_multline', async () => {
             const repl = await checkREPL();
             repl.show(true);
-            const result = selectTactic();
-            if (result) {
-                repl.sendText(`e(${result.tactic});;`);
-                const editor = vscode.window.activeTextEditor;
-                if (editor) {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                return;
+            }
+            const maxLines = configuration.get<number>("tacticMaxLines", 5);
+            const range = tactic.selectTactic(editor, maxLines);
+            if (range) {
+                repl.sendText(`e(${editor.document.getText(range)});;`);
+/*                if (editor) {
                     const pos = editor.selection.active;
                     const newPos =  editor.document.validatePosition(
                         new vscode.Position(pos.line + result.lines, pos.character));
                     editor.selection = new vscode.Selection(newPos, newPos);
                     editor.revealRange(editor.selection);
                 }
+*/
             }
         })
     );
@@ -200,9 +203,6 @@ export function activate(context: vscode.ExtensionContext) {
                 repl.sendText(`e(${result});;`);
                 const editor = vscode.window.activeTextEditor;
                 if (editor) {
-
-                    tactic.selectTactic(editor);
-
                     const pos = editor.selection.active;
                     const newPos =  editor.document.validatePosition(
                         new vscode.Position(pos.line + 1, pos.character));
@@ -217,9 +217,12 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('hol-light.repl_send_tactic_no_newline', async () => {
             const repl = await checkREPL();
             repl.show(true);
-            const result = selectTacticOneLine();
-            if (result) {
-                repl.sendText(`e(${result});;`);
+            const editor = vscode.window.activeTextEditor;
+            if (editor) {
+                const range = tactic.selectTactic(editor, 1);
+                if (range) {
+                    repl.sendText(`e(${editor.document.getText(range)});;\n`);
+                }
             }
         })
     );

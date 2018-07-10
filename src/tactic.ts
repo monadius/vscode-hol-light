@@ -10,26 +10,33 @@ enum TokenType {
     Separator,
     Terminator,
     Then,
+    EOL,
     EOF
 }
 
-class Token {
-    public type: TokenType;
-    public offset: number;
-    public value: string;
+class Token extends vscode.Range {
+    public readonly type: TokenType;
+    public readonly value: string;
 
-    public constructor(value: string, offset: number, type?: TokenType) {
+    public constructor(type: TokenType, value: string,
+                       startLine: number, startChar: number, 
+                       endLine: number, endChar: number) {
+        super(startLine, startChar, endLine, endChar);
+        this.type = type;
         this.value = value;
-        this.offset = offset;
-        this.type = type || TokenType.Other;
     }
 }
 
 class Tokenizer {
-    private text: string;
+    private eofFlag: boolean = false;
+    private lineNumber: number;
+    private currentLine: string = '';
+    private lineProvider: (line: number) => string | null;
     private cachedTokens: Token[];
-    private re = /\(\*|[()\[\]"`]|;+|\b(THEN|THENL)\b/g;
-    private static TokenTypes: {[key: string]: TokenType} = {
+    private readonly re = /\(\*|[()\[\]"`]|;+|\b(THEN|THENL)\b/g;
+
+    private static readonly eofToken = new Token(TokenType.EOF, '', 0, 0, 0, 0);
+    private static readonly TokenTypes: {[key: string]: TokenType} = {
         'THEN': TokenType.Then,
         'THENL': TokenType.Then,
         '(': TokenType.Bracket,
@@ -38,91 +45,117 @@ class Tokenizer {
         ']': TokenType.Bracket
     };
 
-    public constructor(text: string) {
-        this.text = text;
-        this.re.lastIndex = 0;
+    public constructor(lineProvider: (line: number) => string | null) {
         this.cachedTokens = [];
+        this.lineProvider = lineProvider;
+        this.lineNumber = -1;
+        this.nextLine();
     }
 
-    private findCommentEnd(start: number): number {
+    private nextLine() {
+        const line = this.lineProvider(this.lineNumber + 1);
+        if (line) {
+            this.currentLine = line;
+            this.lineNumber += 1;
+            this.re.lastIndex = 0;
+        }
+        else {
+            this.eofFlag = true;
+        }
+    }
+
+    private parseCommentToken(startChar: number): Token {
         const re = /\(\*|\*\)/g;
+        const startLine = this.lineNumber;
+        let endChar = -1;
         let level = 1;
-        re.lastIndex = start;
-        while (true) {
-            const m = re.exec(this.text);
+        re.lastIndex = startChar + 1;
+        while (!this.eofFlag) {
+            const m = re.exec(this.currentLine);
             if (!m) {
-                return -1;
+                this.nextLine();
             }
-            level += m[0] === '(*' ? 1 : -1;
-            if (level <= 0) {
-                return m.index + 2;
+            else {
+                level += m[0] === '(*' ? 1 : -1;
+                if (level <= 0) {
+                    endChar = m.index + 2;
+                    break;
+                }
             }
         }
+        if (endChar < 0) {
+            endChar = this.currentLine.length;
+        }
+        return new Token(TokenType.Comment, '', startLine, startChar, this.lineNumber, endChar);
     }
 
-    private findStringEnd(start: number): number {
-        const re = /\\.|"/g;
-        re.lastIndex = start;
-        while (true) {
-            const m = re.exec(this.text);
+    private parseStringToken(startChar: number, quote: string): Token {
+        const re = quote === '"' ? /\\.|"/g : new RegExp(quote, 'g');
+        const startLine = this.lineNumber;
+        let endChar = -1;
+        re.lastIndex = startChar + 1;
+        while (!this.eofFlag) {
+            const m = re.exec(this.currentLine);
             if (!m) {
-                return -1;
+                this.nextLine();
             }
-            const val = m[0];
-            if (val === '"') {
-                return m.index + 1;
+            else {
+                if (m[0] === quote) {
+                    endChar = m.index + 1;
+                    break;
+                }
             }
         }
+        if (endChar < 0) {
+            endChar = this.currentLine.length;
+        }
+        return new Token(TokenType.String, '', startLine, startChar, this.lineNumber, endChar);
+    }
+
+    private cacheToken(type: TokenType, start: number, end: number, value?: string) {
+        const line = this.lineNumber;
+        const token = new Token(type, value || this.currentLine.slice(start, end), line, start, line, end);
+        this.cachedTokens.push(token);
     }
 
     private parseNext() {
-        let start = this.re.lastIndex;
-        if (start >= this.text.length) {
+        if (this.eofFlag) {
             return;
         }
-        const match = this.re.exec(this.text);
+        let start = this.re.lastIndex;
+        if (start >= this.currentLine.length) {
+            this.cacheToken(TokenType.EOL, start, start);
+            this.nextLine();
+            return;
+        }
+        const match = this.re.exec(this.currentLine);
         if (!match) {
-            this.re.lastIndex = this.text.length;
-            this.cachedTokens.push(new Token(this.text.slice(start), start));
+            this.re.lastIndex = this.currentLine.length;
+            this.cacheToken(TokenType.Other, start, this.currentLine.length);
             return;
         }
         if (match.index > start) {
-            this.cachedTokens.push(new Token(this.text.slice(start, match.index), start));
+            this.cacheToken(TokenType.Other, start, match.index);
         }
         const val = match[0];
         start = match.index;
         if (val === '(*') {
-            let end = this.findCommentEnd(this.re.lastIndex);
-            if (end < 0) {
-                // Incomplete comment
-                end = this.text.length;
-            }
-            this.re.lastIndex = end;
-            this.cachedTokens.push(new Token(this.text.slice(start, end), start, TokenType.Comment));
+            const token = this.parseCommentToken(start);
+            this.cachedTokens.push(token);
+            this.re.lastIndex = token.end.character;
         }
         else if (val === '"' || val === '`') {
-            let end = val === '"' ? this.findStringEnd(this.re.lastIndex) :
-                                    this.text.indexOf(val, this.re.lastIndex);
-            if (end < 0) {
-                // Incomplete string
-                end = this.text.length;
-            }
-            else {
-                end += val === '`' ? 1 : 0;
-            }
-            this.re.lastIndex = end;
-            this.cachedTokens.push(new Token(this.text.slice(start, end), start, TokenType.String));
+            const token = this.parseStringToken(start, val);
+            this.cachedTokens.push(token);
+            this.re.lastIndex = token.end.character;
         }
         else if (val[0] === ';') {
-            this.cachedTokens.push(new Token(val, start, val.length > 1 ? TokenType.Terminator : TokenType.Separator));
+            this.cacheToken(val.length > 1 ? TokenType.Terminator : TokenType.Separator, 
+                start, start + val.length, val);
         }
         else {
-            this.cachedTokens.push(new Token(val, start, Tokenizer.TokenTypes[val]));
+            this.cacheToken(Tokenizer.TokenTypes[val], start, start + val.length, val);
         }
-    }
-
-    private eofToken(): Token {
-        return new Token('', this.text.length, TokenType.EOF);
     }
 
     public next(): Token {
@@ -130,14 +163,14 @@ class Tokenizer {
             this.parseNext();
         }
         const tok = this.cachedTokens.shift();
-        return tok ? tok : this.eofToken();
+        return tok ? tok : Tokenizer.eofToken;
     }
 
     public peek(): Token {
         if (!this.cachedTokens.length) {
             this.parseNext();
         }
-        return this.cachedTokens[0] || this.eofToken();
+        return this.cachedTokens[0] || Tokenizer.eofToken;
     }
 }
 
@@ -151,9 +184,14 @@ function oppositeBracket(bracket: string): string {
     return '';
 }
 
-export function selectTactic(editor: vscode.TextEditor) {
-    const text = editor.document.lineAt(editor.selection.active.line).text;
-    const toks = new Tokenizer(text);
+export function selectTactic(editor: vscode.TextEditor, maxLines: number): vscode.Range | null {
+    const firstLine = editor.selection.active.line;
+    const toks = new Tokenizer(n => {
+        if (n < 0 || n >= maxLines || n + firstLine >= editor.document.lineCount) {
+            return null;
+        }
+        return editor.document.lineAt(n + firstLine).text;
+    });
 
     const bracketStack: string[] = [];
     const tokens: Token[] = [];
@@ -167,7 +205,12 @@ export function selectTactic(editor: vscode.TextEditor) {
                 break loop;
             case TokenType.Comment:
                 continue;
+            case TokenType.EOL:
+                continue;
             case TokenType.Bracket:
+                if (tok.value === '[' && tokens.length === 0) {
+                    continue;
+                }
                 if (bracketStack[bracketStack.length - 1] === tok.value) {
                     bracketStack.pop();
                 }
@@ -196,21 +239,37 @@ export function selectTactic(editor: vscode.TextEditor) {
         tokens.push(tok);
     }
 
-    // Remove THEN[L] from the end
+    // Remove THEN[L] and brackets from the end
     while (tokens.length > 0) {
-        if (tokens[tokens.length - 1].type === TokenType.Then) {
+        const last = tokens[tokens.length - 1];
+        if (last.type === TokenType.Then) {
             tokens.pop();
         }
-        break;
+        else if (last.type === TokenType.Bracket && 
+                 (last.value === '(' || last.value === '[')) {
+            tokens.pop();
+        }
+        else {
+            break;
+        }
     }
 
 //    console.log(tokens);
 
-    if (tokens.length > 0) {
-        const line = editor.selection.active.line;
-        const last = tokens[tokens.length - 1];
-        const start = tokens[0].offset;
-        const end = last.offset + last.value.length;
-        editor.selection = new vscode.Selection(line, start, line, end);
+    if (tokens.length === 0) {
+        return null;
     }
+
+    let offset = tokens[0].value.search(/\S/);
+    const startLine = tokens[0].start.line + firstLine;
+    const startChar = tokens[0].start.character + Math.max(offset, 0);
+
+    const last = tokens[tokens.length - 1];
+    offset = [...last.value].reverse().join('').search(/\S/);
+    const endLine = last.end.line + firstLine;
+    const endChar = last.end.character - Math.max(offset, 0);
+
+    editor.selection = new vscode.Selection(startLine, startChar, endLine, endChar);
+
+    return editor.selection;
 }
