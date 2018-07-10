@@ -2,6 +2,7 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
+import * as tactic from './tactic';
 
 const configuration = vscode.workspace.getConfiguration('hol-light');
 
@@ -135,6 +136,9 @@ export function activate(context: vscode.ExtensionContext) {
         if (!editor) {
             return '';
         }
+
+        tactic.selectTactic(editor);
+
         let tacticText: string;
         if (!editor.selection.isEmpty) {
             tacticText = editor.document.getText(editor.selection);
@@ -196,6 +200,9 @@ export function activate(context: vscode.ExtensionContext) {
                 repl.sendText(`e(${result});;`);
                 const editor = vscode.window.activeTextEditor;
                 if (editor) {
+
+                    tactic.selectTactic(editor);
+
                     const pos = editor.selection.active;
                     const newPos =  editor.document.validatePosition(
                         new vscode.Position(pos.line + 1, pos.character));
