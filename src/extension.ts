@@ -43,6 +43,15 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
+        vscode.languages.setLanguageConfiguration('hol-light', {
+            indentationRules: {
+                increaseIndentPattern: /^\s*(type|let)\s[^=]*=\s*(prove)?\s*$|\b(do|begin|struct|sig)\s*$/,
+                decreaseIndentPattern: /\b(done|end)\s*$/,
+            },
+        })
+    );
+
+    context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.repl', async () => {
             if (replTerm) {
                 replTerm.dispose();

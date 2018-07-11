@@ -114,7 +114,7 @@
             "name": "keyword.other.ocaml"
         },
         {
-            "match": "\\b(if|then|else|while|match|with)\\b",
+            "match": "\\b(if|then|else|while|match|with|for|done)\\b",
             "name": "keyword.control.ocaml"
         },
 
