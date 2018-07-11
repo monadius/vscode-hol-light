@@ -54,7 +54,7 @@ class Tokenizer {
 
     private nextLine() {
         const line = this.lineProvider(this.lineNumber + 1);
-        if (line) {
+        if (line !== null) {
             this.currentLine = line;
             this.lineNumber += 1;
             this.re.lastIndex = 0;
@@ -184,7 +184,7 @@ function oppositeBracket(bracket: string): string {
     return '';
 }
 
-export function selectTactic(editor: vscode.TextEditor, maxLines: number): vscode.Range | null {
+export function selectTactic(editor: vscode.TextEditor, maxLines: number): {range: vscode.Range, newline: boolean} | null {
     const firstLine = editor.selection.active.line;
     const toks = new Tokenizer(n => {
         if (n < 0 || n >= maxLines || n + firstLine >= editor.document.lineCount) {
@@ -195,18 +195,58 @@ export function selectTactic(editor: vscode.TextEditor, maxLines: number): vscod
 
     const bracketStack: string[] = [];
     const tokens: Token[] = [];
+    let newline = true;
+
+    function checkNewline(): boolean {
+        while (true) {
+            const tok = toks.next();
+            switch (tok.type) {
+                case TokenType.EOF:
+                case TokenType.EOL:
+                    return true;
+                case TokenType.Other:
+                    if (!/^\s+$/.test(tok.value)) {
+                        return false;
+                    }
+                    break;
+                case TokenType.String:
+                    return false;
+            }
+        }
+    }
 
     loop:
     while (true) {
         const tok = toks.next();
         switch (tok.type) {
             case TokenType.EOF:
+                break loop;
             case TokenType.Terminator:
+                newline = checkNewline();
                 break loop;
             case TokenType.Comment:
                 continue;
             case TokenType.EOL:
-                continue;
+                if (tokens.length === 0) {
+                    continue;
+                }
+                let level = bracketStack.length;
+                for (let i = tokens.length - 1; i >= 0; i--) {
+                    if (tokens[i].type === TokenType.Then) {
+                        if (level <= 0) {
+                            break loop;
+                        }
+                        else {
+                            break;
+                        }
+                    }
+                    if (tokens[i].type === TokenType.Bracket) {
+                        level -= (tokens[i].value === '(' || tokens[i].value === '[') ? 1 : -1;
+                        continue;
+                    }
+                    break;
+                }
+                break;
             case TokenType.Bracket:
                 if (tok.value === '[' && tokens.length === 0) {
                     continue;
@@ -219,11 +259,13 @@ export function selectTactic(editor: vscode.TextEditor, maxLines: number): vscod
                 }
                 else {
                     // Unmatched bracket
+                    newline = checkNewline();
                     break loop;
                 }
                 break;
             case TokenType.Separator:
                 if (bracketStack.length === 0) {
+                    newline = checkNewline();
                     break loop;
                 }
                 break;
@@ -231,10 +273,15 @@ export function selectTactic(editor: vscode.TextEditor, maxLines: number): vscod
                 if (tokens.length === 0) {
                     continue;
                 }
+                if (bracketStack.length === 0 && tokens[tokens.length - 1].type === TokenType.EOL) {
+                    break loop;
+                }
                 break;
-        }
-        if (/^\s+$/.test(tok.value)) {
-            continue;
+            case TokenType.Other:
+                if (/^\s+$/.test(tok.value)) {
+                    continue;
+                }
+                break;
         }
         tokens.push(tok);
     }
@@ -242,7 +289,7 @@ export function selectTactic(editor: vscode.TextEditor, maxLines: number): vscod
     // Remove THEN[L] and brackets from the end
     while (tokens.length > 0) {
         const last = tokens[tokens.length - 1];
-        if (last.type === TokenType.Then) {
+        if (last.type === TokenType.Then || last.type === TokenType.EOL) {
             tokens.pop();
         }
         else if (last.type === TokenType.Bracket && 
@@ -269,7 +316,9 @@ export function selectTactic(editor: vscode.TextEditor, maxLines: number): vscod
     const endLine = last.end.line + firstLine;
     const endChar = last.end.character - Math.max(offset, 0);
 
-    editor.selection = new vscode.Selection(startLine, startChar, endLine, endChar);
-
-    return editor.selection;
+//    editor.selection = new vscode.Selection(startLine, startChar, endLine, endChar);
+    return {
+        range: new vscode.Range(startLine, startChar, endLine, endChar),
+        newline: newline
+    };
 }

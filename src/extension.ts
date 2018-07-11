@@ -131,100 +131,49 @@ export function activate(context: vscode.ExtensionContext) {
 
     const tacticRe = /^\s*(?:THEN\b|THENL\b(\s*\[)?)|\b(?:THEN|THENL(\s*\[)?)\s*$/g;
 
-    function selectTacticOneLine(): string {
+    async function replSendTactic(multiline: boolean, newline: boolean) {
+        const repl = await checkREPL();
+        repl.show(true);
         const editor = vscode.window.activeTextEditor;
         if (!editor) {
-            return '';
+            return;
         }
-
-        let tacticText: string;
         if (!editor.selection.isEmpty) {
-            tacticText = editor.document.getText(editor.selection);
+            // If the selection is not empty then use it
+            let text = editor.document.getText(editor.selection);
+            text = text.replace(tacticRe, '').trim();
+            repl.sendText(`e(${text});;\n`);
+            return;
+        }
+        const maxLines = multiline ? configuration.get<number>("tacticMaxLines", 10) : 1;
+        const selection = tactic.selectTactic(editor, maxLines);
+        const pos = editor.selection.active;
+        let newPos: vscode.Position;
+        if (selection && !selection.range.isEmpty) {
+            repl.sendText(`e(${editor.document.getText(selection.range)});;\n`);
+            newPos = selection.newline ? 
+                new vscode.Position(selection.range.end.line + 1, pos.character) :
+                new vscode.Position(selection.range.end.line, selection.range.end.character + 1);
         }
         else {
-            tacticText = editor.document.lineAt(editor.selection.active.line).text;
+            newPos = new vscode.Position(pos.line + 1, pos.character);
         }
-        return tacticText.replace(tacticRe, '').trim();
-    }
-
-    function selectTactic(): {tactic: string, lines: number} | null {
-        const editor = vscode.window.activeTextEditor;
-        if (!editor || !editor.selection) {
-            return null;
+        if (newline) {
+            newPos = editor.document.validatePosition(newPos);
+            editor.selection = new vscode.Selection(newPos, newPos);
+            editor.revealRange(editor.selection);
         }
-        const lines = [];
-        const firstLine = editor.selection.active.line;
-        for (let line = firstLine; line < editor.document.lineCount; line++) {
-            const lineText = editor.document.lineAt(line).text;
-            if (line > firstLine && /^\s*(THEN\b|THENL\b(\s*\[)?)/.test(lineText)) {
-                break;
-            }
-            lines.push(lineText);
-            if (/\b(THEN|THENL(\s*\[)?)\s*$/.test(lineText)) {
-                break;
-            }
-        }
-        if (!lines.length) {
-            return null;
-        }
-        return {tactic: lines.join('\n').replace(tacticRe, '').trim(), lines: lines.length};
     }
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('hol-light.repl_send_tactic_multline', async () => {
-            const repl = await checkREPL();
-            repl.show(true);
-            const editor = vscode.window.activeTextEditor;
-            if (!editor) {
-                return;
-            }
-            const maxLines = configuration.get<number>("tacticMaxLines", 5);
-            const range = tactic.selectTactic(editor, maxLines);
-            if (range) {
-                repl.sendText(`e(${editor.document.getText(range)});;`);
-/*                if (editor) {
-                    const pos = editor.selection.active;
-                    const newPos =  editor.document.validatePosition(
-                        new vscode.Position(pos.line + result.lines, pos.character));
-                    editor.selection = new vscode.Selection(newPos, newPos);
-                    editor.revealRange(editor.selection);
-                }
-*/
-            }
-        })
-    );
-
-    context.subscriptions.push(
-        vscode.commands.registerCommand('hol-light.repl_send_tactic', async () => {
-            const repl = await checkREPL();
-            repl.show(true);
-            const result = selectTacticOneLine();
-            if (result) {
-                repl.sendText(`e(${result});;`);
-                const editor = vscode.window.activeTextEditor;
-                if (editor) {
-                    const pos = editor.selection.active;
-                    const newPos =  editor.document.validatePosition(
-                        new vscode.Position(pos.line + 1, pos.character));
-                    editor.selection = new vscode.Selection(newPos, newPos);
-                    editor.revealRange(editor.selection);
-                }
-            }
-        })
-    );
-
-    context.subscriptions.push(
-        vscode.commands.registerCommand('hol-light.repl_send_tactic_no_newline', async () => {
-            const repl = await checkREPL();
-            repl.show(true);
-            const editor = vscode.window.activeTextEditor;
-            if (editor) {
-                const range = tactic.selectTactic(editor, 1);
-                if (range) {
-                    repl.sendText(`e(${editor.document.getText(range)});;\n`);
-                }
-            }
-        })
+        vscode.commands.registerCommand('hol-light.repl_send_tactic_multline', 
+                                        replSendTactic.bind(null, true, true)),
+        vscode.commands.registerCommand('hol-light.repl_send_tactic_multline_no_newline', 
+                                        replSendTactic.bind(null, true, false)),
+        vscode.commands.registerCommand('hol-light.repl_send_tactic', 
+                                        replSendTactic.bind(null, false, true)),
+        vscode.commands.registerCommand('hol-light.repl_send_tactic_no_newline',
+                                        replSendTactic.bind(null, false, false))
     );
 
     context.subscriptions.push(
