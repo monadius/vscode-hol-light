@@ -71,6 +71,11 @@
             },
             {
                 "category": "HOL Light",
+                "command": "hol-light.select_tactic_multline",
+                "title": "Select Tactic at the Cursor Position"
+            },
+            {
+                "category": "HOL Light",
                 "command": "hol-light.repl_print_goal",
                 "title": "Print Current Goal"
             },
@@ -124,6 +129,11 @@
             {
                 "key": "ctrl+c m",
                 "command": "hol-light.repl_send_tactic_multline_no_newline",
+                "when": "editorTextFocus && editorLangId == hol-light"
+            },
+            {
+                "key": "ctrl+c ctrl+r",
+                "command": "hol-light.select_tactic_multline",
                 "when": "editorTextFocus && editorLangId == hol-light"
             },
             {
@@ -220,6 +230,10 @@
                 },
                 {
                     "command": "hol-light.repl_send_tactic_multline_no_newline",
+                    "when": "editorLangId == hol-light"
+                },
+                {
+                    "command": "hol-light.select_tactic_multline",
                     "when": "editorLangId == hol-light"
                 },
                 {

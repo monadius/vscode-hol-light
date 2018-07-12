@@ -122,7 +122,7 @@ export function activate(context: vscode.ExtensionContext) {
             const repl = await checkREPL();
             repl.show(true);
             const editor = vscode.window.activeTextEditor;
-            if (!editor || !editor.selection) {
+            if (!editor) {
                 return;
             }
             const text = editor.document.getText();
@@ -183,6 +183,20 @@ export function activate(context: vscode.ExtensionContext) {
                                         replSendTactic.bind(null, false, true)),
         vscode.commands.registerCommand('hol-light.repl_send_tactic_no_newline',
                                         replSendTactic.bind(null, false, false))
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('hol-light.select_tactic_multline', async () => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                return;
+            }
+            const maxLines = configuration.get<number>("tacticMaxLines", 10);
+            const selection = tactic.selectTactic(editor, maxLines, true);
+            if (selection && !selection.range.isEmpty) {
+                editor.selection = new vscode.Selection(selection.range.start, selection.range.end);
+            }
+        })
     );
 
     context.subscriptions.push(

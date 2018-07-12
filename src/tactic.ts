@@ -184,13 +184,29 @@ function oppositeBracket(bracket: string): string {
     return '';
 }
 
-export function selectTactic(editor: vscode.TextEditor, maxLines: number): {range: vscode.Range, newline: boolean} | null {
+export function selectTactic(editor: vscode.TextEditor, maxLines: number,
+        characterOffset: boolean = false): {range: vscode.Range, newline: boolean} | null {
     const firstLine = editor.selection.active.line;
+    let firstCharacter = 0;
+    if (characterOffset) {
+        const wordRange = editor.document.getWordRangeAtPosition(editor.selection.active);
+        if (wordRange) {
+            firstCharacter = wordRange.start.character;
+        }
+        else {
+            firstCharacter = editor.selection.active.character;
+        }
+    }
+    
     const toks = new Tokenizer(n => {
         if (n < 0 || n >= maxLines || n + firstLine >= editor.document.lineCount) {
             return null;
         }
-        return editor.document.lineAt(n + firstLine).text;
+        let text = editor.document.lineAt(n + firstLine).text;
+        if (n === 0 && firstCharacter > 0) {
+            text = text.slice(firstCharacter);
+        }
+        return text;
     });
 
     const bracketStack: string[] = [];
@@ -307,14 +323,14 @@ export function selectTactic(editor: vscode.TextEditor, maxLines: number): {rang
         return null;
     }
 
-    let offset = tokens[0].value.search(/\S/);
+    let offset = Math.max(tokens[0].value.search(/\S/), 0);
     const startLine = tokens[0].start.line + firstLine;
-    const startChar = tokens[0].start.character + Math.max(offset, 0);
+    const startChar = tokens[0].start.character + offset + (startLine === firstLine ? firstCharacter : 0);
 
     const last = tokens[tokens.length - 1];
-    offset = [...last.value].reverse().join('').search(/\S/);
+    offset = Math.max([...last.value].reverse().join('').search(/\S/), 0);
     const endLine = last.end.line + firstLine;
-    const endChar = last.end.character - Math.max(offset, 0);
+    const endChar = last.end.character - offset + (endLine === firstLine ? firstCharacter : 0);
 
 //    editor.selection = new vscode.Selection(startLine, startChar, endLine, endChar);
     return {
