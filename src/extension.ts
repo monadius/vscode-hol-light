@@ -72,8 +72,8 @@ export function activate(context: vscode.ExtensionContext) {
             }
 
             if (!editor.selection.isEmpty) {
-                const statement = editor.document.getText(editor.selection);
-                repl.sendText(statement + ';;\n');
+                const statement = editor.document.getText(editor.selection).trim();
+                repl.sendText(statement + (statement.endsWith(';;') ? '\n' : ';;\n'));
                 return;
             }
 
@@ -94,14 +94,18 @@ export function activate(context: vscode.ExtensionContext) {
             repl.sendText(statement + ';;\n');
             
             let nextIndex = 0;
+            let newPos: vscode.Position;
             if (end >= 0) {
                 const re = /\S/m;
                 nextIndex = text.slice(end + 2).search(re);
                 if (nextIndex < 0) {
                     nextIndex = 0;
                 }
+                newPos = editor.document.positionAt(end + 2 + nextIndex);
             }
-            let newPos = editor.document.positionAt(end + 2 + nextIndex);
+            else {
+                newPos = editor.document.positionAt(text.length);
+            }
             editor.selection = new vscode.Selection(newPos, newPos);
             editor.revealRange(editor.selection);
         })
