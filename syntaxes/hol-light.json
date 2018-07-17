@@ -110,11 +110,11 @@
             "name": "punctuation.terminator.expression.ocaml"
         },
         {
-            "match": "\\b(let|in|and|rec|fun|begin|end|ref|type|of|exception)\\b",
+            "match": "\\b(let|in|and|rec|fun|function|begin|end|ref|type|of|exception)\\b",
             "name": "keyword.other.ocaml"
         },
         {
-            "match": "\\b(if|then|else|while|match|with|for|done|try)\\b",
+            "match": "\\b(if|then|else|while|match|with|for|done|try|raise)\\b",
             "name": "keyword.control.ocaml"
         },
 
