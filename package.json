@@ -97,6 +97,16 @@
         ],
         "keybindings": [
             {
+                "key": "ctrl+`",
+                "command": "workbench.action.terminal.focus",
+                "when": "editorTextFocus"
+            },
+            {
+                "key": "ctrl+`",
+                "command": "workbench.action.focusActiveEditorGroup",
+                "when": "terminalFocus"
+            },
+            {
                 "key": "ctrl+c ctrl+e",
                 "command": "hol-light.repl_send_statement",
                 "when": "editorTextFocus && editorLangId == hol-light"
