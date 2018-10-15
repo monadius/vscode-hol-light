@@ -24,12 +24,13 @@ export function activate(context: vscode.ExtensionContext) {
             }
             let path = paths[0];
             if (paths.length > 1) {
-                const result = await vscode.window.showQuickPick(paths, {canPickMany: false});
+                const result = await vscode.window.showQuickPick(paths, {canPickMany: false, ignoreFocusOut: true});
                 if (result) {
                     path = result;
                 }
             }
             replTerm = vscode.window.createTerminal('HOL Light', path);
+//            replTerm = vscode.window.createTerminal('HOL Light');
         }
         return replTerm;
     }
