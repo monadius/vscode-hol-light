@@ -12,7 +12,10 @@
         "Programming Languages"
     ],
     "keywords": [
-        "hol", "hol light", "theorem prover", "proof assistant"
+        "hol",
+        "hol light",
+        "theorem prover",
+        "proof assistant"
     ],
     "repository": {
         "type": "git",
@@ -199,7 +202,7 @@
                 "hol-light.exePaths": {
                     "type": "array",
                     "default": [
-                        "ocaml", 
+                        "ocaml",
                         "/Users/monad/Work/projects/hol/hol_light",
                         "/Users/monad/Work/projects/hol/hol_remote"
                     ],
@@ -307,10 +310,10 @@
         "test": "npm run compile && node ./node_modules/vscode/bin/test"
     },
     "devDependencies": {
+        "@types/mocha": "^2.2.42",
+        "@types/node": "^7.10.0",
+        "tslint": "^5.11.0",
         "typescript": "^2.6.1",
-        "vscode": "^1.1.6",
-        "tslint": "^5.8.0",
-        "@types/node": "^7.0.43",
-        "@types/mocha": "^2.2.42"
+        "vscode": "^1.1.21"
     }
 }
