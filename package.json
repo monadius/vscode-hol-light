@@ -23,7 +23,7 @@
     },
     "bugs": "https://github.com/monadius/vscode-hol-light/issues",
     "homepage": "https://github.com/monadius/vscode-hol-light/blob/master/README.md",
-    "icon": "images/hol-light-logo.png",
+    "icon (TODO)": "images/hol-light-logo.png",
     "activationEvents": [
         "onCommand:hol-light.repl",
         "onCommand:hol-light.search",
@@ -311,9 +311,9 @@
     },
     "devDependencies": {
         "@types/mocha": "^2.2.42",
-        "@types/node": "^7.10.0",
-        "tslint": "^5.11.0",
+        "@types/node": "^7.10.2",
+        "tslint": "^5.12.1",
         "typescript": "^2.6.1",
-        "vscode": "^1.1.21"
+        "vscode": "^1.1.27"
     }
 }
