@@ -2,6 +2,15 @@
 
 A simple HOL Light extension for Visual Studio Code.
 
+## Installation
+
+Download the extension from https://github.com/monadius/vscode-hol-light/releases
+
+Then run
+```
+code --install-extension hol-light-simple-0.0.1.vsix
+```
+
 ## Features
 
 Step by step proof replay.
