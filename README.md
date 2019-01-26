@@ -15,6 +15,12 @@ code --install-extension hol-light-simple-0.0.1.vsix
 
 Step by step proof replay.
 
+Commands:
+
+`CTRL-C CTRL-E`: send the current code to REPL.
+
+`CTRL-C CTRL-L`: apply one tactic line.
+
 ## Requirements
 
 HOL Light should be installed separately.
