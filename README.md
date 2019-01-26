@@ -19,7 +19,9 @@ Commands:
 
 `CTRL-C CTRL-E`: send the current code to REPL.
 
-`CTRL-C CTRL-L`: apply one tactic line.
+`CTRL-C CTRL-L`: apply one-line tactic.
+
+`CTRL-C CTRL-M`: apply multiline tactic.
 
 ## Requirements
 
