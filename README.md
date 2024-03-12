@@ -8,7 +8,7 @@ Download the extension from https://github.com/monadius/vscode-hol-light/release
 
 Then run
 ```
-code --install-extension hol-light-simple-0.0.1.vsix
+code --install-extension hol-light-simple-{release-version}.vsix
 ```
 
 ## Features
