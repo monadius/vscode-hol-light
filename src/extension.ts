@@ -14,7 +14,29 @@ export function activate(context: vscode.ExtensionContext) {
     // This line of code will only be executed once when your extension is activated
     console.log('Congratulations, your extension "vscode-hol-light" is now active!');
 
-    let replTerm: vscode.Terminal | null;
+    let replTerm: vscode.Terminal | null = null;
+    let prevDecoration: vscode.TextEditorDecorationType | null = null;
+
+    function highlightRange(range: vscode.Range | null) {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+            return;
+        }
+
+        if (prevDecoration) {
+            editor.setDecorations(prevDecoration, []);
+        }
+        prevDecoration = null;
+        if (range) {
+            const decoration = vscode.window.createTextEditorDecorationType({
+                rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
+                // backgroundColor: new vscode.ThemeColor("searchEditor.findMatchBackground"),
+                backgroundColor: new vscode.ThemeColor("editor.wordHighlightStrongBackground")
+            });
+            editor.setDecorations(decoration, [range]);
+            prevDecoration = decoration;
+        }
+    }
 
     async function checkREPL(): Promise<vscode.Terminal> {
         if (!replTerm) {
@@ -29,8 +51,11 @@ export function activate(context: vscode.ExtensionContext) {
                     path = result;
                 }
             }
+            // path = "bash";
+            // console.log('Terminal path: ' + path);
             replTerm = vscode.window.createTerminal('HOL Light', path);
-//            replTerm = vscode.window.createTerminal('HOL Light');
+        //    replTerm = vscode.window.createTerminal('HOL Light');
+            // replTerm.sendText("sudo /home/monad/work/tools/hol-light/bin/run");
         }
         return replTerm;
     }
@@ -75,6 +100,7 @@ export function activate(context: vscode.ExtensionContext) {
             if (!editor.selection.isEmpty) {
                 const statement = editor.document.getText(editor.selection).trim();
                 repl.sendText(statement + (statement.endsWith(';;') ? '\n' : ';;\n'));
+                highlightRange(editor.selection);
                 return;
             }
 
@@ -90,9 +116,11 @@ export function activate(context: vscode.ExtensionContext) {
             else {
                 end = text.indexOf(';;', pos);
             }
-            const statement = text.slice(start >= 0 ? start + 2 : 0, 
-                                         end >= 0 ? end : Infinity).trim();
+            const textStart = start >= 0 ? start + 2 : 0;
+            const textEnd = end >= 0 ? end : Infinity;
+            const statement = text.slice(textStart, textEnd).trim();
             repl.sendText(statement + ';;\n');
+            highlightRange(new vscode.Range(editor.document.positionAt(textStart), editor.document.positionAt(textEnd)));
             
             let nextIndex = 0;
             let newPos: vscode.Position;
@@ -140,6 +168,7 @@ export function activate(context: vscode.ExtensionContext) {
             }
             const term = text.slice(start, end + 1);
             repl.sendText(`g(${term});;`);
+            highlightRange(null);
         })
     );
 
@@ -157,6 +186,7 @@ export function activate(context: vscode.ExtensionContext) {
             let text = editor.document.getText(editor.selection);
             text = text.replace(tacticRe, '').trim();
             repl.sendText(`e(${text});;\n`);
+            highlightRange(editor.selection);
             return;
         }
         const maxLines = multiline ? configuration.get<number>("tacticMaxLines", 10) : 1;
@@ -168,9 +198,11 @@ export function activate(context: vscode.ExtensionContext) {
             newPos = selection.newline ? 
                 new vscode.Position(selection.range.end.line + 1, pos.character) :
                 new vscode.Position(selection.range.end.line, selection.range.end.character + 1);
+            highlightRange(selection.range);
         }
         else {
             newPos = new vscode.Position(pos.line + 1, pos.character);
+            highlightRange(null);
         }
         if (newline) {
             newPos = editor.document.validatePosition(newPos);
@@ -211,6 +243,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             replTerm.sendText('b();;');
+            highlightRange(null);
         })
     );
 
