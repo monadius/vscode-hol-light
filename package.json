@@ -198,6 +198,7 @@
                 "hol-light.exePaths": {
                     "type": "array",
                     "default": [
+                        "bash",
                         "ocaml",
                         "hol_light"
                     ],
