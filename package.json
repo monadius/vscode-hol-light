@@ -2,7 +2,7 @@
     "name": "hol-light-simple",
     "displayName": "HOL Light (simple)",
     "description": "An extension for VS Code which provides support for HOL Light",
-    "version": "0.0.1",
+    "version": "0.2.0",
     "license": "SEE LICENSE IN LICENSE",
     "publisher": "monadius",
     "engines": {
@@ -199,9 +199,7 @@
                     "type": "array",
                     "default": [
                         "ocaml",
-                        "/home/monad/work/tools/hol-light/bin/run",
-                        "/Users/monad/Work/projects/hol/hol_light",
-                        "/Users/monad/Work/projects/hol/hol_remote"
+                        "hol_light"
                     ],
                     "description": "Paths to HOL Light startup scripts"
                 },
