@@ -3,7 +3,19 @@
     "scopeName": "source.hol-light",
     "fileTypes": ["hl"],
     "repository": {
-        "term": {
+        "hol-type-annotation": {
+            "patterns": [
+                {
+                    "match": "(?<!:):(\\s*+(?:\\w++|\\(\\g<1>(?:\\s*+,\\g<1>)*+\\s*+\\))(?:\\s*+(?:list|group))?(?:\\s*+(?:->|[#^+])\\g<1>)?)",
+                    "captures": {
+                        "1": {
+                            "name": "storage.type.hol-light"
+                        }
+                    }
+                }
+            ]
+        },
+        "hol-term": {
             "patterns": [
                 {
                     "match": "/\\\\|\\\\/|==>|<=>",
@@ -11,12 +23,7 @@
                     "name1": "support.function.hol-light"
                 },
                 {
-                    "match": "\\w+\\s*:\\s*(\\w+)",
-                    "captures": {
-                        "1": {
-                            "name": "storage.type.hol-light"
-                        }
-                    }
+                    "include": "#hol-type-annotation"
                 }
             ]
         },
@@ -54,7 +61,7 @@
             "end": "`",
             "patterns": [
                 {
-                    "include": "#term"
+                    "include": "#hol-term"
                 }
             ],
             "name": "string.quoted.single.hol-light",
