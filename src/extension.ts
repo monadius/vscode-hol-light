@@ -106,7 +106,9 @@ export function activate(context: vscode.ExtensionContext) {
             }
 
             const pos = editor.document.offsetAt(editor.selection.active);
-            const {start: textStart, end: textEnd, text: statement, newPos} = selection.selectStatementSimple(editor.document, pos);
+            const {start: textStart, end: textEnd, text: statement, newPos} = 
+                // selection.selectStatementSimple(editor.document, pos);
+                selection.selectStatement(editor.document, pos);
 
             repl.sendText(statement + ';;\n');
             highlightRange(new vscode.Range(editor.document.positionAt(textStart), editor.document.positionAt(textEnd + 2)));
