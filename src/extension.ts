@@ -1,8 +1,9 @@
-'use strict';
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import * as tactic from './tactic';
+
+import * as selection from './selection';
 
 const configuration = vscode.workspace.getConfiguration('hol-light');
 
@@ -104,37 +105,12 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
 
-            const text = editor.document.getText();
             const pos = editor.document.offsetAt(editor.selection.active);
-            let start = text.lastIndexOf(';;', pos - 1);
-            let end: number;
-            const start0 = start >= 0 ? start : 0;
-            if (text.slice(start0, pos + 1).trim().endsWith(';;')) {
-                end = start0;
-                start = text.lastIndexOf(';;', start0 - 1);
-            }
-            else {
-                end = text.indexOf(';;', pos);
-            }
-            const textStart = start >= 0 ? start + 2 : 0;
-            const textEnd = end >= 0 ? end : Infinity;
-            const statement = text.slice(textStart, textEnd).trim();
+            const {start: textStart, end: textEnd, text: statement, newPos} = selection.selectStatementSimple(editor.document, pos);
+
             repl.sendText(statement + ';;\n');
-            highlightRange(new vscode.Range(editor.document.positionAt(textStart), editor.document.positionAt(textEnd)));
+            highlightRange(new vscode.Range(editor.document.positionAt(textStart), editor.document.positionAt(textEnd + 2)));
             
-            let nextIndex = 0;
-            let newPos: vscode.Position;
-            if (end >= 0) {
-                const re = /\S/m;
-                nextIndex = text.slice(end + 2).search(re);
-                if (nextIndex < 0) {
-                    nextIndex = 0;
-                }
-                newPos = editor.document.positionAt(end + 2 + nextIndex);
-            }
-            else {
-                newPos = editor.document.positionAt(text.length);
-            }
             editor.selection = new vscode.Selection(newPos, newPos);
             editor.revealRange(editor.selection);
         })
