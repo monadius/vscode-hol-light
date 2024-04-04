@@ -140,10 +140,11 @@ export function activate(context: vscode.ExtensionContext) {
             if (!editor) {
                 return;
             }
-            // const text = editor.document.getText();
             const pos = editor.document.offsetAt(editor.selection.active);
-            
-            const term = selection.selectTerm(editor.document, pos);
+
+            const term = getConfigOption("simpleSelection", false) ?
+                selection.selectTermSimple(editor.document, pos) :
+                selection.selectTerm(editor.document, pos);
             if (!term) {
                 vscode.window.showWarningMessage('Not inside a term');
                 return;

@@ -97,6 +97,13 @@ export function selectStatement(document: vscode.TextDocument, pos: number): Sel
     return selectStatementText(document, text, positions.at(-1) ?? -1, -1);
 }
 
+export function selectTermSimple(document: vscode.TextDocument, pos: number): Selection | null {
+    const text = document.getText();
+    let start = text.lastIndexOf('`', pos - 1);
+    let end = text.indexOf('`', pos);
+    return start < 0 || end < 0 ? null : {start: start, end: end + 1, text: text.slice(start, end + 1), newPos: null};
+}
+
 export function selectTerm(document: vscode.TextDocument, pos: number): Selection | null {
     const text = document.getText(), n = text.length;
     for (let i = 0; i < n; i++) {
