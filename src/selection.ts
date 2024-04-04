@@ -81,7 +81,7 @@ export function selectStatement(document: vscode.TextDocument, pos: number): Sel
                 let start = positions.at(-1) ?? -1;
                 let end = -1;
                 const start0 = Math.max(0, start);
-                if (text.slice(start0, pos + 1).trimEnd().endsWith(';;')) {
+                if (/^;;\s*$/.test(text.slice(start0, pos + 1))) {
                     start = positions.at(-2) ?? -1;
                     end = start0;
                 } else {
