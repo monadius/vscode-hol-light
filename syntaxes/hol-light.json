@@ -6,7 +6,7 @@
         "hol-type-annotation": {
             "patterns": [
                 {
-                    "match": "(?<!:):(\\s*+(?:\\w++|\\(\\g<1>(?:\\s*+,\\g<1>)*+\\s*+\\))(?:\\s*+(?:list|group)\\b)?+(?:\\s*+(?:->|[#^+])\\g<1>)?)",
+                    "match": "(?<!:):(\\s*+(?:\\w++|\\(\\g<1>(?:\\s*+,\\g<1>)*+\\s*+\\))(?:\\s*+(?:list|group|finite_sum)\\b)?+(?:\\s*+(?:->|[#^+])\\g<1>)?)",
                     "captures": {
                         "1": {
                             "name": "storage.type.hol-light"
@@ -105,8 +105,8 @@
             "name": "constant.numeric.float.ocaml"
         },
         {
-            "match": "[*+/-]\\.?",
-            "name": "keyword.operator.infix.ocaml"
+            "match": "[*+/-]\\.?|\\b(mod|land|lor|lxor|lsl|lsr|asr)\\b",
+            "name": "keyword.operator.ocaml"
         },
         {
             "match": "\\bnot\\b|&&|\\|\\|",
@@ -117,11 +117,11 @@
             "name": "punctuation.terminator.expression.ocaml"
         },
         {
-            "match": "\\b(let|in|and|rec|fun|function|begin|end|ref|mutable|type|as|of|exception)\\b",
+            "match": "\\b(let|in|and|rec|open|include|module|sig|struct|fun|function|begin|end|ref|mutable|type|as|of|exception)\\b",
             "name": "keyword.other.ocaml"
         },
         {
-            "match": "\\b(if|then|else|while|match|when|with|for|done|try|raise)\\b",
+            "match": "\\b(if|then|else|while|match|when|with|for|to|downto|done|try|raise)\\b",
             "name": "keyword.control.ocaml"
         },
 
