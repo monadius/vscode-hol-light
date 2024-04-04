@@ -78,11 +78,11 @@ export function selectStatement(document: vscode.TextDocument, pos: number): Sel
             }
         } else if (!ch || (ch === ';' && text[i + 1] === ';')) {
             if (!ch || i + 1 >= pos) {
-                let start = positions.at(-1) || -1;
+                let start = positions.at(-1) ?? -1;
                 let end = -1;
                 const start0 = Math.max(0, start);
                 if (text.slice(start0, pos + 1).trimEnd().endsWith(';;')) {
-                    start = positions.at(-2) || -1;
+                    start = positions.at(-2) ?? -1;
                     end = start0;
                 } else {
                     end = i;
@@ -93,6 +93,6 @@ export function selectStatement(document: vscode.TextDocument, pos: number): Sel
             i++;
         }
     }
-    // Unreachable
-    return selectStatementText(document, text, positions.at(-1) || -1, -1);
+    // This line is executed in exceptional situations only (e.g., an unclosed string literal)
+    return selectStatementText(document, text, positions.at(-1) ?? -1, -1);
 }
