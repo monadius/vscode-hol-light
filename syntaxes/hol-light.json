@@ -6,7 +6,7 @@
         "hol-type-annotation": {
             "patterns": [
                 {
-                    "match": "(?<!:):(\\s*+(?:\\w++|\\(\\g<1>(?:\\s*+,\\g<1>)*+\\s*+\\))(?:\\s*+(?:list|group|finite_sum)\\b)?+(?:\\s*+(?:->|[#^+])\\g<1>)?)",
+                    "match": "(?<!:):(\\s*+(?:\\w++|\\(\\g<1>(?:\\s*+,\\g<1>)*+\\s*+\\))(?:\\s*+(?:list|group|finite_sum|word)\\b)?+(?:\\s*+(?:->|[#^+])\\g<1>)?)",
                     "captures": {
                         "1": {
                             "name": "storage.type.hol-light"
