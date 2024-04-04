@@ -192,7 +192,6 @@
             }
         ],
         "configuration": {
-            "type": "object",
             "title": "HOL Light configuration",
             "properties": {
                 "hol-light.exePaths": {
@@ -206,8 +205,13 @@
                 },
                 "hol-light.tacticMaxLines": {
                     "type": "number",
-                    "default": 10,
+                    "default": 30,
                     "description": "Maximum number of lines which can be selected by the multiline tactic command"
+                },
+                "hol-light.simpleSelection": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Use a simple text selection algorithm for statements and HOL terms. Could be enabled if the standard selection algorithm is too slow for large files"
                 }
             }
         },

@@ -5,8 +5,6 @@ import * as tactic from './tactic';
 
 import * as selection from './selection';
 
-const configuration = vscode.workspace.getConfiguration('hol-light');
-
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
@@ -14,6 +12,11 @@ export function activate(context: vscode.ExtensionContext) {
     // Use the console to output diagnostic information (console.log) and errors (console.error)
     // This line of code will only be executed once when your extension is activated
     console.log('Congratulations, your extension "vscode-hol-light" is now active!');
+
+    function getConfigOption<T>(name: string, defaultValue: T): T {
+        const configuration = vscode.workspace.getConfiguration('hol-light');
+        return configuration.get(name, defaultValue);
+    }
 
     let replTerm: vscode.Terminal | null = null;
     let prevDecoration: vscode.TextEditorDecorationType | null = null;
@@ -45,7 +48,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     async function checkREPL(): Promise<vscode.Terminal> {
         if (!replTerm) {
-            let paths = configuration.get<string[]>('exePaths', ['ocaml']);
+            let paths = getConfigOption('exePaths', ['ocaml']);
             if (!paths.length) {
                 paths = ['ocaml'];
             }
@@ -111,8 +114,9 @@ export function activate(context: vscode.ExtensionContext) {
 
             const pos = editor.document.offsetAt(editor.selection.active);
             const {start: textStart, end: textEnd, text: statement, newPos} = 
-                // selection.selectStatementSimple(editor.document, pos);
-                selection.selectStatement(editor.document, pos);
+                getConfigOption('simpleSelection', false) ?
+                    selection.selectStatementSimple(editor.document, pos) :
+                    selection.selectStatement(editor.document, pos);
 
             repl.sendText(statement + ';;\n');
             highlightRange(new vscode.Range(editor.document.positionAt(textStart), editor.document.positionAt(textEnd + 2)));
@@ -172,7 +176,7 @@ export function activate(context: vscode.ExtensionContext) {
             highlightRange(editor.selection);
             return;
         }
-        const maxLines = multiline ? configuration.get<number>("tacticMaxLines", 10) : 1;
+        const maxLines = multiline ? getConfigOption("tacticMaxLines", 30) : 1;
         const selection = tactic.selectTactic(editor, maxLines);
         const pos = editor.selection.active;
         let newPos: vscode.Position;
@@ -211,7 +215,7 @@ export function activate(context: vscode.ExtensionContext) {
             if (!editor) {
                 return;
             }
-            const maxLines = configuration.get<number>("tacticMaxLines", 10);
+            const maxLines = getConfigOption("tacticMaxLines", 30);
             const selection = tactic.selectTactic(editor, maxLines, true);
             if (selection && !selection.range.isEmpty) {
                 editor.selection = new vscode.Selection(selection.range.start, selection.range.end);
