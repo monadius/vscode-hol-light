@@ -4,7 +4,7 @@ interface Selection {
     start: number;
     end: number;
     text: string;
-    newPos: vscode.Position;
+    newPos: vscode.Position | null;
 }
 
 function selectStatementText(document: vscode.TextDocument, text: string, start: number, end: number): Selection {
@@ -95,4 +95,43 @@ export function selectStatement(document: vscode.TextDocument, pos: number): Sel
     }
     // This line is executed in exceptional situations only (e.g., an unclosed string literal)
     return selectStatementText(document, text, positions.at(-1) ?? -1, -1);
+}
+
+export function selectTerm(document: vscode.TextDocument, pos: number): Selection | null {
+    const text = document.getText(), n = text.length;
+    for (let i = 0; i < n; i++) {
+        const ch = text[i];
+        if (ch === '`') {
+            const j = text.indexOf('`', i + 1);
+            if (j < 0) {
+                break;
+            }
+            if (i <= pos && pos <= j) {
+                return {start: i, end: j + 1, text: text.slice(i, j + 1), newPos: null};
+            }
+            i = j;
+        } else if (ch === '"') {
+            // Skip strings
+            for (i++; i < n; i++) {
+                if (text[i] === '\\') {
+                    i++;
+                } else if (text[i] === '"') {
+                    break;
+                }
+            }
+        } else if (ch === '(' && text[i + 1] === '*') {
+            // Skip comments
+            let level = 1;
+            for (i += 2; i < n; i++) {
+                if (text[i] === '*' && text[i + 1] === ')') {
+                    if (--level <= 0) {
+                        break;
+                    }
+                } else if (text[i] === '(' && text[i + 1] === '*') {
+                    ++level;
+                }
+            }
+        }
+    }
+    return null;
 }

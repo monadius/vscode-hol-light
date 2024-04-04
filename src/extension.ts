@@ -39,6 +39,10 @@ export function activate(context: vscode.ExtensionContext) {
         }
     }
 
+    function highlightStartEnd(document: vscode.TextDocument, start: number, end: number) {
+        highlightRange(new vscode.Range(document.positionAt(start), document.positionAt(end)));
+    }
+
     async function checkREPL(): Promise<vscode.Terminal> {
         if (!replTerm) {
             let paths = configuration.get<string[]>('exePaths', ['ocaml']);
@@ -113,8 +117,10 @@ export function activate(context: vscode.ExtensionContext) {
             repl.sendText(statement + ';;\n');
             highlightRange(new vscode.Range(editor.document.positionAt(textStart), editor.document.positionAt(textEnd + 2)));
             
-            editor.selection = new vscode.Selection(newPos, newPos);
-            editor.revealRange(editor.selection);
+            if (newPos) {
+                editor.selection = new vscode.Selection(newPos, newPos);
+                editor.revealRange(editor.selection);
+            }
         })
     );
 
@@ -136,17 +142,16 @@ export function activate(context: vscode.ExtensionContext) {
             if (!editor) {
                 return;
             }
-            const text = editor.document.getText();
+            // const text = editor.document.getText();
             const pos = editor.document.offsetAt(editor.selection.active);
-            let start = text.lastIndexOf('`', pos - 1);
-            let end = text.indexOf('`', pos);
-            if (start < 0 || end < 0) {
-                vscode.window.showErrorMessage('Not inside a term');
+            
+            const term = selection.selectTerm(editor.document, pos);
+            if (!term) {
+                vscode.window.showWarningMessage('Not inside a term');
                 return;
             }
-            const term = text.slice(start, end + 1);
-            repl.sendText(`g(${term});;`);
-            highlightRange(null);
+            repl.sendText(`g(${term.text});;`);
+            highlightStartEnd(editor.document, term.start, term.end);
         })
     );
 
