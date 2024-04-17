@@ -108,67 +108,67 @@
             {
                 "key": "ctrl+c ctrl+e",
                 "command": "hol-light.repl_send_statement",
-                "when": "editorTextFocus && editorLangId == hol-light"
+                "when": "editorTextFocus && editorLangId == hol-light-ocaml"
             },
             {
                 "key": "ctrl+c ctrl+c",
                 "command": "hol-light.repl_send_break",
-                "when": "editorLangId == hol-light"
+                "when": "editorLangId == hol-light-ocaml"
             },
             {
                 "key": "ctrl+c ctrl+g",
                 "command": "hol-light.repl_send_goal",
-                "when": "editorTextFocus && editorLangId == hol-light"
+                "when": "editorTextFocus && editorLangId == hol-light-ocaml"
             },
             {
                 "key": "ctrl+c ctrl+l",
                 "command": "hol-light.repl_send_tactic",
-                "when": "editorTextFocus && editorLangId == hol-light"
+                "when": "editorTextFocus && editorLangId == hol-light-ocaml"
             },
             {
                 "key": "ctrl+c l",
                 "command": "hol-light.repl_send_tactic_no_newline",
-                "when": "editorTextFocus && editorLangId == hol-light"
+                "when": "editorTextFocus && editorLangId == hol-light-ocaml"
             },
             {
                 "key": "ctrl+c ctrl+m",
                 "command": "hol-light.repl_send_tactic_multline",
-                "when": "editorTextFocus && editorLangId == hol-light"
+                "when": "editorTextFocus && editorLangId == hol-light-ocaml"
             },
             {
                 "key": "ctrl+c m",
                 "command": "hol-light.repl_send_tactic_multline_no_newline",
-                "when": "editorTextFocus && editorLangId == hol-light"
+                "when": "editorTextFocus && editorLangId == hol-light-ocaml"
             },
             {
                 "key": "ctrl+c ctrl+r",
                 "command": "hol-light.select_tactic_multline",
-                "when": "editorTextFocus && editorLangId == hol-light"
+                "when": "editorTextFocus && editorLangId == hol-light-ocaml"
             },
             {
                 "key": "ctrl+c ctrl+p",
                 "command": "hol-light.repl_print_goal",
-                "when": "editorLangId == hol-light"
+                "when": "editorLangId == hol-light-ocaml"
             },
             {
                 "key": "ctrl+c ctrl+b",
                 "command": "hol-light.repl_back_proof",
-                "when": "editorLangId == hol-light"
+                "when": "editorLangId == hol-light-ocaml"
             },
             {
                 "key": "ctrl+c ctrl+o",
                 "command": "hol-light.repl_rotate_goal",
-                "when": "editorLangId == hol-light"
+                "when": "editorLangId == hol-light-ocaml"
             },
             {
                 "key": "ctrl+c ctrl+s",
                 "command": "hol-light.search",
-                "when": "editorLangId == hol-light"
+                "when": "editorLangId == hol-light-ocaml"
             }
         ],
         "languages": [
             {
-                "id": "hol-light",
+                "id": "hol-light-ocaml",
                 "aliases": [
                     "HOL Light"
                 ],
@@ -180,14 +180,14 @@
         ],
         "grammars": [
             {
-                "language": "hol-light",
-                "scopeName": "source.hol-light",
-                "path": "./syntaxes/hol-light.json"
+                "language": "hol-light-ocaml",
+                "scopeName": "source.hol-light-ocaml",
+                "path": "./syntaxes/hol-light-ocaml.tmLanguage.json"
             }
         ],
         "snippets": [
             {
-                "language": "hol-light",
+                "language": "hol-light-ocaml",
                 "path": "./snippets/hol-light.json"
             }
         ],
@@ -225,78 +225,78 @@
             "commandPalette": [
                 {
                     "command": "hol-light.repl_send_statement",
-                    "when": "editorLangId == hol-light"
+                    "when": "editorLangId == hol-light-ocaml"
                 },
                 {
                     "command": "hol-light.repl_send_break",
-                    "when": "editorLangId == hol-light"
+                    "when": "editorLangId == hol-light-ocaml"
                 },
                 {
                     "command": "hol-light.repl_send_goal",
-                    "when": "editorLangId == hol-light"
+                    "when": "editorLangId == hol-light-ocaml"
                 },
                 {
                     "command": "hol-light.repl_send_tactic",
-                    "when": "editorLangId == hol-light"
+                    "when": "editorLangId == hol-light-ocaml"
                 },
                 {
                     "command": "hol-light.repl_send_tactic_no_newline",
-                    "when": "editorLangId == hol-light"
+                    "when": "editorLangId == hol-light-ocaml"
                 },
                 {
                     "command": "hol-light.repl_send_tactic_multline",
-                    "when": "editorLangId == hol-light"
+                    "when": "editorLangId == hol-light-ocaml"
                 },
                 {
                     "command": "hol-light.repl_send_tactic_multline_no_newline",
-                    "when": "editorLangId == hol-light"
+                    "when": "editorLangId == hol-light-ocaml"
                 },
                 {
                     "command": "hol-light.select_tactic_multline",
-                    "when": "editorLangId == hol-light"
+                    "when": "editorLangId == hol-light-ocaml"
                 },
                 {
                     "command": "hol-light.repl_print_goal",
-                    "when": "editorLangId == hol-light"
+                    "when": "editorLangId == hol-light-ocaml"
                 },
                 {
                     "command": "hol-light.repl_back_proof",
-                    "when": "editorLangId == hol-light"
+                    "when": "editorLangId == hol-light-ocaml"
                 },
                 {
                     "command": "hol-light.repl_rotate_goal",
-                    "when": "editorLangId == hol-light"
+                    "when": "editorLangId == hol-light-ocaml"
                 }
             ],
             "editor/context": [
                 {
                     "command": "hol-light.repl",
-                    "when": "editorLangId == hol-light",
+                    "when": "editorLangId == hol-light-ocaml",
                     "group": "navigation@1"
                 },
                 {
                     "command": "hol-light.repl_send_statement",
-                    "when": "editorLangId == hol-light",
+                    "when": "editorLangId == hol-light-ocaml",
                     "group": "navigation@2"
                 },
                 {
                     "command": "hol-light.repl_send_goal",
-                    "when": "editorLangId == hol-light",
+                    "when": "editorLangId == hol-light-ocaml",
                     "group": "navigation@3"
                 },
                 {
                     "command": "hol-light.repl_send_tactic_no_newline",
-                    "when": "editorLangId == hol-light",
+                    "when": "editorLangId == hol-light-ocaml",
                     "group": "navigation@4"
                 },
                 {
                     "command": "hol-light.repl_send_tactic_multline_no_newline",
-                    "when": "editorLangId == hol-light",
+                    "when": "editorLangId == hol-light-ocaml",
                     "group": "navigation@5"
                 },
                 {
                     "command": "hol-light.search",
-                    "when": "editorLangId == hol-light",
+                    "when": "editorLangId == hol-light-ocaml",
                     "group": "navigation@6"
                 }
             ]

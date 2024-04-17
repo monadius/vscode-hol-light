@@ -1,6 +1,6 @@
 {
     "name": "HOL Light",
-    "scopeName": "source.hol-light",
+    "scopeName": "source.hol-light-ocaml",
     "fileTypes": ["hl"],
     "repository": {
         "hol-type-annotation": {
