@@ -3,30 +3,6 @@
     "scopeName": "source.hol-light-ocaml",
     "fileTypes": ["hl"],
     "repository": {
-        "hol-type-annotation": {
-            "patterns": [
-                {
-                    "match": "(?<!:):(\\s*+(?:\\w++|\\(\\g<1>(?:\\s*+,\\g<1>)*+\\s*+\\))(?:\\s*+(?:list|group|finite_sum|word)\\b)?+(?:\\s*+(?:->|[#^+])\\g<1>)?)",
-                    "captures": {
-                        "1": {
-                            "name": "storage.type.hol-light"
-                        }
-                    }
-                }
-            ]
-        },
-        "hol-term": {
-            "patterns": [
-                {
-                    "match": "/\\\\|\\\\/|==>|<=>",
-                    "name": "keyword.operator.logical.hol-light",
-                    "name1": "support.function.hol-light"
-                },
-                {
-                    "include": "#hol-type-annotation"
-                }
-            ]
-        },
         "comments": {
             "patterns": [
                 {
@@ -61,10 +37,10 @@
             "end": "`",
             "patterns": [
                 {
-                    "include": "#hol-term"
+                    "include": "source.hol-light-term"
                 }
             ],
-            "name": "string.quoted.single.hol-light",
+            "name": "meta.embedded.block.hol-light-term",
             "contentName": "strong"
         },
         {

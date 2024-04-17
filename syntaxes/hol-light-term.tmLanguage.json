@@ -1,0 +1,62 @@
+{
+    "name": "HOL Light Term",
+    "scopeName": "source.hol-light-term",
+    "repository": {
+        "hol-type-annotation": {
+            "patterns": [
+                {
+                    "match": "(?<!:):(\\s*+(?:\\w++|\\(\\g<1>(?:\\s*+,\\g<1>)*+\\s*+\\))(?:\\s*+(?:list|group|finite_sum|word)\\b)?+(?:\\s*+(?:->|[#^+])\\g<1>)?)",
+                    "captures": {
+                        "1": {
+                            "name": "storage.type.hol-light-term"
+                        }
+                    }
+                }
+            ]
+        },
+        "hol-term": {
+            "patterns": [
+                {
+                    "match": "/\\\\|\\\\/|==>|<=>",
+                    "name": "keyword.operator.logical.hol-light-term",
+                    "name1": "support.function.hol-light"
+                },
+                {
+                    "include": "#hol-type-annotation"
+                }
+            ]
+        },
+        "comments": {
+            "patterns": [
+                {
+                    "begin": "\\(\\*",
+                    "end": "\\*\\)",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.comment.begin.ocaml"
+                        }
+                    },
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.comment.end.ocaml"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "include": "#comments"
+                        }
+                    ],
+                    "name": "comment.block.ocaml"
+                }
+            ]
+        }
+    },
+    "patterns": [
+        {
+            "include": "#comments"
+        },
+        {
+            "include": "#hol-term"
+        }
+   ]
+}

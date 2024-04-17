@@ -176,13 +176,25 @@
                     ".hl"
                 ],
                 "configuration": "./language-configuration.json"
+            },
+            {
+                "id": "hol-light-term",
+                "configuration": "./language-configuration.json"
             }
         ],
         "grammars": [
             {
+                "language": "hol-light-term",
+                "scopeName": "source.hol-light-term",
+                "path": "./syntaxes/hol-light-term.tmLanguage.json"
+            },
+            {
                 "language": "hol-light-ocaml",
                 "scopeName": "source.hol-light-ocaml",
-                "path": "./syntaxes/hol-light-ocaml.tmLanguage.json"
+                "path": "./syntaxes/hol-light-ocaml.tmLanguage.json",
+                "embeddedLanguages": {
+                    "meta.embedded.block.hol-light-term": "hol-light-term"
+                }
             }
         ],
         "snippets": [
