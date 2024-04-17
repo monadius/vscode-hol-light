@@ -193,7 +193,11 @@
                 "scopeName": "source.hol-light-ocaml",
                 "path": "./syntaxes/hol-light-ocaml.tmLanguage.json",
                 "embeddedLanguages": {
-                    "meta.embedded.block.hol-light-term": "hol-light-term"
+                    "meta.embedded.block.hol-light-term": "hol-light-term",
+                    "string.quoted.single.hol-light-term": "hol-light-term"
+                },
+                "tokenTypes": {
+                    "string.quoted.single.hol-light-term": "other"
                 }
             }
         ],

@@ -40,7 +40,8 @@
                     "include": "source.hol-light-term"
                 }
             ],
-            "name": "meta.embedded.block.hol-light-term",
+            "--name": "meta.embedded.block.hol-light-term",
+            "name": "string.quoted.single.hol-light-term",
             "contentName": "strong"
         },
         {

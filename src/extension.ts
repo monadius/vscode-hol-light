@@ -71,7 +71,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.languages.setLanguageConfiguration('hol-light', {
+        vscode.languages.setLanguageConfiguration('hol-light-ocaml', {
             indentationRules: {
                 increaseIndentPattern: /^\s*(type|let)\s[^=]*=\s*(prove)?\s*$|\b(do|begin|struct|sig)\s*$/,
                 decreaseIndentPattern: /\b(done|end)\s*$/,

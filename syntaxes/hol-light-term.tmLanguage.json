@@ -19,7 +19,7 @@
                 {
                     "match": "/\\\\|\\\\/|==>|<=>",
                     "name": "keyword.operator.logical.hol-light-term",
-                    "name1": "support.function.hol-light"
+                    "--name": "support.function.hol-light"
                 },
                 {
                     "include": "#hol-type-annotation"
