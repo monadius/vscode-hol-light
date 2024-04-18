@@ -212,11 +212,7 @@
             "properties": {
                 "hol-light.exePaths": {
                     "type": "array",
-                    "default": [
-                        "bash",
-                        "ocaml",
-                        "hol_light"
-                    ],
+                    "default": [],
                     "description": "Paths to HOL Light startup scripts"
                 },
                 "hol-light.tacticMaxLines": {

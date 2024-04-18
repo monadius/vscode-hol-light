@@ -12,6 +12,11 @@ export function activate(context: vscode.ExtensionContext) {
         return configuration.get(name, defaultValue);
     }
 
+    function updateConfigOption<T>(name: string, value: T) {
+        const configuration = vscode.workspace.getConfiguration('hol-light');
+        configuration.update(name, value, false);
+    }
+
     let replTerm: vscode.Terminal | null = null;
     let prevDecoration: vscode.TextEditorDecorationType | null = null;
 
@@ -42,24 +47,41 @@ export function activate(context: vscode.ExtensionContext) {
 
     async function getREPL(): Promise<vscode.Terminal | null> {
         if (!replTerm) {
-            let paths = getConfigOption('exePaths', ['ocaml']);
-            if (!paths.length) {
-                paths = ['ocaml'];
-            }
-            let path = paths[0];
-            if (paths.length > 1) {
-                const result = await vscode.window.showQuickPick(paths, {canPickMany: false, ignoreFocusOut: true});
-                if (result) {
-                    path = result;
+            const paths = getConfigOption<string[]>('exePaths', []);
+            const items: vscode.QuickPickItem[] = paths.map(path => ({ label: path }));
+            items.push({ label: '', kind: vscode.QuickPickItemKind.Separator });
+            items.push({ label: 'Choose a script file...', detail: 'Select a file in a file open dialog' });
+
+            let path: string;
+            const result = await vscode.window.showQuickPick(items, {
+               canPickMany: false, 
+               ignoreFocusOut: true,
+               placeHolder: "Select a HOL Light startup script"
+            });
+            if (result) {
+                if (result.detail) {
+                    const uri = await vscode.window.showOpenDialog({
+                        canSelectFiles: true, 
+                        canSelectFolders: false, 
+                        canSelectMany: false
+                    });
+                    if (!uri || !uri.length || !uri[0].fsPath) {
+                        return null;
+                    }
+                    path = uri[0].fsPath;
+                    if (!paths.includes(path)) {
+                        paths.push(path);
+                        updateConfigOption('exePaths', paths);
+                    }
                 } else {
-                    return null;
+                    path = result.label;
                 }
+            } else {
+                return null;
             }
-            // path = "bash";
-            // console.log('Terminal path: ' + path);
-            replTerm = vscode.window.createTerminal('HOL Light', path);
-        //    replTerm = vscode.window.createTerminal('HOL Light');
-            // replTerm.sendText("sudo /home/monad/work/tools/hol-light/bin/run");
+            // replTerm = vscode.window.createTerminal('HOL Light', path);
+            replTerm = vscode.window.createTerminal('HOL Light');
+            replTerm.sendText(path);
         }
         return replTerm;
     }
