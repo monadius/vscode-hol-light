@@ -40,7 +40,7 @@ export function activate(context: vscode.ExtensionContext) {
         highlightRange(new vscode.Range(document.positionAt(start), document.positionAt(end)));
     }
 
-    async function checkREPL(): Promise<vscode.Terminal> {
+    async function getREPL(): Promise<vscode.Terminal | null> {
         if (!replTerm) {
             let paths = getConfigOption('exePaths', ['ocaml']);
             if (!paths.length) {
@@ -51,6 +51,8 @@ export function activate(context: vscode.ExtensionContext) {
                 const result = await vscode.window.showQuickPick(paths, {canPickMany: false, ignoreFocusOut: true});
                 if (result) {
                     path = result;
+                } else {
+                    return null;
                 }
             }
             // path = "bash";
@@ -85,14 +87,19 @@ export function activate(context: vscode.ExtensionContext) {
                 replTerm.dispose();
                 replTerm = null;
             }
-            const repl = await checkREPL();
-            repl.show(true);
+            const repl = await getREPL();
+            if (repl) {
+                repl.show(true);
+            }
         })
     );
 
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.repl_send_statement', async () => {
-            const repl = await checkREPL();
+            const repl = await getREPL();
+            if (!repl) {
+                return;
+            }
             repl.show(true);
             const editor = vscode.window.activeTextEditor;
             if (!editor) {
@@ -134,7 +141,10 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.repl_send_goal', async () => {
-            const repl = await checkREPL();
+            const repl = await getREPL();
+            if (!repl) {
+                return;
+            }
             repl.show(true);
             const editor = vscode.window.activeTextEditor;
             if (!editor) {
@@ -157,7 +167,10 @@ export function activate(context: vscode.ExtensionContext) {
     const tacticRe = /^\s*(?:THEN\b|THENL\b(\s*\[)?)|\b(?:THEN|THENL(\s*\[)?)\s*$/g;
 
     async function replSendTactic(multiline: boolean, newline: boolean) {
-        const repl = await checkREPL();
+        const repl = await getREPL();
+        if (!repl) {
+            return;
+        }
         repl.show(true);
         const editor = vscode.window.activeTextEditor;
         if (!editor) {
@@ -251,7 +264,10 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.search', async () => {
-            const repl = await checkREPL();
+            const repl = await getREPL();
+            if (!repl) {
+                return;
+            }
             repl.show(true);
             const result = await vscode.window.showInputBox();
             if (!result) {
