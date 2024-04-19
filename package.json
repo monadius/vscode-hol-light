@@ -106,62 +106,62 @@
                 "when": "terminalFocus"
             },
             {
-                "key": "ctrl+c ctrl+e",
+                "key": "alt+e",
                 "command": "hol-light.repl_send_statement",
                 "when": "editorTextFocus && editorLangId == hol-light-ocaml"
             },
             {
-                "key": "ctrl+c ctrl+c",
+                "key": "alt+c",
                 "command": "hol-light.repl_send_break",
                 "when": "editorLangId == hol-light-ocaml"
             },
             {
-                "key": "ctrl+c ctrl+g",
+                "key": "alt+g",
                 "command": "hol-light.repl_send_goal",
                 "when": "editorTextFocus && editorLangId == hol-light-ocaml"
             },
             {
-                "key": "ctrl+c ctrl+l",
+                "key": "alt+l",
                 "command": "hol-light.repl_send_tactic",
                 "when": "editorTextFocus && editorLangId == hol-light-ocaml"
             },
             {
-                "key": "ctrl+c l",
+                "key": "alt+k",
                 "command": "hol-light.repl_send_tactic_no_newline",
                 "when": "editorTextFocus && editorLangId == hol-light-ocaml"
             },
             {
-                "key": "ctrl+c ctrl+m",
+                "key": "alt+m",
                 "command": "hol-light.repl_send_tactic_multline",
                 "when": "editorTextFocus && editorLangId == hol-light-ocaml"
             },
             {
-                "key": "ctrl+c m",
+                "key": "alt+n",
                 "command": "hol-light.repl_send_tactic_multline_no_newline",
                 "when": "editorTextFocus && editorLangId == hol-light-ocaml"
             },
             {
-                "key": "ctrl+c ctrl+r",
+                "key": "alt+r",
                 "command": "hol-light.select_tactic_multline",
                 "when": "editorTextFocus && editorLangId == hol-light-ocaml"
             },
             {
-                "key": "ctrl+c ctrl+p",
+                "key": "alt+p",
                 "command": "hol-light.repl_print_goal",
                 "when": "editorLangId == hol-light-ocaml"
             },
             {
-                "key": "ctrl+c ctrl+b",
+                "key": "alt+b",
                 "command": "hol-light.repl_back_proof",
                 "when": "editorLangId == hol-light-ocaml"
             },
             {
-                "key": "ctrl+c ctrl+o",
+                "key": "alt+o",
                 "command": "hol-light.repl_rotate_goal",
                 "when": "editorLangId == hol-light-ocaml"
             },
             {
-                "key": "ctrl+c ctrl+s",
+                "key": "alt+s",
                 "command": "hol-light.search",
                 "when": "editorLangId == hol-light-ocaml"
             }

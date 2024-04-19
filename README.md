@@ -17,11 +17,13 @@ Step by step proof replay.
 
 Commands:
 
-`CTRL-C CTRL-E`: send the current code to REPL.
+`Alt-E`: send the current code to REPL.
 
-`CTRL-C CTRL-L`: apply one-line tactic.
+`Alt-G`: set a new goal.
 
-`CTRL-C CTRL-M`: apply multiline tactic.
+`Alt-L`: apply one-line tactic.
+
+`Alt-M`: apply multiline tactic.
 
 ## Requirements
 
