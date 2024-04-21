@@ -1,7 +1,9 @@
 # Change Log
-All notable changes to the "vscode-hol-light" extension will be documented in this file.
 
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
+## 1.0.0
+- Matching brackets inside HOL terms
+- Allow to select HOL Light scripts with an open file dialog
 
-## [Unreleased]
-- Initial release
+## 0.3.0
+- A new algorithm for selecting statements and HOL terms which correctly handles comments and string literals
+- Improved syntax highlighting for HOL type annotations
