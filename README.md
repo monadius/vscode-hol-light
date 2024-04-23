@@ -1,14 +1,14 @@
 # HOL Light extension for VS Code
 
-A simple HOL Light extension for Visual Studio Code. It supports basic syntax hihglighting and interaction with a HOL Light REPL in a terminal window.
+A simple HOL Light extension for Visual Studio Code. It supports basic syntax highlighting and interaction with a HOL Light REPL in a terminal window.
 
 ## Requirements
 
 HOL Light should be installed separately. See [HOL Light repository](https://github.com/jrh13/hol-light/) for installation instructions.
 
-The extension is automatically activated for `.hl` files. If a HOL Light file has a different extension (e.g., `.ml`) then it is required to activate the extension manually by selecting `HOL Light` language mode.
+The extension is automatically activated for `.hl` files. If a HOL Light file has a different file type (e.g., `.ml`) then it is required to activate the HOL Light extension manually by selecting `HOL Light` language mode.
 
-The extension does not start a HOL Light REPL automatically. Whenever any command which interacts with HOL Light is invoked, a dialog will appear where a script for starting a HOL Light session should be selected. One possible choice is to select `hol.sh` from the HOL Light directory. Any other script can be also selected (e.g., `dmtcp_restart_script.sh` if DMTCP checkpointing is used).
+The extension does not start a HOL Light REPL automatically. Whenever any command which interacts with HOL Light is invoked, a dialog will appear where a script for starting a HOL Light session should be selected. One possible choice is to select `hol.sh` from the HOL Light directory. Any other script can also be selected (e.g., `dmtcp_restart_script.sh` if DMTCP checkpointing is used).
 
 ## Commands
 
@@ -72,7 +72,7 @@ All commands can be invoked from the command palette or by pressing the correspo
 
     Creates an input dialog where HOL Light theorems could be searched (all results will appear in a HOL Light REPL). Inputs in this dialog are either term patterns (with `_` wildcards; e.g., `_ + _ = _`) or names in double quotes (e.g., "ARITH"). Several search terms separated by a comma can be given (e.g., `_ + _ = _, "ARITH"`).
 
-Text which is sent to a HOL Light REPL is highlighted. The highlighting color can be specified with the configuration option `hol-light.highlightColor`.
+Note: Text which is sent to a HOL Light REPL is highlighted. The highlighting color can be specified with the configuration option `hol-light.highlightColor`.
 
 ## Extension Settings
 
@@ -88,7 +88,7 @@ The extension adds the `HOL Light configuration` group to settings.
 
 1) `hol-light.simpleSelection`: boolean. Default: `false`.
 
-    A boolean flag which indicates whether to use a simple algorithm for selecting statements with the command *Send selected text to HOL Light REPL*. In general this flag should be `false`. But if you notice any slowdown for very large HOL Light files, then it could be because the standard statment selection algorithm is too slow and a less accurate simple algorithm could be used to improve performance.
+    A boolean flag which indicates whether to use a simple algorithm for selecting statements with the command *Send selected text to HOL Light REPL*. In general, this flag should be `false`. But if you notice any slowdown for very large HOL Light files, then it could be because the standard statement selection algorithm is too slow and a less accurate simple algorithm could be used to improve performance.
 
 1) `hol-light.highlightColor`: string. Default: `editor.wordHighlightStrongBackground`
 
@@ -96,6 +96,6 @@ The extension adds the `HOL Light configuration` group to settings.
 
 ## Known Issues
 
-- Commands which select tactics may not work corretly for all possible tactics. It is always possible to select tactic text manually and send it to HOL Light.
+- Commands which select tactics may not work correctly for all possible tactics. Workaround: It is always possible to select tactic text manually and send it to HOL Light.
 
-- Type annotations inside HOL terms which occupy a single line are correctly highlighted only. The only recognized type constructors for highlighting are `list`, `group`, `finite_sum`, `word`.
+- Type annotations inside HOL terms which occupy several lines are not correctly highlighted. The only recognized type constructors for highlighting are `list`, `group`, `finite_sum`, `word`.
