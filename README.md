@@ -1,4 +1,4 @@
-# HOL Light extension for VS Code
+# HOL Light Extension for VS Code
 
 A simple HOL Light extension for Visual Studio Code. It supports basic syntax highlighting and interaction with a HOL Light REPL in a terminal window.
 

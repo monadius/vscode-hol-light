@@ -110,6 +110,10 @@
         {
             "match": "\\b(needs|loadt)\\b",
             "name": "keyword.control.import.hol-light"
+        },
+        {
+            "match": "\\b(CHEAT_TAC|new_axiom|mk_thm)\\b",
+            "name": "invalid.axiom.hol-light markup.underline"
         }
         
     ]
