@@ -10,7 +10,7 @@ The extension is automatically activated for `.hl` files. If a HOL Light file ha
 
 The extension does not start a HOL Light REPL automatically. Whenever any command which interacts with HOL Light is invoked, a dialog will appear where a script for starting a HOL Light session should be selected. One possible choice is to select `hol.sh` from the HOL Light directory. Any other script can be also selected (e.g., `dmtcp_restart_script.sh` if DMTCP checkpointing is used).
 
-## Main Commands
+## Commands
 
 All commands can be invoked from the command palette or by pressing the corresponding keyboard shortcuts.
 
@@ -72,6 +72,8 @@ All commands can be invoked from the command palette or by pressing the correspo
 
     Creates an input dialog where HOL Light theorems could be searched (all results will appear in a HOL Light REPL). Inputs in this dialog are either term patterns (with `_` wildcards; e.g., `_ + _ = _`) or names in double quotes (e.g., "ARITH"). Several search terms separated by a comma can be given (e.g., `_ + _ = _, "ARITH"`).
 
+Text which is sent to a HOL Light REPL is highlighted. The highlighting color can be specified with the configuration option `hol-light.highlightColor`.
+
 ## Extension Settings
 
 The extension adds the `HOL Light configuration` group to settings.
@@ -87,6 +89,10 @@ The extension adds the `HOL Light configuration` group to settings.
 1) `hol-light.simpleSelection`: boolean. Default: `false`.
 
     A boolean flag which indicates whether to use a simple algorithm for selecting statements with the command *Send selected text to HOL Light REPL*. In general this flag should be `false`. But if you notice any slowdown for very large HOL Light files, then it could be because the standard statment selection algorithm is too slow and a less accurate simple algorithm could be used to improve performance.
+
+1) `hol-light.highlightColor`: string. Default: `editor.wordHighlightStrongBackground`
+
+    Color for highlighting text sent to a HOL Light REPL. Could be either a reference to a color theme (see https://code.visualstudio.com/api/references/theme-color) or a color in the format ##RRGGBBAA. If this value is empty then the text is not highlighted.
 
 ## Known Issues
 

@@ -31,10 +31,15 @@ export function activate(context: vscode.ExtensionContext) {
         }
         prevDecoration = null;
         if (range) {
+            const highlightColor = getConfigOption<string>('highlightColor', '');
+            if (!highlightColor) {
+                return;
+            }
+            const color = /^#[\dA-F]+$/.test(highlightColor) ? highlightColor : new vscode.ThemeColor(highlightColor);
             const decoration = vscode.window.createTextEditorDecorationType({
                 rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
                 // backgroundColor: new vscode.ThemeColor("searchEditor.findMatchBackground"),
-                backgroundColor: new vscode.ThemeColor("editor.wordHighlightStrongBackground")
+                backgroundColor: color
             });
             editor.setDecorations(decoration, [range]);
             prevDecoration = decoration;

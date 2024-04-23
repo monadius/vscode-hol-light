@@ -224,6 +224,11 @@
                     "type": "boolean",
                     "default": false,
                     "description": "Use a simple text selection algorithm for statements and HOL terms. Could be enabled if the standard selection algorithm is too slow for large files"
+                },
+                "hol-light.highlightColor": {
+                    "type": "string",
+                    "default": "editor.wordHighlightStrongBackground",
+                    "description": "Color for highlighting text sent to a HOL Light REPL. Could be either a reference to a color theme or a color in the format ##RRGGBBAA. If this value is empty then the text is not highlighted"
                 }
             }
         },
