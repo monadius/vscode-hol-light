@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as tactic from './tactic';
 
 import * as selection from './selection';
+import * as help from './help';
 
 // this method is called when the extension is activated
 export function activate(context: vscode.ExtensionContext) {
@@ -19,6 +20,12 @@ export function activate(context: vscode.ExtensionContext) {
 
     let replTerm: vscode.Terminal | null = null;
     let prevDecoration: vscode.TextEditorDecorationType | null = null;
+
+    const helpProvider = new help.HelpProvider(getConfigOption);
+
+    context.subscriptions.push(
+        vscode.languages.registerCompletionItemProvider('hol-light-ocaml', helpProvider)
+    );
 
     function highlightRange(range: vscode.Range | null) {
         const editor = vscode.window.activeTextEditor;
