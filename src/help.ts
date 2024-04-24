@@ -3,13 +3,24 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 
 class HelpItem {
-    name: string;
-
-    description?: string;
+    readonly name: string;
+    
+    readonly description?: string;
+ 
+    private completionItem?: vscode.CompletionItem;
 
     constructor(name: string, description?: string) {
         this.name = name;
         this.description = description;
+    }
+
+    toCompletionItem(): vscode.CompletionItem {
+        if (!this.completionItem) {
+            const completion = new vscode.CompletionItem(this.name);
+            completion.documentation = this.description;
+            this.completionItem = completion;
+        }
+        return this.completionItem;
     }
 }
 
@@ -64,12 +75,17 @@ export class HelpProvider {
                     if (name in SPECIAL_NAMES) {
                         name = SPECIAL_NAMES[name];
                     }
-                    items.push(new HelpItem(name));
+                    let text = '';
+                    try {
+                        text = await fs.readFile(path.join(helpPath, file.name), 'utf-8');
+                    } finally {
+                        items.push(new HelpItem(name, text));
+                    }
                 }
             }
             this.helpItems = items;
         } catch(err) {
-            console.error(`Error: ${err}`);
+            console.error(`loadHelpItems("${holPath}") error: ${err}`);
         }
     }
 
@@ -83,8 +99,7 @@ export class HelpProvider {
         const completionItems: vscode.CompletionItem[] = [];
         for (const item of this.helpItems) {
             if (item.name.startsWith(word)) {
-                const completion = new vscode.CompletionItem(item.name);
-                completionItems.push(completion);
+                completionItems.push(item.toCompletionItem());
             }
         }
         return completionItems;
