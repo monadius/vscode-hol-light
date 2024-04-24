@@ -14,24 +14,19 @@ class HelpItem {
 export class HelpProvider {
     private helpItems: HelpItem[] = [];
 
-    private getConfig: <T>(name: string, defaultValue: T) => T;
-
     // Loads (or reloads) all help items from the given path to HOL Light
     async loadHelpItems(holPath: string) {
-        // if (!holPath) {
-        //     return;
-        // }
-        this.helpItems = [new HelpItem('ASM_REWRITE_TAC'), new HelpItem('ASM_SIMP_TAC')];
-    }
-
-    constructor(getConfig: <T>(name: string, defaultValue: T) => T) {
-        this.getConfig = getConfig;
-        this.loadHelpItems(this.getConfig('hol-light-path', ''));
+        console.log(`Loading from: ${holPath}`);
+        if (!holPath) {
+            return;
+        }
+        this.helpItems = [];
+        // this.helpItems = [new HelpItem('ASM_REWRITE_TAC'), new HelpItem('ASM_SIMP_TAC')];
     }
 
     provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, context: vscode.CompletionContext) {
         const range = document.getWordRangeAtPosition(position);
-        if (!range) {
+        if (!range || !this.helpItems.length) {
             return [];
         }
         const word = document.getText(range);

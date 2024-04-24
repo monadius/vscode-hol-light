@@ -21,10 +21,19 @@ export function activate(context: vscode.ExtensionContext) {
     let replTerm: vscode.Terminal | null = null;
     let prevDecoration: vscode.TextEditorDecorationType | null = null;
 
-    const helpProvider = new help.HelpProvider(getConfigOption);
+    const helpProvider = new help.HelpProvider();
+    helpProvider.loadHelpItems(getConfigOption('path', ''));
 
     context.subscriptions.push(
         vscode.languages.registerCompletionItemProvider('hol-light-ocaml', helpProvider)
+    );
+
+    context.subscriptions.push(
+        vscode.workspace.onDidChangeConfiguration(e => {
+            if (e.affectsConfiguration('hol-light.path')) {
+                helpProvider.loadHelpItems(getConfigOption('path', ''));
+            }
+        })
     );
 
     function highlightRange(range: vscode.Range | null) {
@@ -125,6 +134,20 @@ export function activate(context: vscode.ExtensionContext) {
             if (repl) {
                 repl.show(true);
             }
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('hol-light.set_path', async () => {
+            const uri = await vscode.window.showOpenDialog({
+                canSelectFiles: false,
+                canSelectFolders: true, 
+                canSelectMany: false
+            });
+            if (!uri || !uri.length || !uri[0].fsPath) {
+                return null;
+            }
+            updateConfigOption('path', uri[0].fsPath);
         })
     );
 

@@ -35,6 +35,11 @@
             },
             {
                 "category": "HOL Light",
+                "command": "hol-light.set_path",
+                "title": "Set HOL Light path"
+            },
+            {
+                "category": "HOL Light",
                 "command": "hol-light.repl_send_statement",
                 "title": "Send Current Statement to REPL"
             },
@@ -210,6 +215,11 @@
         "configuration": {
             "title": "HOL Light configuration",
             "properties": {
+                "hol-light.path": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Path to HOL Light"
+                },
                 "hol-light.exePaths": {
                     "type": "array",
                     "default": [],
