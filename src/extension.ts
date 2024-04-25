@@ -18,11 +18,17 @@ export function activate(context: vscode.ExtensionContext) {
         configuration.update(name, value, false);
     }
 
+    async function loadHelpItems(path: string) {
+        if (!await helpProvider.loadHelpItems(path) && path) {
+            vscode.window.showErrorMessage(`Invalid HOL Light path: ${path}`);
+        }
+    }
+
     let replTerm: vscode.Terminal | null = null;
     let prevDecoration: vscode.TextEditorDecorationType | null = null;
 
     const helpProvider = new help.HelpProvider();
-    helpProvider.loadHelpItems(getConfigOption('path', ''));
+    loadHelpItems(getConfigOption('path', ''));
 
     context.subscriptions.push(
         vscode.languages.registerCompletionItemProvider('hol-light-ocaml', helpProvider)
@@ -35,7 +41,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.workspace.onDidChangeConfiguration(e => {
             if (e.affectsConfiguration('hol-light.path')) {
-                helpProvider.loadHelpItems(getConfigOption('path', ''));
+                loadHelpItems(getConfigOption('path', ''));
             }
         })
     );

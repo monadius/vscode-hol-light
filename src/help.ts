@@ -85,9 +85,9 @@ export class HelpProvider {
     private helpIndex: {[key: string]: HelpItem} = {};
 
     // Loads (or reloads) all help items from the given path to HOL Light
-    async loadHelpItems(holPath: string) {
+    async loadHelpItems(holPath: string): Promise<boolean> {
         if (!holPath) {
-            return;
+            return false;
         }
         const helpPath = path.join(holPath, 'Help');
         console.log(`Loading help items from: ${helpPath}`);
@@ -95,7 +95,7 @@ export class HelpProvider {
             const stat = await fs.stat(helpPath);
             if (!stat.isDirectory()) {
                 console.error(`Not a directory: ${helpPath}`);
-                return;
+                return false;
             }
             const items = [];
             for (const file of await fs.readdir(helpPath, {withFileTypes: true})) {
@@ -112,7 +112,9 @@ export class HelpProvider {
             this.helpIndex = Object.fromEntries(items.map(item => [item.name, item]));
         } catch(err) {
             console.error(`loadHelpItems("${holPath}") error: ${err}`);
+            return false;
         }
+        return true;
     }
 
     provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, context: vscode.CompletionContext) {
