@@ -10,6 +10,10 @@ The extension is automatically activated for `.hl` files. If a HOL Light file ha
 
 The extension does not start a HOL Light REPL automatically. Whenever any command which interacts with HOL Light is invoked, a dialog will appear where a script for starting a HOL Light session should be selected. One possible choice is to select `hol.sh` from the HOL Light directory. Any other script can also be selected (e.g., `dmtcp_restart_script.sh` if DMTCP checkpointing is used).
 
+## IntelliSense Support
+
+This extension provides autocompletion for items defined in the HOL Light `Help` directory. In order to enable this feature, it is necessary to set the path to a HOL Light directory. This path can be set by either editing the configuration option `hol-light.path` or by using the `HOL Light: Set HOL Light Path` command.
+
 ## Commands
 
 All commands can be invoked from the command palette or by pressing the corresponding keyboard shortcuts.
@@ -72,6 +76,10 @@ All commands can be invoked from the command palette or by pressing the correspo
 
     Creates an input dialog where HOL Light theorems could be searched (all results will appear in a HOL Light REPL). Inputs in this dialog are either term patterns (with `_` wildcards; e.g., `_ + _ = _`) or names in double quotes (e.g., "ARITH"). Several search terms separated by a comma can be given (e.g., `_ + _ = _, "ARITH"`).
 
+1) **HOL Light: Set HOL Light Path**
+
+    Opens a dialog where a path to HOL Light should be selected. This path is required for enabling autocompletion for items defined in the HOL Light `Help` directory.
+
 Note: Text which is sent to a HOL Light REPL is highlighted. The highlighting color can be specified with the configuration option `hol-light.highlightColor`.
 
 ## Extension Settings
@@ -81,6 +89,10 @@ The extension adds the `HOL Light configuration` group to settings.
 1) `hol-light.exePaths`: array of strings. Default: `[]`.
 
     An array of paths to HOL Light startup scripts. A new entry to this array is automatically added when a new script is selected in a file open dialog whenever a new HOL Light terminal is created.
+
+1) `hol-light.path`: string.
+
+    Path to a HOL Light directory. This path is required to enable autocompletion features of this extension.
 
 1) `hol-light.tacticMaxLines`: number. Default: `30`.
 

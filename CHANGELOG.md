@@ -1,5 +1,9 @@
 # Change Log
 
+## 1.1.0
+- Highlight `CHEAT_TAC`, `new_axiom`, `mk_thm` with red color
+- Autocompletion and hovers for items defined in the HOL Light `Help` directory
+
 ## 1.0.0
 - Matching brackets inside HOL terms
 - Allow to select HOL Light scripts with an open file dialog
