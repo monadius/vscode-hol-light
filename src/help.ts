@@ -69,8 +69,18 @@ class HelpItem {
     }
 }
 
+function getWordAtPosition(document: vscode.TextDocument, position: vscode.Position): string | null {
+    const range = document.getWordRangeAtPosition(position);
+    if (!range) {
+        return null;
+    }
+    return document.getText(range);
+}
+
 export class HelpProvider {
     private helpItems: HelpItem[] = [];
+
+    private helpIndex: {[key: string]: HelpItem} = {};
 
     // Loads (or reloads) all help items from the given path to HOL Light
     async loadHelpItems(holPath: string) {
@@ -97,6 +107,7 @@ export class HelpProvider {
                 }
             }
             this.helpItems = items;
+            this.helpIndex = Object.fromEntries(items.map(item => [item.name, item]));
         } catch(err) {
             console.error(`loadHelpItems("${holPath}") error: ${err}`);
         }
@@ -104,11 +115,10 @@ export class HelpProvider {
 
     provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, context: vscode.CompletionContext) {
         // TODO: special symbols (e.g., ++, |||) are not words
-        const range = document.getWordRangeAtPosition(position);
-        if (!range || !this.helpItems.length) {
+        const word = getWordAtPosition(document, position);
+        if (!word) {
             return [];
         }
-        const word = document.getText(range);
         const completionItems: vscode.CompletionItem[] = [];
         for (const item of this.helpItems) {
             if (item.name && item.name.startsWith(word)) {
@@ -118,5 +128,11 @@ export class HelpProvider {
         return completionItems;
     }
 
-
+    provideHover(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken) {
+        const word = getWordAtPosition(document, position);
+        if (!word || !this.helpIndex[word]) {
+            return null;
+        }
+        return this.helpIndex[word].toHoverItem();
+    }
 }
