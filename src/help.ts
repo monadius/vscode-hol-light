@@ -60,10 +60,12 @@ class HelpItem {
 
     toHoverItem(): vscode.Hover {
         if (!this.hoverItem) {
-            const text = Object.entries(this.sections).map(([name, text]) => {
+            const header = `### ${this.sections['TYPE']}`;
+            // slice(2) to skip \DOC and \TYPE sections
+            const text = Object.entries(this.sections).slice(2).map(([name, text]) => {
                 return `\n### ${name}\n\n${text}`;
             }).join('\n').replace(/^[{}]/gm, '```');
-            this.hoverItem = new vscode.Hover(new vscode.MarkdownString(text));
+            this.hoverItem = new vscode.Hover(new vscode.MarkdownString(header + '\n' + text));
         }
         return this.hoverItem;
     }
