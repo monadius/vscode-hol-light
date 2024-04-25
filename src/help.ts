@@ -5,52 +5,69 @@ import * as path from 'path';
 class HelpItem {
     readonly name: string;
     
-    readonly description?: string;
- 
+    private sections: {[name: string]: string} = {};
+
     private completionItem?: vscode.CompletionItem;
 
-    constructor(name: string, description?: string) {
-        this.name = name;
-        this.description = description;
+    private hoverItem?: vscode.Hover;
+
+    constructor(doc: string) {
+        let sectionName = '';
+        let sectionLines: string[] = [];
+        const addSection = () => {
+            if (!sectionName) {
+                return;
+            }
+            while (sectionLines.length && !sectionLines.at(-1)?.trim()) {
+                sectionLines.pop();
+            }
+            const text = sectionLines.map(line => line.replace(/\{([^}]*)\}/g, '`$1`')).join('\n');
+            this.sections[sectionName] = text;
+            sectionName = '';
+            sectionLines = [];
+        };
+
+        for (const line of doc.split('\n')) {
+            const m = line.match(/^\\(\S+)\s*(.*)/);
+            if (m) {
+                if (m[1] === 'ENDDOC') {
+                    break;
+                }
+                addSection();
+                sectionName = m[1];
+                if (m[2]) {
+                    sectionLines.push(m[2]);
+                }
+            } else {
+                sectionLines.push(line);
+            }
+        }
+        addSection();
+
+        this.name = this.sections['DOC'] || '';
     }
 
     toCompletionItem(): vscode.CompletionItem {
         if (!this.completionItem) {
             const completion = new vscode.CompletionItem(this.name);
-            completion.documentation = this.description;
+            completion.documentation = new vscode.MarkdownString(
+                `${this.sections['TYPE']}\n\n${this.sections['SYNOPSIS']}`
+            );
             this.completionItem = completion;
         }
         return this.completionItem;
     }
-}
 
-/* eslint-disable @typescript-eslint/naming-convention */
-const SPECIAL_NAMES: {[key: string]: string} = {
-    '.joinparsers': '++',
-    '.orparser': '|||',
-    '.singlefun': '|=>',
-    '.upto': '--',
-    '.valmod': '|->',
-    'insert_prime': "insert'",
-    'mem_prime': "mem'",
-    'subtract_prime': "subtract'",
-    'union_prime': "union'",
-    'unions_prime': "unions'",
-    'ALPHA_UPPERCASE': 'ALPHA',
-    'CHOOSE_UPPERCASE': 'CHOOSE',
-    'CONJUNCTS_UPPERCASE': 'CONJUNCTS',
-    'EXISTS_UPPERCASE': 'EXISTS',
-    'HYP_UPPERCASE': 'HYP',
-    'INSTANTIATE_UPPERCASE': 'INSTANTIATE',
-    'INST_UPPERCASE': 'INST',
-    'MK_BINOP_UPPERCASE': 'MK_BINOP',
-    'MK_COMB_UPPERCASE': 'MK_COMB',
-    'MK_CONJ_UPPERCASE': 'MK_CONJ',
-    'MK_DISJ_UPPERCASE': 'MK_DISJ',
-    'MK_EXISTS_UPPERCASE': 'MK_EXISTS',
-    'MK_FORALL_UPPERCASE': 'MK_FORALL',
-    'REPEAT_UPPERCASE': 'REPEAT'
-};
+    toHoverItem(): vscode.Hover {
+        if (!this.hoverItem) {
+            const text = Object.entries(this.sections).map(([name, text]) => {
+                return `\n### ${name}\n\n${text}`;
+            }).join('\n').replace(/^[{}]/gm, '```');
+            this.hoverItem = new vscode.Hover(new vscode.MarkdownString(text));
+        }
+        return this.hoverItem;
+    }
+}
 
 export class HelpProvider {
     private helpItems: HelpItem[] = [];
@@ -71,15 +88,11 @@ export class HelpProvider {
             const items = [];
             for (const file of await fs.readdir(helpPath, {withFileTypes: true})) {
                 if (file.isFile() && file.name.endsWith('.hlp')) {
-                    let name = file.name.slice(0, -4);
-                    if (name in SPECIAL_NAMES) {
-                        name = SPECIAL_NAMES[name];
-                    }
-                    let text = '';
                     try {
-                        text = await fs.readFile(path.join(helpPath, file.name), 'utf-8');
-                    } finally {
-                        items.push(new HelpItem(name, text));
+                        const text = await fs.readFile(path.join(helpPath, file.name), 'utf-8');
+                        items.push(new HelpItem(text));
+                    } catch(err) {
+                        console.error(`loadHelpItems: cannot load ${file.name}`);
                     }
                 }
             }
@@ -98,7 +111,7 @@ export class HelpProvider {
         const word = document.getText(range);
         const completionItems: vscode.CompletionItem[] = [];
         for (const item of this.helpItems) {
-            if (item.name.startsWith(word)) {
+            if (item.name && item.name.startsWith(word)) {
                 completionItems.push(item.toCompletionItem());
             }
         }
