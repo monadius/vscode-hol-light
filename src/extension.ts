@@ -18,9 +18,24 @@ export function activate(context: vscode.ExtensionContext) {
         configuration.update(name, value, false);
     }
 
+    async function chooseHOLLightPath() {
+        const uri = await vscode.window.showOpenDialog({
+            canSelectFiles: false,
+            canSelectFolders: true, 
+            canSelectMany: false
+        });
+        if (!uri || !uri.length || !uri[0].fsPath) {
+            return null;
+        }
+        updateConfigOption('path', uri[0].fsPath);
+    }
+
     async function loadHelpItems(path: string) {
         if (!await helpProvider.loadHelpItems(path) && path) {
-            vscode.window.showErrorMessage(`Invalid HOL Light path: ${path}`);
+            const res = await vscode.window.showErrorMessage(`Invalid HOL Light path: ${path}`, 'Change path...');
+            if (res === 'Change path...') {
+                chooseHOLLightPath();
+            }
         }
     }
 
@@ -148,17 +163,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('hol-light.set_path', async () => {
-            const uri = await vscode.window.showOpenDialog({
-                canSelectFiles: false,
-                canSelectFolders: true, 
-                canSelectMany: false
-            });
-            if (!uri || !uri.length || !uri[0].fsPath) {
-                return null;
-            }
-            updateConfigOption('path', uri[0].fsPath);
-        })
+        vscode.commands.registerCommand('hol-light.set_path', chooseHOLLightPath)
     );
 
     context.subscriptions.push(
