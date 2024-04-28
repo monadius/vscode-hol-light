@@ -18,6 +18,20 @@ export function activate(context: vscode.ExtensionContext) {
         configuration.update(name, value, false);
     }
 
+    function getReplDecorationType(): vscode.TextEditorDecorationType | null {
+        const highlightColor = getConfigOption<string>('highlightColor', '');
+        if (!highlightColor) {
+            return null;
+        }
+        const color = /^#[\dA-F]+$/.test(highlightColor) ? highlightColor : new vscode.ThemeColor(highlightColor);
+        const decoration = vscode.window.createTextEditorDecorationType({
+            rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
+            // backgroundColor: new vscode.ThemeColor("searchEditor.findMatchBackground"),
+            backgroundColor: color
+        });
+        return decoration;
+    }
+
     async function chooseHOLLightPath() {
         const uri = await vscode.window.showOpenDialog({
             canSelectFiles: false,
@@ -40,7 +54,6 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     let replTerm: vscode.Terminal | null = null;
-    let prevDecoration: vscode.TextEditorDecorationType | null = null;
 
     const helpProvider = new help.HelpProvider();
     loadHelpItems(getConfigOption('path', ''));
@@ -61,30 +74,19 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
+    context.subscriptions.push(
+        vscode.window.onDidChangeActiveTextEditor(editor => {
+        })
+    );
+
+    let replDecoration: vscode.TextEditorDecorationType | null = getReplDecorationType();
+
     function highlightRange(range: vscode.Range | null) {
         const editor = vscode.window.activeTextEditor;
-        if (!editor) {
+        if (!editor || !replDecoration) {
             return;
         }
-
-        if (prevDecoration) {
-            editor.setDecorations(prevDecoration, []);
-        }
-        prevDecoration = null;
-        if (range) {
-            const highlightColor = getConfigOption<string>('highlightColor', '');
-            if (!highlightColor) {
-                return;
-            }
-            const color = /^#[\dA-F]+$/.test(highlightColor) ? highlightColor : new vscode.ThemeColor(highlightColor);
-            const decoration = vscode.window.createTextEditorDecorationType({
-                rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
-                // backgroundColor: new vscode.ThemeColor("searchEditor.findMatchBackground"),
-                backgroundColor: color
-            });
-            editor.setDecorations(decoration, [range]);
-            prevDecoration = decoration;
-        }
+        editor.setDecorations(replDecoration, range ? [range] : []);
     }
 
     function highlightStartEnd(document: vscode.TextDocument, start: number, end: number) {

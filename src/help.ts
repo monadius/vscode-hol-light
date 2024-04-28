@@ -108,6 +108,9 @@ export class HelpProvider {
                     }
                 }
             }
+            if (!items.length) {
+                return false;
+            }
             this.helpItems = items;
             this.helpIndex = Object.fromEntries(items.map(item => [item.name, item]));
         } catch(err) {
