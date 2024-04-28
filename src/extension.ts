@@ -4,22 +4,31 @@ import * as tactic from './tactic';
 import * as selection from './selection';
 import * as help from './help';
 
+const CONFIG_SECTION = 'hol-light';
+const CONFIG_HIGHLIGHT_COLOR = 'highlightColor';
+const CONFIG_HOLLIGHT_PATH = 'path';
+const CONFIG_EXE_PATHS = 'exePaths';
+const CONFIG_TACTIC_MAX_LINES = 'tacticMaxLines';
+const CONFIG_SIMPLE_SELECTION = 'simpleSelection';
+
+const LANG_ID = 'hol-light-ocaml';
+
 // this method is called when the extension is activated
 export function activate(context: vscode.ExtensionContext) {
     console.log('HOL Light extension is activated');
 
     function getConfigOption<T>(name: string, defaultValue: T): T {
-        const configuration = vscode.workspace.getConfiguration('hol-light');
+        const configuration = vscode.workspace.getConfiguration(CONFIG_SECTION);
         return configuration.get(name, defaultValue);
     }
 
     function updateConfigOption<T>(name: string, value: T) {
-        const configuration = vscode.workspace.getConfiguration('hol-light');
+        const configuration = vscode.workspace.getConfiguration(CONFIG_SECTION);
         configuration.update(name, value, false);
     }
 
     function getReplDecorationType(): vscode.TextEditorDecorationType | null {
-        const highlightColor = getConfigOption<string>('highlightColor', '');
+        const highlightColor = getConfigOption<string>(CONFIG_HIGHLIGHT_COLOR, '');
         if (!highlightColor) {
             return null;
         }
@@ -41,7 +50,7 @@ export function activate(context: vscode.ExtensionContext) {
         if (!uri || !uri.length || !uri[0].fsPath) {
             return null;
         }
-        updateConfigOption('path', uri[0].fsPath);
+        updateConfigOption(CONFIG_HOLLIGHT_PATH, uri[0].fsPath);
     }
 
     async function loadHelpItems(path: string) {
@@ -56,20 +65,20 @@ export function activate(context: vscode.ExtensionContext) {
     let replTerm: vscode.Terminal | null = null;
 
     const helpProvider = new help.HelpProvider();
-    loadHelpItems(getConfigOption('path', ''));
+    loadHelpItems(getConfigOption(CONFIG_HOLLIGHT_PATH, ''));
 
     context.subscriptions.push(
-        vscode.languages.registerCompletionItemProvider('hol-light-ocaml', helpProvider)
+        vscode.languages.registerCompletionItemProvider(LANG_ID, helpProvider)
     );
 
     context.subscriptions.push(
-        vscode.languages.registerHoverProvider('hol-light-ocaml', helpProvider)
+        vscode.languages.registerHoverProvider(LANG_ID, helpProvider)
     );
 
     context.subscriptions.push(
         vscode.workspace.onDidChangeConfiguration(e => {
-            if (e.affectsConfiguration('hol-light.path')) {
-                loadHelpItems(getConfigOption('path', ''));
+            if (e.affectsConfiguration(CONFIG_SECTION + '.' + CONFIG_HOLLIGHT_PATH)) {
+                loadHelpItems(getConfigOption(CONFIG_HOLLIGHT_PATH, ''));
             }
         })
     );
@@ -95,7 +104,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     async function getREPL(): Promise<vscode.Terminal | null> {
         if (!replTerm) {
-            const paths = getConfigOption<string[]>('exePaths', []);
+            const paths = getConfigOption<string[]>(CONFIG_EXE_PATHS, []);
             const items: vscode.QuickPickItem[] = paths.map(path => ({ label: path }));
             items.push({ label: '', kind: vscode.QuickPickItemKind.Separator });
             items.push({ label: 'Choose a script file...', detail: 'Select a file in a file open dialog' });
@@ -119,7 +128,7 @@ export function activate(context: vscode.ExtensionContext) {
                     path = uri[0].fsPath;
                     if (!paths.includes(path)) {
                         paths.push(path);
-                        updateConfigOption('exePaths', paths);
+                        updateConfigOption(CONFIG_EXE_PATHS, paths);
                     }
                 } else {
                     path = result.label;
@@ -143,7 +152,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.languages.setLanguageConfiguration('hol-light-ocaml', {
+        vscode.languages.setLanguageConfiguration(LANG_ID, {
             indentationRules: {
                 increaseIndentPattern: /^\s*(type|let)\s[^=]*=\s*(prove)?\s*$|\b(do|begin|struct|sig)\s*$/,
                 decreaseIndentPattern: /\b(done|end)\s*$/,
@@ -189,7 +198,7 @@ export function activate(context: vscode.ExtensionContext) {
 
             const pos = editor.document.offsetAt(editor.selection.active);
             const {start: textStart, end: textEnd, text: statement, newPos} = 
-                getConfigOption('simpleSelection', false) ?
+                getConfigOption(CONFIG_SIMPLE_SELECTION, false) ?
                     selection.selectStatementSimple(editor.document, pos) :
                     selection.selectStatement(editor.document, pos);
 
@@ -226,7 +235,7 @@ export function activate(context: vscode.ExtensionContext) {
             }
             const pos = editor.document.offsetAt(editor.selection.active);
 
-            const term = getConfigOption("simpleSelection", false) ?
+            const term = getConfigOption(CONFIG_SIMPLE_SELECTION, false) ?
                 selection.selectTermSimple(editor.document, pos) :
                 selection.selectTerm(editor.document, pos);
             if (!term) {
@@ -258,7 +267,7 @@ export function activate(context: vscode.ExtensionContext) {
             highlightRange(editor.selection);
             return;
         }
-        const maxLines = multiline ? getConfigOption("tacticMaxLines", 30) : 1;
+        const maxLines = multiline ? getConfigOption(CONFIG_TACTIC_MAX_LINES, 30) : 1;
         const selection = tactic.selectTactic(editor, maxLines);
         const pos = editor.selection.active;
         let newPos: vscode.Position;
