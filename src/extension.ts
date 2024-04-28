@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
-import * as tactic from './tactic';
 
-import * as selection from './selection';
+import * as decoration from './decoration';
 import * as help from './help';
+import * as selection from './selection';
+import * as tactic from './tactic';
 
 const CONFIG_SECTION = 'hol-light';
 const CONFIG_HIGHLIGHT_COLOR = 'highlightColor';
@@ -17,6 +18,14 @@ const LANG_ID = 'hol-light-ocaml';
 export function activate(context: vscode.ExtensionContext) {
     console.log('HOL Light extension is activated');
 
+    let replTerm: vscode.Terminal | null = null;
+
+    const helpProvider = new help.HelpProvider();
+
+    const decorations = new decoration.Decorations(getReplDecorationType());
+
+    loadHelpItems(getConfigOption(CONFIG_HOLLIGHT_PATH, ''));
+
     function getConfigOption<T>(name: string, defaultValue: T): T {
         const configuration = vscode.workspace.getConfiguration(CONFIG_SECTION);
         return configuration.get(name, defaultValue);
@@ -27,10 +36,10 @@ export function activate(context: vscode.ExtensionContext) {
         configuration.update(name, value, false);
     }
 
-    function getReplDecorationType(): vscode.TextEditorDecorationType | null {
+    function getReplDecorationType(): vscode.TextEditorDecorationType | undefined {
         const highlightColor = getConfigOption<string>(CONFIG_HIGHLIGHT_COLOR, '');
         if (!highlightColor) {
-            return null;
+            return;
         }
         const color = /^#[\dA-F]+$/.test(highlightColor) ? highlightColor : new vscode.ThemeColor(highlightColor);
         const decoration = vscode.window.createTextEditorDecorationType({
@@ -62,10 +71,9 @@ export function activate(context: vscode.ExtensionContext) {
         }
     }
 
-    let replTerm: vscode.Terminal | null = null;
-
-    const helpProvider = new help.HelpProvider();
-    loadHelpItems(getConfigOption(CONFIG_HOLLIGHT_PATH, ''));
+    function highlightStartEnd(document: vscode.TextDocument, start: number, end: number) {
+        decorations.highlightRange(document, new vscode.Range(document.positionAt(start), document.positionAt(end)));
+    }
 
     context.subscriptions.push(
         vscode.languages.registerCompletionItemProvider(LANG_ID, helpProvider)
@@ -79,28 +87,17 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.workspace.onDidChangeConfiguration(e => {
             if (e.affectsConfiguration(CONFIG_SECTION + '.' + CONFIG_HOLLIGHT_PATH)) {
                 loadHelpItems(getConfigOption(CONFIG_HOLLIGHT_PATH, ''));
+            } else if (e.affectsConfiguration(CONFIG_SECTION + '.' + CONFIG_HIGHLIGHT_COLOR)) {
+                decorations.setDecoration(getReplDecorationType());
             }
         })
     );
 
     context.subscriptions.push(
-        vscode.window.onDidChangeActiveTextEditor(editor => {
+        vscode.window.onDidChangeVisibleTextEditors(_editors => {
+            decorations.updateDecorations();
         })
     );
-
-    let replDecoration: vscode.TextEditorDecorationType | null = getReplDecorationType();
-
-    function highlightRange(range: vscode.Range | null) {
-        const editor = vscode.window.activeTextEditor;
-        if (!editor || !replDecoration) {
-            return;
-        }
-        editor.setDecorations(replDecoration, range ? [range] : []);
-    }
-
-    function highlightStartEnd(document: vscode.TextDocument, start: number, end: number) {
-        highlightRange(new vscode.Range(document.positionAt(start), document.positionAt(end)));
-    }
 
     async function getREPL(): Promise<vscode.Terminal | null> {
         if (!replTerm) {
@@ -192,7 +189,7 @@ export function activate(context: vscode.ExtensionContext) {
             if (!editor.selection.isEmpty) {
                 const statement = editor.document.getText(editor.selection).trim();
                 repl.sendText(statement + (statement.endsWith(';;') ? '\n' : ';;\n'));
-                highlightRange(editor.selection);
+                decorations.highlightRange(editor.document, editor.selection);
                 return;
             }
 
@@ -203,7 +200,7 @@ export function activate(context: vscode.ExtensionContext) {
                     selection.selectStatement(editor.document, pos);
 
             repl.sendText(statement + ';;\n');
-            highlightRange(new vscode.Range(editor.document.positionAt(textStart), editor.document.positionAt(textEnd + 2)));
+            highlightStartEnd(editor.document, textStart, textEnd + 2);
             
             if (newPos) {
                 editor.selection = new vscode.Selection(newPos, newPos);
@@ -264,7 +261,7 @@ export function activate(context: vscode.ExtensionContext) {
             let text = editor.document.getText(editor.selection);
             text = text.replace(tacticRe, '').trim();
             repl.sendText(`e(${text});;\n`);
-            highlightRange(editor.selection);
+            decorations.highlightRange(editor.document, editor.selection);
             return;
         }
         const maxLines = multiline ? getConfigOption(CONFIG_TACTIC_MAX_LINES, 30) : 1;
@@ -276,11 +273,10 @@ export function activate(context: vscode.ExtensionContext) {
             newPos = selection.newline ? 
                 new vscode.Position(selection.range.end.line + 1, pos.character) :
                 new vscode.Position(selection.range.end.line, selection.range.end.character + 1);
-            highlightRange(selection.range);
-        }
-        else {
+            decorations.highlightRange(editor.document, selection.range);
+        } else {
             newPos = new vscode.Position(pos.line + 1, pos.character);
-            highlightRange(null);
+            decorations.highlightRange(editor.document, null);
         }
         if (newline) {
             newPos = editor.document.validatePosition(newPos);
@@ -321,7 +317,10 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             replTerm.sendText('b();;');
-            highlightRange(null);
+            const editor = vscode.window.activeTextEditor;
+            if (editor) {
+                decorations.highlightRange(editor.document, null);
+            }
         })
     );
 
