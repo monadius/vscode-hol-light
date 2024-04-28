@@ -76,6 +76,18 @@ All commands can be invoked from the command palette or by pressing the correspo
 
     Creates an input dialog where HOL Light theorems could be searched (all results will appear in a HOL Light REPL). Inputs in this dialog are either term patterns (with `_` wildcards; e.g., `_ + _ = _`) or names in double quotes (e.g., "ARITH"). Several search terms separated by a comma can be given (e.g., `_ + _ = _, "ARITH"`).
 
+1) **HOL Light: Remove Highlighting**
+
+    Default shortcut: `Alt + D`
+
+    Removes highlighting of the text sent to REPL from the active text document.
+
+1) **HOL Light: Jump to Highlighted Text**
+
+    Default shortcut: `Alt + J`
+
+    Moves the cursor to the end of a highlighted text in the active text editor.
+
 1) **HOL Light: Set HOL Light Path**
 
     Opens a dialog where a path to HOL Light should be selected. This path is required for enabling autocompletion for items defined in the HOL Light `Help` directory.
