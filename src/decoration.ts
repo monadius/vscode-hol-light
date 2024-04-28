@@ -29,6 +29,10 @@ export class Decorations {
         }
     }
 
+    getHighlightedRange(document: vscode.TextDocument): vscode.Range | null {
+        return this.documentRange.get(document) ?? null;
+    }
+
     highlightRange(document: vscode.TextDocument, range: vscode.Range | null) {
         this.documentRange.set(document, range);
         this.updateDecorations();

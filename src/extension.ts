@@ -373,6 +373,30 @@ export function activate(context: vscode.ExtensionContext) {
             repl.sendText(`search([${terms.join('; ')}]);;`);
         })
     );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('hol-light.remove_highlighting', () => {
+            const editor = vscode.window.activeTextEditor;
+            if (editor) {
+                decorations.highlightRange(editor.document, null);
+            }
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('hol-light.jump_to_highlighting', () => {
+            const editor = vscode.window.activeTextEditor;
+            if (!editor) {
+                return;
+            }
+            const range = decorations.getHighlightedRange(editor.document);
+            if (range) {
+                const pos = range.end;
+                editor.selection = new vscode.Selection(pos, pos);
+                editor.revealRange(new vscode.Range(pos, pos));
+            }
+        })
+    );
 }
 
 // this method is called when the extension is deactivated

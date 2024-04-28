@@ -97,6 +97,16 @@
                 "category": "HOL Light",
                 "command": "hol-light.search",
                 "title": "Search Theorems"
+            },
+            {
+                "category": "HOL Light",
+                "command": "hol-light.remove_highlighting",
+                "title": "Remove highlighting"
+            },
+            {
+                "category": "HOL Light",
+                "command": "hol-light.jump_to_highlighting",
+                "title": "Jump to Highlighted Text"
             }
         ],
         "keybindings": [
@@ -168,6 +178,16 @@
             {
                 "key": "alt+s",
                 "command": "hol-light.search",
+                "when": "editorLangId == hol-light-ocaml"
+            },
+            {
+                "key": "alt+d",
+                "command": "hol-light.remove_highlighting",
+                "when": "editorLangId == hol-light-ocaml"
+            },
+            {
+                "key": "alt+j",
+                "command": "hol-light.jump_to_highlighting",
                 "when": "editorLangId == hol-light-ocaml"
             }
         ],
