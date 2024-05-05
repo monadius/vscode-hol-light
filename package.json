@@ -107,6 +107,11 @@
                 "category": "HOL Light",
                 "command": "hol-light.jump_to_highlighting",
                 "title": "Jump to Highlighted Text"
+            },
+            {
+                "category": "HOL Light",
+                "command": "hol-light.parse",
+                "title": "Parse"
             }
         ],
         "keybindings": [
