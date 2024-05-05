@@ -21,9 +21,7 @@ export class Decorations {
 
     setDecoration(decoration?: vscode.TextEditorDecorationType) {
         if (this.decoration !== decoration) {
-            if (this.decoration) {
-                this.decoration.dispose();
-            }
+            this.decoration?.dispose();
             this.decoration = decoration;
             this.updateDecorations();
         }

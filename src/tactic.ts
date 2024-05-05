@@ -1,15 +1,15 @@
 import * as vscode from 'vscode';
 
 enum TokenType {
-    Other,
-    Bracket,
-    Comment,
-    String,
-    Separator,
-    Terminator,
-    Then,
-    EOL,
-    EOF
+    other,
+    bracket,
+    comment,
+    string,
+    separator,
+    terminator,
+    then,
+    eol,
+    eof
 }
 
 class Token extends vscode.Range {
@@ -33,14 +33,14 @@ class Tokenizer {
     private cachedTokens: Token[];
     private readonly re = /\(\*|[()\[\]"`]|;+|\b(THEN|THENL)\b/g;
 
-    private static readonly eofToken = new Token(TokenType.EOF, '', 0, 0, 0, 0);
-    private static readonly TokenTypes: {[key: string]: TokenType} = {
-        'THEN': TokenType.Then,
-        'THENL': TokenType.Then,
-        '(': TokenType.Bracket,
-        ')': TokenType.Bracket,
-        '[': TokenType.Bracket,
-        ']': TokenType.Bracket
+    private static readonly eofToken = new Token(TokenType.eof, '', 0, 0, 0, 0);
+    private static readonly tokenTypes: {[key: string]: TokenType} = {
+        'THEN': TokenType.then,
+        'THENL': TokenType.then,
+        '(': TokenType.bracket,
+        ')': TokenType.bracket,
+        '[': TokenType.bracket,
+        ']': TokenType.bracket
     };
 
     public constructor(lineProvider: (line: number) => string | null) {
@@ -56,8 +56,7 @@ class Tokenizer {
             this.currentLine = line;
             this.lineNumber += 1;
             this.re.lastIndex = 0;
-        }
-        else {
+        } else {
             this.eofFlag = true;
         }
     }
@@ -72,8 +71,7 @@ class Tokenizer {
             const m = re.exec(this.currentLine);
             if (!m) {
                 this.nextLine();
-            }
-            else {
+            } else {
                 level += m[0] === '(*' ? 1 : -1;
                 if (level <= 0) {
                     endChar = m.index + 2;
@@ -84,7 +82,7 @@ class Tokenizer {
         if (endChar < 0) {
             endChar = this.currentLine.length;
         }
-        return new Token(TokenType.Comment, '', startLine, startChar, this.lineNumber, endChar);
+        return new Token(TokenType.comment, '', startLine, startChar, this.lineNumber, endChar);
     }
 
     private parseStringToken(startChar: number, quote: string): Token {
@@ -96,8 +94,7 @@ class Tokenizer {
             const m = re.exec(this.currentLine);
             if (!m) {
                 this.nextLine();
-            }
-            else {
+            } else {
                 if (m[0] === quote) {
                     endChar = m.index + 1;
                     break;
@@ -107,7 +104,7 @@ class Tokenizer {
         if (endChar < 0) {
             endChar = this.currentLine.length;
         }
-        return new Token(TokenType.String, '', startLine, startChar, this.lineNumber, endChar);
+        return new Token(TokenType.string, '', startLine, startChar, this.lineNumber, endChar);
     }
 
     private cacheToken(type: TokenType, start: number, end: number, value?: string) {
@@ -122,18 +119,18 @@ class Tokenizer {
         }
         let start = this.re.lastIndex;
         if (start >= this.currentLine.length) {
-            this.cacheToken(TokenType.EOL, start, start);
+            this.cacheToken(TokenType.eol, start, start);
             this.nextLine();
             return;
         }
         const match = this.re.exec(this.currentLine);
         if (!match) {
             this.re.lastIndex = this.currentLine.length;
-            this.cacheToken(TokenType.Other, start, this.currentLine.length);
+            this.cacheToken(TokenType.other, start, this.currentLine.length);
             return;
         }
         if (match.index > start) {
-            this.cacheToken(TokenType.Other, start, match.index);
+            this.cacheToken(TokenType.other, start, match.index);
         }
         const val = match[0];
         start = match.index;
@@ -141,18 +138,15 @@ class Tokenizer {
             const token = this.parseCommentToken(start);
             this.cachedTokens.push(token);
             this.re.lastIndex = token.end.character;
-        }
-        else if (val === '"' || val === '`') {
+        } else if (val === '"' || val === '`') {
             const token = this.parseStringToken(start, val);
             this.cachedTokens.push(token);
             this.re.lastIndex = token.end.character;
-        }
-        else if (val[0] === ';') {
-            this.cacheToken(val.length > 1 ? TokenType.Terminator : TokenType.Separator, 
+        } else if (val[0] === ';') {
+            this.cacheToken(val.length > 1 ? TokenType.terminator : TokenType.separator, 
                 start, start + val.length, val);
-        }
-        else {
-            this.cacheToken(Tokenizer.TokenTypes[val], start, start + val.length, val);
+        } else {
+            this.cacheToken(Tokenizer.tokenTypes[val], start, start + val.length, val);
         }
     }
 
@@ -190,8 +184,7 @@ export function selectTactic(editor: vscode.TextEditor, maxLines: number,
         const wordRange = editor.document.getWordRangeAtPosition(editor.selection.active);
         if (wordRange) {
             firstCharacter = wordRange.start.character;
-        }
-        else {
+        } else {
             firstCharacter = editor.selection.active.character;
         }
     }
@@ -215,15 +208,15 @@ export function selectTactic(editor: vscode.TextEditor, maxLines: number,
         while (true) {
             const tok = toks.next();
             switch (tok.type) {
-                case TokenType.EOF:
-                case TokenType.EOL:
+                case TokenType.eof:
+                case TokenType.eol:
                     return true;
-                case TokenType.Other:
+                case TokenType.other:
                     if (!/^\s+$/.test(tok.value)) {
                         return false;
                     }
                     break;
-                case TokenType.String:
+                case TokenType.string:
                     return false;
             }
         }
@@ -233,20 +226,20 @@ export function selectTactic(editor: vscode.TextEditor, maxLines: number,
     while (true) {
         const tok = toks.next();
         switch (tok.type) {
-            case TokenType.EOF:
+            case TokenType.eof:
                 break loop;
-            case TokenType.Terminator:
+            case TokenType.terminator:
                 newline = checkNewline();
                 break loop;
-            case TokenType.Comment:
+            case TokenType.comment:
                 continue;
-            case TokenType.EOL:
+            case TokenType.eol:
                 if (tokens.length === 0) {
                     continue;
                 }
                 let level = bracketStack.length;
                 for (let i = tokens.length - 1; i >= 0; i--) {
-                    if (tokens[i].type === TokenType.Then) {
+                    if (tokens[i].type === TokenType.then) {
                         if (level <= 0) {
                             break loop;
                         }
@@ -254,44 +247,42 @@ export function selectTactic(editor: vscode.TextEditor, maxLines: number,
                             break;
                         }
                     }
-                    if (tokens[i].type === TokenType.Bracket) {
+                    if (tokens[i].type === TokenType.bracket) {
                         level -= (tokens[i].value === '(' || tokens[i].value === '[') ? 1 : -1;
                         continue;
                     }
                     break;
                 }
                 break;
-            case TokenType.Bracket:
+            case TokenType.bracket:
                 if (tok.value === '[' && tokens.length === 0) {
                     continue;
                 }
                 if (bracketStack[bracketStack.length - 1] === tok.value) {
                     bracketStack.pop();
-                }
-                else if (tok.value === '(' || tok.value === '[') {
+                } else if (tok.value === '(' || tok.value === '[') {
                     bracketStack.push(oppositeBracket(tok.value));
-                }
-                else {
+                } else {
                     // Unmatched bracket
                     newline = checkNewline();
                     break loop;
                 }
                 break;
-            case TokenType.Separator:
+            case TokenType.separator:
                 if (bracketStack.length === 0) {
                     newline = checkNewline();
                     break loop;
                 }
                 break;
-            case TokenType.Then:
+            case TokenType.then:
                 if (tokens.length === 0) {
                     continue;
                 }
-                if (bracketStack.length === 0 && tokens[tokens.length - 1].type === TokenType.EOL) {
+                if (bracketStack.length === 0 && tokens[tokens.length - 1].type === TokenType.eol) {
                     break loop;
                 }
                 break;
-            case TokenType.Other:
+            case TokenType.other:
                 if (/^\s+$/.test(tok.value)) {
                     continue;
                 }
@@ -303,14 +294,12 @@ export function selectTactic(editor: vscode.TextEditor, maxLines: number,
     // Remove THEN[L] and brackets from the end
     while (tokens.length > 0) {
         const last = tokens[tokens.length - 1];
-        if (last.type === TokenType.Then || last.type === TokenType.EOL) {
+        if (last.type === TokenType.then || last.type === TokenType.eol) {
             tokens.pop();
-        }
-        else if (last.type === TokenType.Bracket && 
+        } else if (last.type === TokenType.bracket && 
                  (last.value === '(' || last.value === '[')) {
             tokens.pop();
-        }
-        else {
+        } else {
             break;
         }
     }
