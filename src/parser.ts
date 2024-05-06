@@ -96,7 +96,9 @@ export function parseDocument(document: vscode.TextDocument): Definition[] {
     const text = document.getText();
     console.log(`Text length: ${text.length}`);
 
-    const re = /(?:^|;;)\s*let\s+(?:rec\s+)?([a-z_][\w']*)((?:\s+[a-z_][\w']*)*)\s*=\s*(new_definition|new_basic_definition|define|prove)\b[\s*\(]*`([^`]+)`/gid;
+    // It is dangerous to use non-greedy matches for comments \(\*.*?\*\) because
+    // it may lead to performance issues
+    const re = /(?:^|;;)(?:\s|\(\*[^*]*\*\))*let\s+(?:rec\s+)?([a-z_][\w']*)((?:\s+[a-z_][\w']*)*)\s*=\s*(new_definition|new_basic_definition|define|prove)\b[\s*\(]*`(.*?)`/gids;
     let match: RegExpExecArray | null;
     while (match = re.exec(text)) {
         let pos: number;
