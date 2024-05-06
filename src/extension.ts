@@ -160,57 +160,16 @@ export function activate(context: vscode.ExtensionContext) {
 
     /* WIP: parser */
 
-    let definitions: parser.Definition[] | null = null;
+    const database = new parser.Database();
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.parse', editor => {
-            definitions = parser.parseDocument(editor.document);
+            database.addDefinitions(parser.parseDocument(editor.document));
         })
     );
 
-    context.subscriptions.push(
-        vscode.languages.registerHoverProvider(LANG_ID, {
-            provideHover(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken) {
-                if (!definitions) {
-                    return null;
-                }
-                const range = document.getWordRangeAtPosition(position);
-                if (!range) {
-                    return null;
-                }
-                const word = document.getText(range);
-                for (const definition of definitions) {
-                    if (definition.name === word) {
-                        return new vscode.Hover(definition.toString());
-                    }
-                }
-            
-                return null;
-            }
-        })
-    );
-
-    context.subscriptions.push(
-        vscode.languages.registerDefinitionProvider(LANG_ID, {
-            provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken) {
-                if (!definitions) {
-                    return null;
-                }
-                const range = document.getWordRangeAtPosition(position);
-                if (!range) {
-                    return null;
-                }
-                const word = document.getText(range);
-                for (const definition of definitions) {
-                    if (definition.name === word) {
-                        return new vscode.Location(vscode.window.activeTextEditor!.document.uri, definition.position);
-                    }
-                }
-            
-                return null;
-            }
-        })
-    );
+    context.subscriptions.push(vscode.languages.registerHoverProvider(LANG_ID, database));
+    context.subscriptions.push(vscode.languages.registerDefinitionProvider(LANG_ID, database));
 
     /* WIP: end */
 
