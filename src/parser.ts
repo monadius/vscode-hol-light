@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
 enum DefinitionType {
     theorem,
@@ -170,4 +172,36 @@ export function parseDocument(document: vscode.TextDocument): Definition[] {
     // console.log(result.join(',\n'));
 
     return result;
+}
+
+export async function parseBaseHOLLightFiles(holPath: string): Promise<Definition[]> {
+    const definitions: Definition[] = [];
+    if (!holPath) {
+        return [];
+    }
+    console.log(`Parsing files from: ${holPath}`);
+    try {
+        const stat = await fs.stat(holPath);
+        if (!stat.isDirectory()) {
+            console.error(`Not a directory: ${holPath}`);
+            return [];
+        }
+        for (const file of await fs.readdir(holPath, {withFileTypes: true})) {
+            if (file.isFile() && file.name.endsWith('.ml')) {
+                try {
+                    const filePath = path.join(holPath, file.name);
+                    const text = await fs.readFile(filePath, 'utf-8');
+                    console.log(`Parsing: ${filePath}`);
+                    definitions.push(...parseText(text, vscode.Uri.file(filePath)));
+                } catch(err) {
+                    console.error(`parseBaseHOLLightFiles: cannot load ${file.name}`);
+                }
+            }
+        }
+    } catch(err) {
+        console.error(`parseBaseHOLLightFiles("${holPath}") error: ${err}`);
+        return [];
+    }
+    console.log(`Done`);
+    return definitions;
 }

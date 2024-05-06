@@ -112,6 +112,11 @@
                 "category": "HOL Light",
                 "command": "hol-light.parse",
                 "title": "Parse"
+            },
+            {
+                "category": "HOL Light",
+                "command": "hol-light.parse_hol_light",
+                "title": "Parse HOL Light files"
             }
         ],
         "keybindings": [
