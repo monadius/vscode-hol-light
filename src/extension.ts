@@ -164,7 +164,9 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.parse', editor => {
-            database.addDefinitions(parser.parseDocument(editor.document));
+            // const definitions = parser.parseDocument(editor.document);
+            const definitions = parser.parseText(editor.document.getText(), editor.document.uri);
+            database.addDefinitions(definitions);
         })
     );
 
