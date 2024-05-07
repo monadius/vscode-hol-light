@@ -98,7 +98,7 @@ function createParserRegexp() {
     const prove = `prove\\w*\\s*\\(`;
     // It is dangerous to use non-greedy matches for comments \(\*.*?\*\) because
     // it may lead to performance issues
-    return /(?:^|;;)(?:\s|\(\*[^*]*\*\))*let\s+(?:rec\s+)?([a-z_][\w']*)((?:\s+[a-z_][\w']*)*)\s*=\s*(new_definition|new_basic_definition|define|prove)\b[\s*\(]*`(.*?)`/gids;
+    return /(?:^|;;)(?:\s|\(\*[^*]*\*\))*let\s+(?:rec\s+)?([a-z_][\w']*)((?:\s+[a-z_][\w']*)*)\s*=\s*(new_definition|new_basic_definition|define|prove_by_refinement|prove)\b[\s*\(]*`(.*?)`/gids;
 }
 
 const PARSE_REGEXP = createParserRegexp();
@@ -130,7 +130,7 @@ export function parseText(text: string, uri?: vscode.Uri): Definition[] {
         }
         const definition = new Definition(
             match[1], 
-            match[3] === 'prove' ? DefinitionType.theorem : DefinitionType.definition, 
+            match[3]?.startsWith('prove') ? DefinitionType.theorem : DefinitionType.definition, 
             match[4], 
             new vscode.Position(line, pos - lineStarts[line]),
             uri
@@ -160,7 +160,7 @@ export function parseDocument(document: vscode.TextDocument): Definition[] {
         }
         const definition = new Definition(
             match[1], 
-            match[3] === 'prove' ? DefinitionType.theorem : DefinitionType.definition, 
+            match[3]?.startsWith('prove') ? DefinitionType.theorem : DefinitionType.definition, 
             match[4], 
             document.positionAt(pos),
             document.uri
@@ -172,6 +172,19 @@ export function parseDocument(document: vscode.TextDocument): Definition[] {
     // console.log(result.join(',\n'));
 
     return result;
+}
+
+function getDependencies(text: string): string[] {
+    // TODO: make this pattern extendable with user-defined commands (e.g., flyspeck_needs)
+    const re = /\b(needs|loads|loadt|flyspeck_needs)\s*"(.*?)"/g;
+    const deps: string[] = [];
+    let match: RegExpExecArray | null;
+    while (match = re.exec(text)) {
+        if (match[2]) {
+            deps.push(match[2]);
+        }
+    }
+    return deps;
 }
 
 export async function parseBaseHOLLightFiles(holPath: string): Promise<Definition[]> {
@@ -206,7 +219,56 @@ export async function parseBaseHOLLightFiles(holPath: string): Promise<Definitio
     return definitions;
 }
 
-export async function parseDependencies(text: string, uri: vscode.Uri): Promise<Definition[]> {
-    const definitions: Definition[] = [];
+async function resolveDependencyPath(dep: string, basePath: string, roots: string[]): Promise<string | null> {
+    for (const root of roots) {
+        if (!root) {
+            // Skip empty roots
+            continue;
+        }
+        const p = path.join(root === '.' ? basePath : root, dep);
+        try {
+            const stats = await fs.stat(p);
+            if (stats.isFile()) {
+                return p;
+            }
+        } catch {
+            // No file
+        }
+    }
+    return null;
+}
+
+export async function parseDependencies(text: string, uri: vscode.Uri, roots: string[]): Promise<Definition[]> {
+    const definitions: Definition[] = parseText(text, uri);
+    const visited = new Set<string>([uri.fsPath]);
+    const deps = getDependencies(text);
+    const queue: {dep: string, basePath: string}[] = deps.map(dep => ({dep, basePath: path.dirname(uri.fsPath)}));
+    const unresolvedDeps: string[] = [];
+
+    while (queue.length) {
+        const {dep, basePath} = queue.pop()!;
+        const depPath = await resolveDependencyPath(dep, basePath, roots);
+        if (!depPath) {
+            unresolvedDeps.push(dep);
+            continue;
+        }
+        if (visited.has(depPath)) {
+            continue;
+        }
+        console.log(`Loading ${depPath}`);
+        visited.add(depPath);
+        try {
+            const text = await fs.readFile(depPath, 'utf-8');
+            const defs = parseText(text, vscode.Uri.file(depPath));
+            definitions.push(...defs);
+            const deps = getDependencies(text);
+            queue.push(...deps.map(dep => ({dep, basePath: path.dirname(depPath)})));
+        } catch (err) {
+            console.error(`Error while loading ${depPath}: ${err}`);
+        }
+    }
+
+    console.log(`Unresolved dependencies:\n ${unresolvedDeps.join('\n')}`);
+
     return definitions;
 }

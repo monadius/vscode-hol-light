@@ -179,7 +179,10 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.index', async editor => {
-            const definitions = await parser.parseDependencies(editor.document.getText(), editor.document.uri);
+            const definitions = await parser.parseDependencies(
+                editor.document.getText(), 
+                editor.document.uri,
+                ['.', getConfigOption(CONFIG_HOLLIGHT_PATH, '')]);
             database.addDefinitions(definitions);
         })
     );
