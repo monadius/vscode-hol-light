@@ -260,6 +260,11 @@
                     "default": [],
                     "description": "Paths to HOL Light startup scripts"
                 },
+                "hol-light.rootPaths": {
+                    "type": "array",
+                    "default": [".", "{path}"],
+                    "description": "Paths for searching dependencies"
+                },
                 "hol-light.tacticMaxLines": {
                     "type": "number",
                     "default": 30,

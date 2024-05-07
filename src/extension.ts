@@ -37,6 +37,12 @@ export function activate(context: vscode.ExtensionContext) {
         configuration.update(name, value, false);
     }
 
+    function getRootPaths(): string[] {
+        const paths = getConfigOption<string[]>('rootPaths', []);
+        // Path parts in braces are replaced with corresponding option values
+        return paths.map(path => path.replace(/\{(.*?)\}/g, (_, option) => getConfigOption(option, '')));
+    }
+
     function getReplDecorationType(): vscode.TextEditorDecorationType | undefined {
         const highlightColor = getConfigOption<string>(CONFIG_HIGHLIGHT_COLOR, '');
         if (!highlightColor) {
@@ -179,10 +185,12 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.index', async editor => {
+            const rootPaths = getRootPaths();
+            console.log(`rootPaths: ${rootPaths}`);
             const definitions = await parser.parseDependencies(
                 editor.document.getText(), 
                 editor.document.uri,
-                ['.', getConfigOption(CONFIG_HOLLIGHT_PATH, '')]);
+                rootPaths);
             database.addDefinitions(definitions);
         })
     );
