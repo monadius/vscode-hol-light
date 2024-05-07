@@ -205,3 +205,8 @@ export async function parseBaseHOLLightFiles(holPath: string): Promise<Definitio
     console.log(`Done`);
     return definitions;
 }
+
+export async function parseDependencies(text: string, uri: vscode.Uri): Promise<Definition[]> {
+    const definitions: Definition[] = [];
+    return definitions;
+}
