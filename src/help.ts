@@ -79,7 +79,7 @@ function getWordAtPosition(document: vscode.TextDocument, position: vscode.Posit
     return document.getText(range);
 }
 
-export class HelpProvider {
+export class HelpProvider implements vscode.HoverProvider, vscode.CompletionItemProvider {
     private helpItems: HelpItem[] = [];
 
     private helpIndex: {[key: string]: HelpItem} = {};
@@ -120,7 +120,7 @@ export class HelpProvider {
         return true;
     }
 
-    provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, context: vscode.CompletionContext) {
+    provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken, context: vscode.CompletionContext) {
         // TODO: special symbols (e.g., ++, |||) are not words
         const word = getWordAtPosition(document, position);
         if (!word) {
@@ -135,7 +135,7 @@ export class HelpProvider {
         return completionItems;
     }
 
-    provideHover(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken) {
+    provideHover(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken) {
         const word = getWordAtPosition(document, position);
         if (!word || !this.helpIndex[word]) {
             return null;

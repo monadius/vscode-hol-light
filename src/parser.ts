@@ -57,7 +57,7 @@ function getWordAtPosition(document: vscode.TextDocument, position: vscode.Posit
     return document.getText(range);
 }
 
-export class Database {
+export class Database implements vscode.DefinitionProvider, vscode.HoverProvider {
     private definitions: Definition[] = [];
     private index: {[key: string]: Definition} = {};
 
@@ -68,7 +68,7 @@ export class Database {
         }
     }
 
-    provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken) {
+    provideDefinition(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken) {
         if (!this.definitions.length) {
             return null;
         }
@@ -79,7 +79,7 @@ export class Database {
         return this.index[word]?.getLocation();
     }
 
-    provideHover(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken) {
+    provideHover(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken) {
         if (!this.definitions.length) {
             return null;
         }
