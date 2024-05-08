@@ -61,6 +61,53 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
     private definitions: Definition[] = [];
     private index: {[key: string]: Definition} = {};
 
+    private dependencies: {[fileName: string]: string[]} = {};
+    private allDefinitions: {[fileName: string]: Definition[]} = {};
+    private definitionIndex: {[key: string]: Definition[]} = {};
+
+    /**
+     * Removes definitions associated with the given file
+     * @param fileName
+     */
+    removeDefinitions(fileName: string) {
+        const defs = this.allDefinitions[fileName];
+        if (!defs) {
+            return;
+        }
+        delete this.allDefinitions[fileName];
+        for (const def of defs) {
+            const xs = this.definitionIndex[def.name];
+            if (xs) {
+                const i = xs.indexOf(def);
+                xs.splice(i, 1);
+                if (xs.length === 0) {
+                    delete this.definitionIndex[def.name];
+                }
+            }
+        }
+    }
+
+    isDependency(fileName: string, dependency: string): boolean {
+        if (fileName === dependency) {
+            return true;
+        }
+        const queue = [fileName];
+        const visited = new Set<string>();
+        while (queue.length) {
+            const name = queue.pop()!;
+            for (const dep of this.dependencies[name] || []) {
+                if (dep === dependency) {
+                    return true;
+                }
+                if (!visited.has(dep)) {
+                    visited.add(dep);
+                    queue.push(dep);
+                }
+            }
+        }
+        return false;
+    }
+
     addDefinitions(defs: Definition[]) {
         for (const definition of defs) {
             this.definitions.push(definition);
