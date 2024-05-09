@@ -61,20 +61,21 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
     private definitions: Definition[] = [];
     private index: {[key: string]: Definition} = {};
 
-    private dependencies: {[fileName: string]: string[]} = {};
-    private allDefinitions: {[fileName: string]: Definition[]} = {};
+    private dependencies: {[filePath: string]: string[]} = {};
+    private allDefinitions: {[filePath: string]: Definition[]} = {};
     private definitionIndex: {[key: string]: Definition[]} = {};
 
     /**
-     * Removes definitions associated with the given file
-     * @param fileName
+     * Removes definitions and other information associated with the given file
+     * @param filePath
      */
-    removeDefinitions(fileName: string) {
-        const defs = this.allDefinitions[fileName];
+    removeFromIndex(filePath: string) {
+        delete this.dependencies[filePath];
+        const defs = this.allDefinitions[filePath];
         if (!defs) {
             return;
         }
-        delete this.allDefinitions[fileName];
+        delete this.allDefinitions[filePath];
         for (const def of defs) {
             const xs = this.definitionIndex[def.name];
             if (xs) {
@@ -87,11 +88,11 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         }
     }
 
-    isDependency(fileName: string, dependency: string): boolean {
-        if (fileName === dependency) {
+    isDependency(filePath: string, dependency: string): boolean {
+        if (filePath === dependency) {
             return true;
         }
-        const queue = [fileName];
+        const queue = [filePath];
         const visited = new Set<string>();
         while (queue.length) {
             const name = queue.pop()!;
@@ -112,6 +113,18 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         for (const definition of defs) {
             this.definitions.push(definition);
             this.index[definition.name] = definition;
+        }
+    }
+
+    addToIndex(filePath: string, deps: string[], defs: Definition[]) {
+        this.removeFromIndex(filePath);
+        this.dependencies[filePath] = deps;
+        this.allDefinitions[filePath] = defs;
+        for (const def of defs) {
+            if (!this.definitionIndex[def.name]) {
+                this.definitionIndex[def.name] = [];
+            }
+            this.definitionIndex[def.name].push(def);
         }
     }
 
