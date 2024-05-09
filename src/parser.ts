@@ -24,6 +24,10 @@ export class Definition {
         this.uri = uri;
     }
 
+    getFilePath(): string | undefined {
+        return this.uri?.fsPath;
+    }
+
     getLocation() : vscode.Location | null {
         return this.uri ? new vscode.Location(this.uri, this.position) : null;
     }
@@ -58,12 +62,12 @@ function getWordAtPosition(document: vscode.TextDocument, position: vscode.Posit
 }
 
 export class Database implements vscode.DefinitionProvider, vscode.HoverProvider {
-    private definitions: Definition[] = [];
-    private index: {[key: string]: Definition} = {};
-
     private baseHolLightFiles: Set<string> = new Set();
+
     private dependencies: {[filePath: string]: string[]} = {};
+    
     private allDefinitions: {[filePath: string]: Definition[]} = {};
+    
     private definitionIndex: {[key: string]: Definition[]} = {};
 
     /**
@@ -111,13 +115,6 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         return false;
     }
 
-    addDefinitions(defs: Definition[]) {
-        for (const definition of defs) {
-            this.definitions.push(definition);
-            this.index[definition.name] = definition;
-        }
-    }
-
     addToIndex(filePath: string, deps: string[], defs: Definition[]) {
         this.removeFromIndex(filePath);
         this.dependencies[filePath] = deps;
@@ -128,6 +125,14 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             }
             this.definitionIndex[def.name].push(def);
         }
+    }
+
+    findDefinitions(filePath: string, word: string): Definition[] {
+        const defs = this.definitionIndex[word] || [];
+        return defs.filter(def => {
+            const dep = def.getFilePath();
+            return dep ? this.isDependency(filePath, dep) : false;
+        });
     }
 
     async indexBaseHolLightFiles(holPath: string) {
@@ -168,25 +173,22 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
     }
 
     provideDefinition(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken) {
-        if (!this.definitions.length) {
-            return null;
-        }
         const word = getWordAtPosition(document, position);
         if (!word) {
             return null;
         }
-        return this.index[word]?.getLocation();
+        const defs = this.findDefinitions(document.uri.fsPath, word);
+        const locs = <vscode.Location[]>defs.map(def => def.getLocation()).filter(loc => loc);
+        return locs.length ? locs : null;
     }
 
     provideHover(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken) {
-        if (!this.definitions.length) {
-            return null;
-        }
         const word = getWordAtPosition(document, position);
         if (!word) {
             return null;
         }
-        return this.index[word]?.toHoverItem();
+        const defs = this.findDefinitions(document.uri.fsPath, word);
+        return defs[0]?.toHoverItem();
     }
 }
 

@@ -172,7 +172,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerTextEditorCommand('hol-light.parse', editor => {
             // const definitions = parser.parseDocument(editor.document);
             const definitions = parser.parseText(editor.document.getText(), editor.document.uri);
-            database.addDefinitions(definitions);
+            // database.addDefinitions(definitions);
         })
     );
 
@@ -190,7 +190,7 @@ export function activate(context: vscode.ExtensionContext) {
                 editor.document.getText(), 
                 editor.document.uri,
                 rootPaths);
-            database.addDefinitions(definitions);
+            // database.addDefinitions(definitions);
         })
     );
 
