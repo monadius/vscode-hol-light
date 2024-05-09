@@ -64,17 +64,20 @@ function getWordAtPosition(document: vscode.TextDocument, position: vscode.Posit
 export class Database implements vscode.DefinitionProvider, vscode.HoverProvider {
     private baseHolLightFiles: Set<string> = new Set();
 
-    private dependencies: {[filePath: string]: string[]} = {};
-    
-    private allDefinitions: {[filePath: string]: Definition[]} = {};
-    
-    private definitionIndex: {[key: string]: Definition[]} = {};
+    private modificationTimes: { [filePath: string]: number } = {};
+
+    private dependencies: { [filePath: string]: string[] } = {};
+
+    private allDefinitions: { [filePath: string]: Definition[] } = {};
+
+    private definitionIndex: { [key: string]: Definition[] } = {};
 
     /**
      * Removes definitions and other information associated with the given file
      * @param filePath
      */
     removeFromIndex(filePath: string) {
+        delete this.modificationTimes[filePath];
         delete this.dependencies[filePath];
         const defs = this.allDefinitions[filePath];
         if (!defs) {
@@ -91,6 +94,20 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
                 }
             }
         }
+    }
+
+    async indexFile(filePath: string, ignoreDependencies = false): Promise<boolean> {
+        const mtime = (await fs.stat(filePath)).mtimeMs;
+        if (mtime > (this.modificationTimes[filePath] || -1)) {
+            const text = await fs.readFile(filePath, 'utf-8');
+            const definitions = parseText(text, vscode.Uri.file(filePath));
+            // TODO: parse and add dependencies
+            this.addToIndex(filePath, [], definitions);
+            // addToIndex calls removeFromIndex so the modification time should be updated after addToIndex
+            this.modificationTimes[filePath] = mtime;
+            return true;
+        }
+        return false;
     }
 
     isDependency(filePath: string, dependency: string): boolean {
@@ -153,11 +170,9 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
                 if (file.isFile() && name.endsWith('.ml') && !name.startsWith('pa_j') && !name.startsWith('update_database')) {
                     try {
                         const filePath = path.join(holPath, file.name);
-                        const text = await fs.readFile(filePath, 'utf-8');
-                        console.log(`Indexing: ${filePath}`);
-                        const definitions = parseText(text, vscode.Uri.file(filePath));
-                        // Dependencies are not parsed for base HOL Light files
-                        this.addToIndex(filePath, [], definitions);
+                        if (await this.indexFile(filePath, true)) {
+                            console.log(`Indexed: ${filePath}`);
+                        }
                         files.push(filePath);
                     } catch(err) {
                         console.error(`indexBaseHolLightFiles: cannot load ${file.name}`);
