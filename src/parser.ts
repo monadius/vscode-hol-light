@@ -152,27 +152,30 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         });
     }
 
-    async indexBaseHolLightFiles(holPath: string) {
+    async indexBaseHolLightFiles(holPath: string, progress?: vscode.Progress<{ increment: number, message: string }>): Promise<string> {
         if (!holPath) {
-            return;
+            return 'No HOL Light path provided';
         }
 
         const files: string[] = [];
-        console.log(`Indexing HOL Light files: ${holPath}`);
+        progress?.report({increment: 0, message: `Indexing HOL Light files: ${holPath}`});
         try {
             const stat = await fs.stat(holPath);
             if (!stat.isDirectory()) {
                 console.error(`Not a directory: ${holPath}`);
-                return;
+                return `Not a directory: ${holPath}`;
             }
             for (const file of await fs.readdir(holPath, {withFileTypes: true})) {
                 const name = file.name;
                 if (file.isFile() && name.endsWith('.ml') && !name.startsWith('pa_j') && !name.startsWith('update_database')) {
                     try {
                         const filePath = path.join(holPath, file.name);
+                        progress?.report({increment: 0, message: `Indexing: ${filePath}`});
                         if (await this.indexFile(filePath, true)) {
                             console.log(`Indexed: ${filePath}`);
                         }
+                        // For debugging:
+                        // await new Promise(resolve => setTimeout(resolve, 100));
                         files.push(filePath);
                     } catch(err) {
                         console.error(`indexBaseHolLightFiles: cannot load ${file.name}`);
@@ -181,10 +184,11 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             }
         } catch(err) {
             console.error(`indexBaseHolLightFiles("${holPath}") error: ${err}`);
-            return;
+            return `Error: ${err}`;
         }
         console.log(`Done`);
         this.baseHolLightFiles = new Set(files);
+        return '';
     }
 
     provideDefinition(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken) {

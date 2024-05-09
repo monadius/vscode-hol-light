@@ -178,7 +178,17 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.parse_hol_light', async () => {
-            await database.indexBaseHolLightFiles(getConfigOption(CONFIG_HOLLIGHT_PATH, ''));
+            const path = getConfigOption(CONFIG_HOLLIGHT_PATH, '');
+            const err = await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                cancellable: false
+            }, (progress, _token) => database.indexBaseHolLightFiles(path, progress));
+            if (err) {
+                const res = await vscode.window.showErrorMessage(`Invalid HOL Light path: ${err}`, 'Change path...');
+                if (res === 'Change path...') {
+                    chooseHOLLightPath();
+                }
+            }
         })
     );
 
