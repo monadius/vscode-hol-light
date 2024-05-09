@@ -177,9 +177,8 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerTextEditorCommand('hol-light.parse_hol_light', async editor => {
-            const definitions = await parser.parseBaseHOLLightFiles(getConfigOption(CONFIG_HOLLIGHT_PATH, ''));
-            database.addDefinitions(definitions);
+        vscode.commands.registerCommand('hol-light.parse_hol_light', async () => {
+            await database.indexBaseHolLightFiles(getConfigOption(CONFIG_HOLLIGHT_PATH, ''));
         })
     );
 

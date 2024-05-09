@@ -61,6 +61,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
     private definitions: Definition[] = [];
     private index: {[key: string]: Definition} = {};
 
+    private baseHolLightFiles: Set<string> = new Set();
     private dependencies: {[filePath: string]: string[]} = {};
     private allDefinitions: {[filePath: string]: Definition[]} = {};
     private definitionIndex: {[key: string]: Definition[]} = {};
@@ -89,7 +90,8 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
     }
 
     isDependency(filePath: string, dependency: string): boolean {
-        if (filePath === dependency) {
+        // All files depend on base HOL Light files
+        if (filePath === dependency || this.baseHolLightFiles.has(dependency)) {
             return true;
         }
         const queue = [filePath];
@@ -126,6 +128,43 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             }
             this.definitionIndex[def.name].push(def);
         }
+    }
+
+    async indexBaseHolLightFiles(holPath: string) {
+        if (!holPath) {
+            return;
+        }
+
+        const files: string[] = [];
+        console.log(`Indexing HOL Light files: ${holPath}`);
+        try {
+            const stat = await fs.stat(holPath);
+            if (!stat.isDirectory()) {
+                console.error(`Not a directory: ${holPath}`);
+                return;
+            }
+            for (const file of await fs.readdir(holPath, {withFileTypes: true})) {
+                const name = file.name;
+                if (file.isFile() && name.endsWith('.ml') && !name.startsWith('pa_j') && !name.startsWith('update_database')) {
+                    try {
+                        const filePath = path.join(holPath, file.name);
+                        const text = await fs.readFile(filePath, 'utf-8');
+                        console.log(`Indexing: ${filePath}`);
+                        const definitions = parseText(text, vscode.Uri.file(filePath));
+                        // Dependencies are not parsed for base HOL Light files
+                        this.addToIndex(filePath, [], definitions);
+                        files.push(filePath);
+                    } catch(err) {
+                        console.error(`indexBaseHolLightFiles: cannot load ${file.name}`);
+                    }
+                }
+            }
+        } catch(err) {
+            console.error(`indexBaseHolLightFiles("${holPath}") error: ${err}`);
+            return;
+        }
+        console.log(`Done`);
+        this.baseHolLightFiles = new Set(files);
     }
 
     provideDefinition(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken) {
@@ -245,38 +284,6 @@ function getDependencies(text: string): string[] {
         }
     }
     return deps;
-}
-
-export async function parseBaseHOLLightFiles(holPath: string): Promise<Definition[]> {
-    const definitions: Definition[] = [];
-    if (!holPath) {
-        return [];
-    }
-    console.log(`Parsing files from: ${holPath}`);
-    try {
-        const stat = await fs.stat(holPath);
-        if (!stat.isDirectory()) {
-            console.error(`Not a directory: ${holPath}`);
-            return [];
-        }
-        for (const file of await fs.readdir(holPath, {withFileTypes: true})) {
-            if (file.isFile() && file.name.endsWith('.ml')) {
-                try {
-                    const filePath = path.join(holPath, file.name);
-                    const text = await fs.readFile(filePath, 'utf-8');
-                    console.log(`Parsing: ${filePath}`);
-                    definitions.push(...parseText(text, vscode.Uri.file(filePath)));
-                } catch(err) {
-                    console.error(`parseBaseHOLLightFiles: cannot load ${file.name}`);
-                }
-            }
-        }
-    } catch(err) {
-        console.error(`parseBaseHOLLightFiles("${holPath}") error: ${err}`);
-        return [];
-    }
-    console.log(`Done`);
-    return definitions;
 }
 
 async function resolveDependencyPath(dep: string, basePath: string, roots: string[]): Promise<string | null> {
