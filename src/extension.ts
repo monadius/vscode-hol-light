@@ -2,9 +2,11 @@ import * as vscode from 'vscode';
 
 import * as decoration from './decoration';
 import * as help from './help';
-import * as parser from './parser';
+import * as data from './database';
 import * as selection from './selection';
 import * as tactic from './tactic';
+
+import * as parser from './parser';
 
 const CONFIG_SECTION = 'hol-light';
 const CONFIG_HIGHLIGHT_COLOR = 'highlightColor';
@@ -166,7 +168,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     /* WIP: parser */
 
-    const database = new parser.Database();
+    const database = new data.Database();
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.parse', editor => {
