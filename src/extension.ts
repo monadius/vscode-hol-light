@@ -196,11 +196,11 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerTextEditorCommand('hol-light.index', async editor => {
             const rootPaths = getRootPaths();
             console.log(`rootPaths: ${rootPaths}`);
-            const definitions = await parser.parseDependencies(
-                editor.document.getText(), 
-                editor.document.uri,
-                rootPaths);
-            // database.addDefinitions(definitions);
+            const holPath = getConfigOption(CONFIG_HOLLIGHT_PATH, '');
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                cancellable: false
+            }, (progress, _token) => database.indexDocumentWithDependencies(editor.document, holPath, rootPaths, progress));
         })
     );
 

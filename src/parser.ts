@@ -96,8 +96,8 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
      */
     private addToIndex(filePath: string, deps: string[], defs: Definition[]) {
         this.removeFromIndex(filePath);
-        this.dependencies[filePath] = deps;
-        this.allDefinitions[filePath] = defs;
+        this.dependencies[filePath] = [...deps];
+        this.allDefinitions[filePath] = [...defs];
         for (const def of defs) {
             if (!this.definitionIndex[def.name]) {
                 this.definitionIndex[def.name] = [];
@@ -134,29 +134,21 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
      * Indexes the given file if it is not indexed yet or if it has been modified.
      * @param filePath
      * @param rootPaths 
-     * @returns false if the file has already been indexed and has not been modified
+     * @returns an object where the `indexed` field indicates whether the file has been indexed
      */
-    async indexFile(filePath: string, rootPaths: string[] | null): Promise<boolean> {
+    async indexFile(filePath: string, rootPaths: string[] | null): Promise<{ indexed: boolean, deps: string[], unresolvedDeps: string[] }> {
         const mtime = (await fs.stat(filePath)).mtimeMs;
         if (mtime > (this.modificationTimes[filePath] || -1)) {
             const text = await fs.readFile(filePath, 'utf-8');
-            const deps: string[] = [];
-            if (rootPaths) {
-                const basePath = path.dirname(filePath);
-                for (const dep of getDependencies(text)) {
-                    const depPath = await resolveDependencyPath(dep, basePath, rootPaths);
-                    if (depPath) {
-                        deps.push(depPath);
-                    }
-                }
-            }
+            const { deps, unresolvedDeps } = rootPaths ? await parseAndResolveDependencies(text, path.dirname(filePath), rootPaths) : { deps: [], unresolvedDeps: [] };
             const definitions = parseText(text, vscode.Uri.file(filePath));
             this.addToIndex(filePath, deps, definitions);
             // addToIndex calls removeFromIndex so the modification time should be updated after addToIndex
             this.modificationTimes[filePath] = mtime;
-            return true;
+            return { indexed: true, deps, unresolvedDeps };
         }
-        return false;
+        // Return existing dependencies for a file which has already been indexed
+        return { indexed: false, deps: this.dependencies[filePath] || [], unresolvedDeps: [] };
     }
 
     /**
@@ -213,7 +205,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
                     try {
                         const filePath = path.join(holPath, file.name);
                         progress?.report({increment: 0, message: `Indexing: ${filePath}`});
-                        if (await this.indexFile(filePath, null)) {
+                        if ((await this.indexFile(filePath, null)).indexed) {
                             console.log(`Indexed: ${filePath}`);
                         }
                         // For debugging:
@@ -231,6 +223,47 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         console.log(`Done`);
         this.baseHolLightFiles = new Set(files);
         return '';
+    }
+
+    async indexDocumentWithDependencies(document: vscode.TextDocument, holPath: string, rootPaths: string[], progress?: vscode.Progress<{ increment: number, message: string }>) {
+        if (!this.baseHolLightFiles.size) {
+            // Index HOL Light files first
+            await this.indexBaseHolLightFiles(holPath, progress);
+        }
+
+        const docText = document.getText();
+        const docPath = document.uri.fsPath;
+        const docDefinitions = parseText(docText, document.uri);
+        const { deps: docDeps, unresolvedDeps } = await parseAndResolveDependencies(docText, path.dirname(docPath), rootPaths);
+        this.addToIndex(docPath, docDeps, docDefinitions);
+        // TODO: do we need to update modifiedTimes?
+        // If there is a cyclic dependency on this document then it will be indexed twice.
+        // On the other hand, cyclic dependencies should be removed.
+        const visited = new Set<string>([document.uri.fsPath]);
+        const queue: string[] = docDeps;
+    
+        while (queue.length) {
+            const depPath = queue.pop()!;
+            if (visited.has(depPath)) {
+                continue;
+            }
+            progress?.report({ increment: 0, message: `Indexing: ${depPath}` });
+            visited.add(depPath);
+            const { indexed, deps, unresolvedDeps: unresolved } = await this.indexFile(depPath, rootPaths);
+            if (indexed) {
+                console.log(`Indexed: ${depPath}`);
+            }
+            unresolvedDeps.push(...unresolved);
+            // We do not check if the dependencies has already been indexed or not.
+            // Add everything to the queue and call this.indexFile for all dependencies.
+            queue.push(...deps);
+        }
+
+        if (unresolvedDeps.length > 0) {
+            const unresolvedMessage = `Unresolved dependencies:\n ${unresolvedDeps.join('\n')}`;
+            console.log(unresolvedMessage);
+            vscode.window.showWarningMessage(unresolvedMessage);
+        }
     }
 
     provideDefinition(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken) {
@@ -336,7 +369,7 @@ export function parseDocument(document: vscode.TextDocument): Definition[] {
     return result;
 }
 
-function getDependencies(text: string): string[] {
+function parseDependencies(text: string): string[] {
     // TODO: make this pattern extendable with user-defined commands (e.g., flyspeck_needs)
     const re = /\b(needs|loads|loadt|flyspeck_needs)\s*"(.*?)"/g;
     const deps: string[] = [];
@@ -375,37 +408,16 @@ async function resolveDependencyPath(dep: string, basePath: string, roots: strin
     return null;
 }
 
-export async function parseDependencies(text: string, uri: vscode.Uri, roots: string[]): Promise<Definition[]> {
-    const definitions: Definition[] = parseText(text, uri);
-    const visited = new Set<string>([uri.fsPath]);
-    const deps = getDependencies(text);
-    const queue: {dep: string, basePath: string}[] = deps.map(dep => ({dep, basePath: path.dirname(uri.fsPath)}));
+async function parseAndResolveDependencies(text: string, basePath: string, rootPaths: string[]): Promise<{ deps: string[], unresolvedDeps: string[] }> {
+    const deps: string[] = [];
     const unresolvedDeps: string[] = [];
-
-    while (queue.length) {
-        const {dep, basePath} = queue.pop()!;
-        const depPath = await resolveDependencyPath(dep, basePath, roots);
-        if (!depPath) {
+    for (const dep of parseDependencies(text)) {
+        const depPath = await resolveDependencyPath(dep, basePath, rootPaths);
+        if (depPath) {
+            deps.push(depPath);
+        } else {
             unresolvedDeps.push(dep);
-            continue;
-        }
-        if (visited.has(depPath)) {
-            continue;
-        }
-        console.log(`Loading ${depPath}`);
-        visited.add(depPath);
-        try {
-            const text = await fs.readFile(depPath, 'utf-8');
-            const defs = parseText(text, vscode.Uri.file(depPath));
-            definitions.push(...defs);
-            const deps = getDependencies(text);
-            queue.push(...deps.map(dep => ({dep, basePath: path.dirname(depPath)})));
-        } catch (err) {
-            console.error(`Error while loading ${depPath}: ${err}`);
         }
     }
-
-    console.log(`Unresolved dependencies:\n ${unresolvedDeps.join('\n')}`);
-
-    return definitions;
+    return {deps, unresolvedDeps};
 }
