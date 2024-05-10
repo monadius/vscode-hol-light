@@ -1,19 +1,13 @@
 import * as vscode from 'vscode';
 
+import * as config from './config';
+import * as data from './database';
 import * as decoration from './decoration';
 import * as help from './help';
-import * as data from './database';
 import * as selection from './selection';
 import * as tactic from './tactic';
 
 import * as parser from './parser';
-
-const CONFIG_SECTION = 'hol-light';
-const CONFIG_HIGHLIGHT_COLOR = 'highlightColor';
-const CONFIG_HOLLIGHT_PATH = 'path';
-const CONFIG_EXE_PATHS = 'exePaths';
-const CONFIG_TACTIC_MAX_LINES = 'tacticMaxLines';
-const CONFIG_SIMPLE_SELECTION = 'simpleSelection';
 
 const LANG_ID = 'hol-light-ocaml';
 
@@ -25,39 +19,9 @@ export function activate(context: vscode.ExtensionContext) {
 
     const helpProvider = new help.HelpProvider();
 
-    const decorations = new decoration.Decorations(getReplDecorationType());
+    const decorations = new decoration.Decorations(config.getReplDecorationType());
 
-    loadHelpItems(getConfigOption(CONFIG_HOLLIGHT_PATH, ''));
-
-    function getConfigOption<T>(name: string, defaultValue: T): T {
-        const configuration = vscode.workspace.getConfiguration(CONFIG_SECTION);
-        return configuration.get(name, defaultValue);
-    }
-
-    function updateConfigOption<T>(name: string, value: T) {
-        const configuration = vscode.workspace.getConfiguration(CONFIG_SECTION);
-        configuration.update(name, value, false);
-    }
-
-    function getRootPaths(): string[] {
-        const paths = getConfigOption<string[]>('rootPaths', []);
-        // Path parts in braces are replaced with corresponding option values
-        return paths.map(path => path.replace(/\{(.*?)\}/g, (_, option) => getConfigOption(option, '')));
-    }
-
-    function getReplDecorationType(): vscode.TextEditorDecorationType | undefined {
-        const highlightColor = getConfigOption<string>(CONFIG_HIGHLIGHT_COLOR, '');
-        if (!highlightColor) {
-            return;
-        }
-        const color = /^#[\dA-F]+$/.test(highlightColor) ? highlightColor : new vscode.ThemeColor(highlightColor);
-        const decoration = vscode.window.createTextEditorDecorationType({
-            rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
-            // backgroundColor: new vscode.ThemeColor("searchEditor.findMatchBackground"),
-            backgroundColor: color
-        });
-        return decoration;
-    }
+    loadHelpItems(config.getConfigOption(config.HOLLIGHT_PATH, ''));
 
     async function chooseHOLLightPath() {
         const uri = await vscode.window.showOpenDialog({
@@ -68,7 +32,7 @@ export function activate(context: vscode.ExtensionContext) {
         if (!uri || !uri.length || !uri[0].fsPath) {
             return null;
         }
-        updateConfigOption(CONFIG_HOLLIGHT_PATH, uri[0].fsPath);
+        config.updateConfigOption(config.HOLLIGHT_PATH, uri[0].fsPath);
     }
 
     async function loadHelpItems(path: string) {
@@ -94,10 +58,10 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.workspace.onDidChangeConfiguration(e => {
-            if (e.affectsConfiguration(CONFIG_SECTION + '.' + CONFIG_HOLLIGHT_PATH)) {
-                loadHelpItems(getConfigOption(CONFIG_HOLLIGHT_PATH, ''));
-            } else if (e.affectsConfiguration(CONFIG_SECTION + '.' + CONFIG_HIGHLIGHT_COLOR)) {
-                decorations.setDecoration(getReplDecorationType());
+            if (config.affectsConfiguration(e, config.HOLLIGHT_PATH)) {
+                loadHelpItems(config.getConfigOption(config.HOLLIGHT_PATH, ''));
+            } else if (config.affectsConfiguration(e, config.HIGHLIGHT_COLOR)) {
+                decorations.setDecoration(config.getReplDecorationType());
             }
         })
     );
@@ -110,7 +74,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     async function getREPL(): Promise<vscode.Terminal | null> {
         if (!replTerm) {
-            const paths = getConfigOption<string[]>(CONFIG_EXE_PATHS, []);
+            const paths = config.getConfigOption<string[]>(config.EXE_PATHS, []);
             const items: vscode.QuickPickItem[] = paths.map(path => ({ label: path }));
             items.push({ label: '', kind: vscode.QuickPickItemKind.Separator });
             items.push({ label: 'Choose a script file...', detail: 'Select a file in a file open dialog' });
@@ -134,7 +98,7 @@ export function activate(context: vscode.ExtensionContext) {
                     path = uri[0].fsPath;
                     if (!paths.includes(path)) {
                         paths.push(path);
-                        updateConfigOption(CONFIG_EXE_PATHS, paths);
+                        config.updateConfigOption(config.EXE_PATHS, paths);
                     }
                 } else {
                     path = result.label;
@@ -180,7 +144,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.parse_hol_light', async () => {
-            const path = getConfigOption(CONFIG_HOLLIGHT_PATH, '');
+            const path = config.getConfigOption(config.HOLLIGHT_PATH, '');
             const err = await vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
                 cancellable: false
@@ -196,9 +160,9 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.index', async editor => {
-            const rootPaths = getRootPaths();
+            const rootPaths = config.getRootPaths();
             console.log(`rootPaths: ${rootPaths}`);
-            const holPath = getConfigOption(CONFIG_HOLLIGHT_PATH, '');
+            const holPath = config.getConfigOption(config.HOLLIGHT_PATH, '');
             await vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
                 cancellable: false
@@ -249,7 +213,7 @@ export function activate(context: vscode.ExtensionContext) {
 
             const pos = editor.document.offsetAt(editor.selection.active);
             const {start: textStart, end: textEnd, text: statement, newPos} = 
-                getConfigOption(CONFIG_SIMPLE_SELECTION, false) ?
+                config.getConfigOption(config.SIMPLE_SELECTION, false) ?
                     selection.selectStatementSimple(editor.document, pos) :
                     selection.selectStatement(editor.document, pos);
 
@@ -286,7 +250,7 @@ export function activate(context: vscode.ExtensionContext) {
             }
             const pos = editor.document.offsetAt(editor.selection.active);
 
-            const term = getConfigOption(CONFIG_SIMPLE_SELECTION, false) ?
+            const term = config.getConfigOption(config.SIMPLE_SELECTION, false) ?
                 selection.selectTermSimple(editor.document, pos) :
                 selection.selectTerm(editor.document, pos);
             if (!term) {
@@ -318,7 +282,7 @@ export function activate(context: vscode.ExtensionContext) {
             decorations.highlightRange(editor.document, editor.selection);
             return;
         }
-        const maxLines = multiline ? getConfigOption(CONFIG_TACTIC_MAX_LINES, 30) : 1;
+        const maxLines = multiline ? config.getConfigOption(config.TACTIC_MAX_LINES, 30) : 1;
         const selection = tactic.selectTactic(editor, maxLines);
         const pos = editor.selection.active;
         let newPos: vscode.Position;
@@ -356,7 +320,7 @@ export function activate(context: vscode.ExtensionContext) {
             if (!editor) {
                 return;
             }
-            const maxLines = getConfigOption("tacticMaxLines", 30);
+            const maxLines = config.getConfigOption(config.TACTIC_MAX_LINES, 30);
             const selection = tactic.selectTactic(editor, maxLines, true);
             if (selection && !selection.range.isEmpty) {
                 editor.selection = new vscode.Selection(selection.range.start, selection.range.end);
