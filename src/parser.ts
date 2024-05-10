@@ -62,21 +62,55 @@ function getWordAtPosition(document: vscode.TextDocument, position: vscode.Posit
 }
 
 export class Database implements vscode.DefinitionProvider, vscode.HoverProvider {
+    /**
+     * A set of base HOL Light files. It is assumed that all other files depend on these files.
+     */
     private baseHolLightFiles: Set<string> = new Set();
 
+    /**
+     * Modification times of indexed files.
+     */
     private modificationTimes: { [filePath: string]: number } = {};
 
+    /**
+     * Dependencies of files. Dependencies could by cyclic ("needs" allows cyclic dependencies
+     * but the result could be unpredictable).
+     */
     private dependencies: { [filePath: string]: string[] } = {};
 
+    /**
+     * All definitions associated with indexed files
+     */
     private allDefinitions: { [filePath: string]: Definition[] } = {};
 
+    /**
+     * The index of definitions. Definitions with the same name (key) could be defined in different files.
+     */
     private definitionIndex: { [key: string]: Definition[] } = {};
 
     /**
-     * Removes definitions and other information associated with the given file
+     * Adds definitions and dependencies to the database for a specific file.
+     * @param filePath
+     * @param deps 
+     * @param defs 
+     */
+    private addToIndex(filePath: string, deps: string[], defs: Definition[]) {
+        this.removeFromIndex(filePath);
+        this.dependencies[filePath] = deps;
+        this.allDefinitions[filePath] = defs;
+        for (const def of defs) {
+            if (!this.definitionIndex[def.name]) {
+                this.definitionIndex[def.name] = [];
+            }
+            this.definitionIndex[def.name].push(def);
+        }
+    }
+
+    /**
+     * Removes definitions and other information associated with the given file.
      * @param filePath
      */
-    removeFromIndex(filePath: string) {
+    private removeFromIndex(filePath: string) {
         delete this.modificationTimes[filePath];
         delete this.dependencies[filePath];
         const defs = this.allDefinitions[filePath];
@@ -96,13 +130,28 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         }
     }
 
-    async indexFile(filePath: string, ignoreDependencies = false): Promise<boolean> {
+    /**
+     * Indexes the given file if it is not indexed yet or if it has been modified.
+     * @param filePath
+     * @param rootPaths 
+     * @returns false if the file has already been indexed and has not been modified
+     */
+    async indexFile(filePath: string, rootPaths: string[] | null): Promise<boolean> {
         const mtime = (await fs.stat(filePath)).mtimeMs;
         if (mtime > (this.modificationTimes[filePath] || -1)) {
             const text = await fs.readFile(filePath, 'utf-8');
+            const deps: string[] = [];
+            if (rootPaths) {
+                const basePath = path.dirname(filePath);
+                for (const dep of getDependencies(text)) {
+                    const depPath = await resolveDependencyPath(dep, basePath, rootPaths);
+                    if (depPath) {
+                        deps.push(depPath);
+                    }
+                }
+            }
             const definitions = parseText(text, vscode.Uri.file(filePath));
-            // TODO: parse and add dependencies
-            this.addToIndex(filePath, [], definitions);
+            this.addToIndex(filePath, deps, definitions);
             // addToIndex calls removeFromIndex so the modification time should be updated after addToIndex
             this.modificationTimes[filePath] = mtime;
             return true;
@@ -110,6 +159,12 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         return false;
     }
 
+    /**
+     * Checks if the given `filePath` depends on `dependency` 
+     * @param filePath
+     * @param dependency 
+     * @returns 
+     */
     isDependency(filePath: string, dependency: string): boolean {
         // All files depend on base HOL Light files
         if (filePath === dependency || this.baseHolLightFiles.has(dependency)) {
@@ -132,18 +187,6 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         return false;
     }
 
-    addToIndex(filePath: string, deps: string[], defs: Definition[]) {
-        this.removeFromIndex(filePath);
-        this.dependencies[filePath] = deps;
-        this.allDefinitions[filePath] = defs;
-        for (const def of defs) {
-            if (!this.definitionIndex[def.name]) {
-                this.definitionIndex[def.name] = [];
-            }
-            this.definitionIndex[def.name].push(def);
-        }
-    }
-
     findDefinitions(filePath: string, word: string): Definition[] {
         const defs = this.definitionIndex[word] || [];
         return defs.filter(def => {
@@ -160,8 +203,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         const files: string[] = [];
         progress?.report({increment: 0, message: `Indexing HOL Light files: ${holPath}`});
         try {
-            const stat = await fs.stat(holPath);
-            if (!stat.isDirectory()) {
+            if (!await isFileExists(holPath, true)) {
                 console.error(`Not a directory: ${holPath}`);
                 return `Not a directory: ${holPath}`;
             }
@@ -171,7 +213,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
                     try {
                         const filePath = path.join(holPath, file.name);
                         progress?.report({increment: 0, message: `Indexing: ${filePath}`});
-                        if (await this.indexFile(filePath, true)) {
+                        if (await this.indexFile(filePath, null)) {
                             console.log(`Indexed: ${filePath}`);
                         }
                         // For debugging:
@@ -307,20 +349,27 @@ function getDependencies(text: string): string[] {
     return deps;
 }
 
+async function isFileExists(filePath: string, checkDir: boolean): Promise<boolean> {
+    try {
+        const stats = await fs.stat(filePath);
+        return checkDir ? stats.isDirectory() : stats.isFile();
+    } catch {
+        return false;
+    }
+}
+
 async function resolveDependencyPath(dep: string, basePath: string, roots: string[]): Promise<string | null> {
+    if (path.isAbsolute(dep)) {
+        return await isFileExists(dep, false) ? dep : null;
+    }
     for (const root of roots) {
         if (!root) {
             // Skip empty roots
             continue;
         }
         const p = path.join(root === '.' ? basePath : root, dep);
-        try {
-            const stats = await fs.stat(p);
-            if (stats.isFile()) {
-                return p;
-            }
-        } catch {
-            // No file
+        if (await isFileExists(p, false)) {
+            return p;
         }
     }
     return null;
