@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import * as fs from 'fs/promises';
 import * as path from 'path';
 
 import * as util from './util';
@@ -69,6 +68,7 @@ const PARSE_REGEXP = createParserRegexp();
 
 export function parseText(text: string, uri?: vscode.Uri): Definition[] {
     console.log(`Parsing: ${uri}\nText length: ${text.length}`);
+    new Tokenizer(text).parse();
     const definitions: Definition[] = [];
     const lineStarts: number[] = [];
     for (let i = 0; i >= 0; i = text.indexOf('\n', i + 1)) {
@@ -138,7 +138,7 @@ export function parseDocument(document: vscode.TextDocument): Definition[] {
     return result;
 }
 
-function parseDependencies(text: string): string[] {
+export function parseDependencies(text: string): string[] {
     // TODO: make this pattern extendable with user-defined commands (e.g., flyspeck_needs)
     const re = /\b(needs|loads|loadt|flyspeck_needs)\s*"(.*?)"/g;
     const deps: string[] = [];
@@ -179,5 +179,100 @@ export async function parseAndResolveDependencies(text: string, basePath: string
             unresolvedDeps.push(dep);
         }
     }
-    return {deps, unresolvedDeps};
+    return { deps, unresolvedDeps };
+}
+
+class Token extends vscode.Range {
+    constructor(startLine: number, startCharacter: number, endLine: number, endCharacter: number) {
+        super(startLine, startCharacter, endLine, endCharacter);
+    }
+}
+
+class Tokenizer {
+    private text: string;
+    private lineNumber: number;
+    private linePos: number;
+    private pos: number;
+
+    constructor(text: string) {
+        this.text = text;
+        this.lineNumber = 0;
+        this.linePos = 0;
+        this.pos = 0;
+    }
+
+    parse(): Token[] {
+        const tokens: Token[] = [];
+        const re = /\n\r?|\(\*|["`]|[=]+|;;+|[_a-zA-Z][\w']*/g;
+        this.pos = this.lineNumber = this.linePos = 0;
+        let m: RegExpExecArray | null;
+        while (m = re.exec(this.text)) {
+            switch (m[0]) {
+                case '\n': case 'n\r':
+                    this.lineNumber++;
+                    this.pos = this.linePos = re.lastIndex;
+                    break;
+                case '(*':
+                    tokens.push(this.parseComment(m.index));
+                    re.lastIndex = this.pos;
+                    break;
+                case '"':
+                    tokens.push(this.parseString(m.index));
+                    re.lastIndex = this.pos;
+                    break;
+                default:
+                    this.pos = re.lastIndex;
+                    tokens.push(new Token(this.lineNumber, m.index - this.linePos, this.lineNumber, this.pos - this.linePos));
+                    break;
+            }
+        }
+        console.log(`|Tokens| = ${tokens.length}`);
+        return tokens;
+    }
+
+    parseComment(pos: number): Token {
+        const startLine = this.lineNumber, startCharacter = pos - this.linePos;
+        const re = /\(\*|\*\)|\n\r?/g;
+        re.lastIndex = pos + 2;
+        let level = 1;
+        let m: RegExpExecArray | null;
+        while (m = re.exec(this.text)) {
+            switch (m[0]) {
+                case '\n': case '\n\r':
+                    this.lineNumber++;
+                    this.linePos = re.lastIndex;
+                    break;
+                case '(*': 
+                    level++; 
+                    break;
+                case '*)':
+                    if (--level <= 0) {
+                        this.pos = re.lastIndex;
+                        return new Token(startLine, startCharacter, this.lineNumber, this.pos - this.linePos);
+                    }
+                    break;
+            }
+        }
+        this.pos = this.text.length;
+        return new Token(startLine, startCharacter, this.lineNumber, this.pos - this.linePos);
+    }
+
+    parseString(pos: number, re: RegExp = /"|\n\r?|\\./g): Token {
+        const startLine = this.lineNumber, startCharacter = pos - this.linePos;
+        let m: RegExpExecArray | null;
+        re.lastIndex = pos + 1;
+        while (m = re.exec(this.text)) {
+            switch (m[0]) {
+                case '"':
+                    this.pos = re.lastIndex;
+                    return new Token(startLine, startCharacter, this.lineNumber, this.pos - this.linePos);
+                case '\n': case '\n\r':
+                    this.lineNumber++;
+                    this.linePos = re.lastIndex;
+                    break;
+            }
+        }
+        this.pos = this.text.length;
+        return new Token(startLine, startCharacter, this.lineNumber, this.pos - this.linePos);
+    }
 }
