@@ -68,7 +68,7 @@ const PARSE_REGEXP = createParserRegexp();
 
 export function parseText(text: string, uri?: vscode.Uri): Definition[] {
     console.log(`Parsing: ${uri}\nText length: ${text.length}`);
-    new Tokenizer(text).parse();
+    new Parser(text).parse();
     const definitions: Definition[] = [];
     const lineStarts: number[] = [];
     for (let i = 0; i >= 0; i = text.indexOf('\n', i + 1)) {
@@ -183,16 +183,28 @@ export async function parseAndResolveDependencies(text: string, basePath: string
 }
 
 class Token extends vscode.Range {
-    constructor(startLine: number, startCharacter: number, endLine: number, endCharacter: number) {
+    readonly value?: string;
+    readonly startPos: number;
+    readonly endPos: number;
+
+    constructor(start: number, end: number, startLine: number, startCharacter: number, endLine: number, endCharacter: number, value?: string) {
         super(startLine, startCharacter, endLine, endCharacter);
+        this.startPos = start;
+        this.endPos = end;
+        this.value = value;
+    }
+
+    getValue(text: string): string {
+        return this.value || text.slice(this.startPos, this.endPos);
     }
 }
 
-class Tokenizer {
+class Parser {
     private text: string;
     private lineNumber: number;
     private linePos: number;
     private pos: number;
+    private curToken?: Token;
 
     constructor(text: string) {
         this.text = text;
@@ -201,44 +213,84 @@ class Tokenizer {
         this.pos = 0;
     }
 
-    parse(): Token[] {
-        const tokens: Token[] = [];
-        const re = /\n\r?|\(\*|["`]|[=]+|;;+|[_a-zA-Z][\w']*/g;
-        this.pos = this.lineNumber = this.linePos = 0;
+    private eof(): Token {
+        const col = this.text.length - this.linePos;
+        return new Token(this.text.length, this.text.length, this.lineNumber, col, this.lineNumber, col);
+    }
+
+    peek(): Token {
+        return this.curToken ? this.curToken : this.next();
+    }
+
+    next(): Token {
+        if (this.curToken) {
+            const res = this.curToken;
+            this.curToken = undefined;
+            return res;
+        }
+        const re = /\n|\r\n|\(\*|["`]|[=]+|;;+|[_a-zA-Z][\w']*/g;
+        re.lastIndex = this.pos;
         let m: RegExpExecArray | null;
         while (m = re.exec(this.text)) {
             switch (m[0]) {
-                case '\n': case 'n\r':
+                case '\n': case '\r\n':
                     this.lineNumber++;
                     this.pos = this.linePos = re.lastIndex;
                     break;
                 case '(*':
-                    tokens.push(this.parseComment(m.index));
-                    re.lastIndex = this.pos;
-                    break;
+                    return this.curToken = this.parseComment(m.index);
                 case '"':
-                    tokens.push(this.parseString(m.index));
-                    re.lastIndex = this.pos;
-                    break;
+                    return this.curToken = this.parseString(m.index);
                 default:
                     this.pos = re.lastIndex;
-                    tokens.push(new Token(this.lineNumber, m.index - this.linePos, this.lineNumber, this.pos - this.linePos));
-                    break;
+                    return this.curToken = new Token(m.index, this.pos, this.lineNumber, m.index - this.linePos, this.lineNumber, this.pos - this.linePos, m[0]);
             }
         }
-        console.log(`|Tokens| = ${tokens.length}`);
-        return tokens;
+        return this.eof();
     }
+
+    parse() {
+
+    }
+
+    // parse(): Token[] {
+    //     const tokens: Token[] = [];
+    //     const re = /\n\r?|\(\*|["`]|[=]+|;;+|[_a-zA-Z][\w']*/g;
+    //     this.pos = this.lineNumber = this.linePos = 0;
+    //     let m: RegExpExecArray | null;
+    //     while (m = re.exec(this.text)) {
+    //         switch (m[0]) {
+    //             case '\n': case 'n\r':
+    //                 this.lineNumber++;
+    //                 this.pos = this.linePos = re.lastIndex;
+    //                 break;
+    //             case '(*':
+    //                 tokens.push(this.parseComment(m.index));
+    //                 re.lastIndex = this.pos;
+    //                 break;
+    //             case '"':
+    //                 tokens.push(this.parseString(m.index));
+    //                 re.lastIndex = this.pos;
+    //                 break;
+    //             default:
+    //                 this.pos = re.lastIndex;
+    //                 tokens.push(new Token(this.lineNumber, m.index - this.linePos, this.lineNumber, this.pos - this.linePos));
+    //                 break;
+    //         }
+    //     }
+    //     console.log(`|Tokens| = ${tokens.length}`);
+    //     return tokens;
+    // }
 
     parseComment(pos: number): Token {
         const startLine = this.lineNumber, startCharacter = pos - this.linePos;
-        const re = /\(\*|\*\)|\n\r?/g;
+        const re = /\(\*|\*\)|\n|\r\n/g;
         re.lastIndex = pos + 2;
         let level = 1;
         let m: RegExpExecArray | null;
         while (m = re.exec(this.text)) {
             switch (m[0]) {
-                case '\n': case '\n\r':
+                case '\n': case '\r\n':
                     this.lineNumber++;
                     this.linePos = re.lastIndex;
                     break;
@@ -248,16 +300,16 @@ class Tokenizer {
                 case '*)':
                     if (--level <= 0) {
                         this.pos = re.lastIndex;
-                        return new Token(startLine, startCharacter, this.lineNumber, this.pos - this.linePos);
+                        return new Token(pos, this.pos, startLine, startCharacter, this.lineNumber, this.pos - this.linePos);
                     }
                     break;
             }
         }
         this.pos = this.text.length;
-        return new Token(startLine, startCharacter, this.lineNumber, this.pos - this.linePos);
+        return new Token(pos, this.pos, startLine, startCharacter, this.lineNumber, this.pos - this.linePos);
     }
 
-    parseString(pos: number, re: RegExp = /"|\n\r?|\\./g): Token {
+    parseString(pos: number, re: RegExp = /"|\n|\r\n|\\./g): Token {
         const startLine = this.lineNumber, startCharacter = pos - this.linePos;
         let m: RegExpExecArray | null;
         re.lastIndex = pos + 1;
@@ -265,14 +317,14 @@ class Tokenizer {
             switch (m[0]) {
                 case '"':
                     this.pos = re.lastIndex;
-                    return new Token(startLine, startCharacter, this.lineNumber, this.pos - this.linePos);
-                case '\n': case '\n\r':
+                    return new Token(pos, this.pos, startLine, startCharacter, this.lineNumber, this.pos - this.linePos);
+                case '\n': case '\r\n':
                     this.lineNumber++;
                     this.linePos = re.lastIndex;
                     break;
             }
         }
         this.pos = this.text.length;
-        return new Token(startLine, startCharacter, this.lineNumber, this.pos - this.linePos);
+        return new Token(pos, this.pos, startLine, startCharacter, this.lineNumber, this.pos - this.linePos);
     }
 }
