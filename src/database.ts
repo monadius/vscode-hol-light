@@ -177,6 +177,14 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         return '';
     }
 
+    async indexDocument(document: vscode.TextDocument, rootPaths: string[]) {
+        const docText = document.getText();
+        const docPath = document.uri.fsPath;
+        const docDefinitions = parseText(docText, document.uri);
+        const { deps: docDeps } = await parseAndResolveDependencies(docText, path.dirname(docPath), rootPaths);
+        this.addToIndex(docPath, docDeps, docDefinitions);
+    }
+
     async indexDocumentWithDependencies(document: vscode.TextDocument, holPath: string, rootPaths: string[], progress?: vscode.Progress<{ increment: number, message: string }>) {
         if (!this.baseHolLightFiles.size) {
             // Index HOL Light files first

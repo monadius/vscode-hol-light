@@ -49,6 +49,9 @@ export class Definition {
             case DefinitionType.term:
                 text += '```\n`' + this.content + '`\n```';
                 break;
+            case DefinitionType.other:
+                text += `*${this.name}*`;
+                break;
         }
         return new vscode.Hover(new vscode.MarkdownString(text));
     }
@@ -296,25 +299,27 @@ class Parser {
         }
     }
 
-    match(patterns: (TokenType | string | RegExp)[]): Token[] | null {
-        const res: Token[] = [];
+    // [string] represents an optional string value
+    match(patterns: (TokenType | string | RegExp | [string])[]): (Token | null)[] | null {
+        const res: (Token | null)[] = [];
         for (const pat of patterns) {
             this.skipComments();
             const tok = this.peek();
             if (pat instanceof RegExp) {
-                const val = tok.getValue(this.text);
-                if (!pat.test(val)) {
+                if (!pat.test(tok.getValue(this.text))) {
                     return null;
                 }
             } else if (typeof pat === 'string') {
-                const val = tok.getValue(this.text);
-                if (val !== pat) {
+                if (tok.getValue(this.text) !== pat) {
                     return null;
                 }
-            } else {
-                if (tok.type !== pat) {
-                    return null;
+            } else if (Array.isArray(pat)) {
+                if (pat[0] !== tok.getValue(this.text)) {
+                    res.push(null);
+                    continue;
                 }
+            } else if (tok.type !== pat) {
+                return null;
             }
             res.push(tok);
             this.next();
@@ -333,16 +338,20 @@ class Parser {
         const dependencies: string[] = [];
 
         while (this.peek().type !== TokenType.eof) {
-            let m: Token[] | null;
+            let m: (Token | null)[] | null;
             if (m = this.match([importRe, TokenType.string])) {
-                dependencies.push(m[1].getValue(this.text).slice(1, -1));
-            } else if (m = this.match(['let', TokenType.identifier, '='])) {
-                const name = m[1].getValue(this.text);
-                const pos = m[1].start;
-                if (m = this.match([theoremRe, '(', TokenType.term])) {
-                    definitions.push(new Definition(name, DefinitionType.theorem, m[2].getValue(this.text).slice(1, -1), pos, uri));
-                } else if (m = this.match([definitionRe, TokenType.term])) {
-                    definitions.push(new Definition(name, DefinitionType.definition, m[1].getValue(this.text).slice(1, -1), pos, uri));
+                dependencies.push(m[1]!.getValue(this.text).slice(1, -1));
+            } else if (m = this.match(['let', ['rec'], ['('], TokenType.identifier])) {
+                const name = m[3]!.getValue(this.text);
+                const pos = m[3]!.start;
+                if (this.match(['='])) {
+                    if (m = this.match([theoremRe, '(', TokenType.term])) {
+                        definitions.push(new Definition(name, DefinitionType.theorem, m[2]!.getValue(this.text).slice(1, -1), pos, uri));
+                    } else if (m = this.match([definitionRe, TokenType.term])) {
+                        definitions.push(new Definition(name, DefinitionType.definition, m[1]!.getValue(this.text).slice(1, -1), pos, uri));
+                    } else {
+                        definitions.push(new Definition(name, DefinitionType.other, '', pos, uri));
+                    }
                 } else {
                     definitions.push(new Definition(name, DefinitionType.other, '', pos, uri));
                 }
@@ -351,35 +360,6 @@ class Parser {
         }
         return { definitions, dependencies };
     }
-
-    // parse(): Token[] {
-    //     const tokens: Token[] = [];
-    //     const re = /\n\r?|\(\*|["`]|[=]+|;;+|[_a-zA-Z][\w']*/g;
-    //     this.pos = this.lineNumber = this.linePos = 0;
-    //     let m: RegExpExecArray | null;
-    //     while (m = re.exec(this.text)) {
-    //         switch (m[0]) {
-    //             case '\n': case 'n\r':
-    //                 this.lineNumber++;
-    //                 this.pos = this.linePos = re.lastIndex;
-    //                 break;
-    //             case '(*':
-    //                 tokens.push(this.parseComment(m.index));
-    //                 re.lastIndex = this.pos;
-    //                 break;
-    //             case '"':
-    //                 tokens.push(this.parseString(m.index));
-    //                 re.lastIndex = this.pos;
-    //                 break;
-    //             default:
-    //                 this.pos = re.lastIndex;
-    //                 tokens.push(new Token(this.lineNumber, m.index - this.linePos, this.lineNumber, this.pos - this.linePos));
-    //                 break;
-    //         }
-    //     }
-    //     console.log(`|Tokens| = ${tokens.length}`);
-    //     return tokens;
-    // }
 
     parseComment(pos: number): Token {
         const startLine = this.lineNumber, startCharacter = pos - this.linePos;
