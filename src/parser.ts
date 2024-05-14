@@ -188,6 +188,8 @@ enum TokenType {
     string,
     term,
     statementSeparator,
+    leftParen,
+    rightParen,
     identifier,
     other,
 }
@@ -231,7 +233,7 @@ class Parser {
     }
 
     peek(): Token {
-        return this.curToken ? this.curToken : this.next();
+        return this.curToken ? this.curToken : this.curToken = this.next();
     }
 
     next(): Token {
@@ -240,7 +242,8 @@ class Parser {
             this.curToken = undefined;
             return res;
         }
-        const re = /\n|\r\n|\(\*|["`]|[=]+|;;+|[_a-zA-Z][\w']*/g;
+        this.curToken = undefined;
+        const re = /\n|\r\n|\(\*|["`()]|[=]+|;;+|[_a-zA-Z][\w']*/g;
         re.lastIndex = this.pos;
         let m: RegExpExecArray | null;
         while (m = re.exec(this.text)) {
@@ -250,25 +253,49 @@ class Parser {
                     this.pos = this.linePos = re.lastIndex;
                     break;
                 case '(*':
-                    return this.curToken = this.parseComment(m.index);
+                    return this.parseComment(m.index);
                 case '"':
-                    return this.curToken = this.parseString(m.index);
+                    return this.parseString(m.index);
                 case '`':
-                    return this.curToken = this.parseString(m.index, /`|\n|\r\n/g, TokenType.term);
-                default:
+                    return this.parseTerm(m.index);
+                default: {
                     this.pos = re.lastIndex;
-                    return this.curToken = new Token(m[0].slice(0, 2) === ';;' ? TokenType.statementSeparator : TokenType.other, m.index, this.pos, this.lineNumber, m.index - this.linePos, this.lineNumber, this.pos - this.linePos, m[0]);
+                    let type = TokenType.other;
+                    if (m[0].slice(0, 2) === ';;') {
+                        type = TokenType.statementSeparator;
+                    } else if (/[_a-zA-Z]/.test(m[0][0])) {
+                        type = TokenType.identifier;
+                    } else if (m[0] === '(') {
+                        type = TokenType.leftParen;
+                    } else if (m[0] === ')') {
+                        type = TokenType.rightParen;
+                    }
+                    return new Token(type, m.index, this.pos, this.lineNumber, m.index - this.linePos, this.lineNumber, this.pos - this.linePos, m[0]);
+                }
             }
         }
         return this.eof();
     }
 
     skipToNextStatement() {
+        let tok = this.next();
+        while (tok.type !== TokenType.statementSeparator && tok.type !== TokenType.eof) {
+            tok = this.next();
+        }
+    }
 
+    skipComments() {
+        while (this.peek().type === TokenType.comment) {
+            this.next();
+        }
     }
 
     parse() {
-
+        const tokens: Token[] = [];
+        while (this.peek().type !== TokenType.eof) {
+            tokens.push(this.next());
+        }
+        console.log(tokens.length);
     }
 
     // parse(): Token[] {
@@ -327,15 +354,16 @@ class Parser {
         return new Token(TokenType.comment, pos, this.pos, startLine, startCharacter, this.lineNumber, this.pos - this.linePos);
     }
 
-    parseString(pos: number, re: RegExp = /"|\n|\r\n|\\./g, type = TokenType.string): Token {
+    parseString(pos: number): Token {
         const startLine = this.lineNumber, startCharacter = pos - this.linePos;
+        const re = /"|\n|\r\n|\\./g;
         let m: RegExpExecArray | null;
         re.lastIndex = pos + 1;
         while (m = re.exec(this.text)) {
             switch (m[0]) {
                 case '"':
                     this.pos = re.lastIndex;
-                    return new Token(type, pos, this.pos, startLine, startCharacter, this.lineNumber, this.pos - this.linePos);
+                    return new Token(TokenType.string, pos, this.pos, startLine, startCharacter, this.lineNumber, this.pos - this.linePos);
                 case '\n': case '\r\n':
                     this.lineNumber++;
                     this.linePos = re.lastIndex;
@@ -343,6 +371,26 @@ class Parser {
             }
         }
         this.pos = this.text.length;
-        return new Token(type, pos, this.pos, startLine, startCharacter, this.lineNumber, this.pos - this.linePos);
+        return new Token(TokenType.string, pos, this.pos, startLine, startCharacter, this.lineNumber, this.pos - this.linePos);
+    }
+
+    parseTerm(pos: number): Token {
+        const startLine = this.lineNumber, startCharacter = pos - this.linePos;
+        const re = /`|\n|\r\n/g;
+        let m: RegExpExecArray | null;
+        re.lastIndex = pos + 1;
+        while (m = re.exec(this.text)) {
+            switch (m[0]) {
+                case '`':
+                    this.pos = re.lastIndex;
+                    return new Token(TokenType.term, pos, this.pos, startLine, startCharacter, this.lineNumber, this.pos - this.linePos);
+                case '\n': case '\r\n':
+                    this.lineNumber++;
+                    this.linePos = re.lastIndex;
+                    break;
+            }
+        }
+        this.pos = this.text.length;
+        return new Token(TokenType.term, pos, this.pos, startLine, startCharacter, this.lineNumber, this.pos - this.linePos);
     }
 }
