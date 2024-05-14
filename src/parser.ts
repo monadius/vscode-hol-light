@@ -182,13 +182,25 @@ export async function parseAndResolveDependencies(text: string, basePath: string
     return { deps, unresolvedDeps };
 }
 
+enum TokenType {
+    eof,
+    comment,
+    string,
+    term,
+    statementSeparator,
+    identifier,
+    other,
+}
+
 class Token extends vscode.Range {
+    readonly type: TokenType;
     readonly value?: string;
     readonly startPos: number;
     readonly endPos: number;
 
-    constructor(start: number, end: number, startLine: number, startCharacter: number, endLine: number, endCharacter: number, value?: string) {
+    constructor(type: TokenType, start: number, end: number, startLine: number, startCharacter: number, endLine: number, endCharacter: number, value?: string) {
         super(startLine, startCharacter, endLine, endCharacter);
+        this.type = type;
         this.startPos = start;
         this.endPos = end;
         this.value = value;
@@ -215,7 +227,7 @@ class Parser {
 
     private eof(): Token {
         const col = this.text.length - this.linePos;
-        return new Token(this.text.length, this.text.length, this.lineNumber, col, this.lineNumber, col);
+        return new Token(TokenType.eof, this.text.length, this.text.length, this.lineNumber, col, this.lineNumber, col);
     }
 
     peek(): Token {
@@ -241,12 +253,18 @@ class Parser {
                     return this.curToken = this.parseComment(m.index);
                 case '"':
                     return this.curToken = this.parseString(m.index);
+                case '`':
+                    return this.curToken = this.parseString(m.index, /`|\n|\r\n/g, TokenType.term);
                 default:
                     this.pos = re.lastIndex;
-                    return this.curToken = new Token(m.index, this.pos, this.lineNumber, m.index - this.linePos, this.lineNumber, this.pos - this.linePos, m[0]);
+                    return this.curToken = new Token(m[0].slice(0, 2) === ';;' ? TokenType.statementSeparator : TokenType.other, m.index, this.pos, this.lineNumber, m.index - this.linePos, this.lineNumber, this.pos - this.linePos, m[0]);
             }
         }
         return this.eof();
+    }
+
+    skipToNextStatement() {
+
     }
 
     parse() {
@@ -300,16 +318,16 @@ class Parser {
                 case '*)':
                     if (--level <= 0) {
                         this.pos = re.lastIndex;
-                        return new Token(pos, this.pos, startLine, startCharacter, this.lineNumber, this.pos - this.linePos);
+                        return new Token(TokenType.comment, pos, this.pos, startLine, startCharacter, this.lineNumber, this.pos - this.linePos);
                     }
                     break;
             }
         }
         this.pos = this.text.length;
-        return new Token(pos, this.pos, startLine, startCharacter, this.lineNumber, this.pos - this.linePos);
+        return new Token(TokenType.comment, pos, this.pos, startLine, startCharacter, this.lineNumber, this.pos - this.linePos);
     }
 
-    parseString(pos: number, re: RegExp = /"|\n|\r\n|\\./g): Token {
+    parseString(pos: number, re: RegExp = /"|\n|\r\n|\\./g, type = TokenType.string): Token {
         const startLine = this.lineNumber, startCharacter = pos - this.linePos;
         let m: RegExpExecArray | null;
         re.lastIndex = pos + 1;
@@ -317,7 +335,7 @@ class Parser {
             switch (m[0]) {
                 case '"':
                     this.pos = re.lastIndex;
-                    return new Token(pos, this.pos, startLine, startCharacter, this.lineNumber, this.pos - this.linePos);
+                    return new Token(type, pos, this.pos, startLine, startCharacter, this.lineNumber, this.pos - this.linePos);
                 case '\n': case '\r\n':
                     this.lineNumber++;
                     this.linePos = re.lastIndex;
@@ -325,6 +343,6 @@ class Parser {
             }
         }
         this.pos = this.text.length;
-        return new Token(pos, this.pos, startLine, startCharacter, this.lineNumber, this.pos - this.linePos);
+        return new Token(type, pos, this.pos, startLine, startCharacter, this.lineNumber, this.pos - this.linePos);
     }
 }
