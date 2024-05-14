@@ -68,50 +68,51 @@ const PARSE_REGEXP = createParserRegexp();
 
 export function parseText(text: string, uri?: vscode.Uri): Definition[] {
     console.log(`Parsing: ${uri}\nText length: ${text.length}`);
-    new Parser(text).parse();
-    const definitions: Definition[] = [];
-    const lineStarts: number[] = [];
-    for (let i = 0; i >= 0; i = text.indexOf('\n', i + 1)) {
-        if (text[i] === '\r') {
-            ++i;
-        }
-        lineStarts.push(i + 1);
-    }
-    console.log(`Lines: ${lineStarts.length}`);
+    return new Parser(text).parse(uri).definitions;
+    // const definitions: Definition[] = [];
+    // const lineStarts: number[] = [];
+    // for (let i = 0; i >= 0; i = text.indexOf('\n', i + 1)) {
+    //     if (text[i] === '\r') {
+    //         ++i;
+    //     }
+    //     lineStarts.push(i + 1);
+    // }
+    // console.log(`Lines: ${lineStarts.length}`);
 
-    let line = 0;
-    let match: RegExpExecArray | null;
-    PARSE_REGEXP.lastIndex = 0;
-    while (match = PARSE_REGEXP.exec(text)) {
-        let pos: number;
-        try {
-            pos = (match as any).indices[1][0];
-        } catch {
-            pos = match.index;
-        }
-        while (line + 1 < lineStarts.length && pos >= lineStarts[line + 1]) {
-            line++;
-        }
-        const definition = new Definition(
-            match[1], 
-            match[3]?.startsWith('prove') ? DefinitionType.theorem : DefinitionType.definition, 
-            match[4], 
-            new vscode.Position(line, pos - lineStarts[line]),
-            uri
-        );
-        definitions.push(definition);
-    }
+    // let line = 0;
+    // let match: RegExpExecArray | null;
+    // PARSE_REGEXP.lastIndex = 0;
+    // while (match = PARSE_REGEXP.exec(text)) {
+    //     let pos: number;
+    //     try {
+    //         pos = (match as any).indices[1][0];
+    //     } catch {
+    //         pos = match.index;
+    //     }
+    //     while (line + 1 < lineStarts.length && pos >= lineStarts[line + 1]) {
+    //         line++;
+    //     }
+    //     const definition = new Definition(
+    //         match[1], 
+    //         match[3]?.startsWith('prove') ? DefinitionType.theorem : DefinitionType.definition, 
+    //         match[4], 
+    //         new vscode.Position(line, pos - lineStarts[line]),
+    //         uri
+    //     );
+    //     definitions.push(definition);
+    // }
 
-    console.log(`Done: ${definitions.length} definitions`);
+    // console.log(`Done: ${definitions.length} definitions`);
 
-    return definitions;
+    // return definitions;
 }
 
 export function parseDocument(document: vscode.TextDocument): Definition[] {
-    console.log('Parsing');
+    console.log('Parsing: ' + document.fileName);
     const result: Definition[] = [];
     const text = document.getText();
     console.log(`Text length: ${text.length}`);
+    new Parser(text).parse(document.uri);
 
     let match: RegExpExecArray | null;
     PARSE_REGEXP.lastIndex = 0;
@@ -213,6 +214,11 @@ class Token extends vscode.Range {
     }
 }
 
+interface ParseResult {
+    definitions: Definition[];
+    dependencies: string[];
+}
+
 class Parser {
     private text: string;
     private lineNumber: number;
@@ -290,12 +296,60 @@ class Parser {
         }
     }
 
-    parse() {
-        const tokens: Token[] = [];
-        while (this.peek().type !== TokenType.eof) {
-            tokens.push(this.next());
+    match(patterns: (TokenType | string | RegExp)[]): Token[] | null {
+        const res: Token[] = [];
+        for (const pat of patterns) {
+            this.skipComments();
+            const tok = this.peek();
+            if (pat instanceof RegExp) {
+                const val = tok.getValue(this.text);
+                if (!pat.test(val)) {
+                    return null;
+                }
+            } else if (typeof pat === 'string') {
+                const val = tok.getValue(this.text);
+                if (val !== pat) {
+                    return null;
+                }
+            } else {
+                if (tok.type !== pat) {
+                    return null;
+                }
+            }
+            res.push(tok);
+            this.next();
         }
-        console.log(tokens.length);
+        return res;
+    }
+
+    parse(uri?: vscode.Uri): ParseResult {
+        // TODO: imports and definition words should be customizable
+        const mkRegExp = (words: string[]) => new RegExp(`^(?:${words.join('|')})`);
+        const importRe = mkRegExp(['needs', 'loads', 'loadt', 'flyspeck_needs']);
+        const theoremRe = mkRegExp(['prove', 'prove_by_refinement']);
+        const definitionRe = mkRegExp(['new_definition', 'new_basic_definition', 'define']);
+
+        const definitions: Definition[] = [];
+        const dependencies: string[] = [];
+
+        while (this.peek().type !== TokenType.eof) {
+            let m: Token[] | null;
+            if (m = this.match([importRe, TokenType.string])) {
+                dependencies.push(m[1].getValue(this.text).slice(1, -1));
+            } else if (m = this.match(['let', TokenType.identifier, '='])) {
+                const name = m[1].getValue(this.text);
+                const pos = m[1].start;
+                if (m = this.match([theoremRe, '(', TokenType.term])) {
+                    definitions.push(new Definition(name, DefinitionType.theorem, m[2].getValue(this.text).slice(1, -1), pos, uri));
+                } else if (m = this.match([definitionRe, TokenType.term])) {
+                    definitions.push(new Definition(name, DefinitionType.definition, m[1].getValue(this.text).slice(1, -1), pos, uri));
+                } else {
+                    definitions.push(new Definition(name, DefinitionType.other, '', pos, uri));
+                }
+            }
+            this.skipToNextStatement();
+        }
+        return { definitions, dependencies };
     }
 
     // parse(): Token[] {
