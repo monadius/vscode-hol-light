@@ -291,7 +291,6 @@ class Parser {
             this.curToken = undefined;
             return res;
         }
-        this.curToken = undefined;
         const re = /\(\*|["`()]|[=]+|;;+|[_a-zA-Z][\w']*/g;
         re.lastIndex = this.pos;
         let m: RegExpExecArray | null;
@@ -319,14 +318,37 @@ class Parser {
                 }
             }
         }
+        this.pos = this.text.length;
         return this.eof();
     }
 
     skipToNextStatement() {
-        let tok = this.next();
-        while (tok.type !== TokenType.statementSeparator && tok.type !== TokenType.eof) {
-            tok = this.next();
+        if (this.peek().type === TokenType.statementSeparator) {
+            this.next();
+            return;
         }
+        this.curToken = undefined;
+        const re = /\(\*|["`]|;;+/g;
+        re.lastIndex = this.pos;
+        let m: RegExpExecArray | null;
+        while (m = re.exec(this.text)) {
+            switch (m[0]) {
+                case '(*':
+                    this.parseComment(m.index);
+                    break;
+                case '"':
+                    this.parseString(m.index);
+                    break;
+                case '`':
+                    this.parseTerm(m.index);
+                    break;
+                default: {
+                    this.pos = re.lastIndex;
+                    return;
+                }
+            }
+        }
+        this.pos = this.text.length;
     }
 
     skipComments() {
