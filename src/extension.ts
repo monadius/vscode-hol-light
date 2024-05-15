@@ -6,6 +6,7 @@ import * as decoration from './decoration';
 import * as help from './help';
 import * as selection from './selection';
 import * as tactic from './tactic';
+import * as util from './util';
 
 import * as parser from './parser';
 
@@ -172,7 +173,10 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
-    context.subscriptions.push(vscode.languages.registerHoverProvider(LANG_ID, database));
+    context.subscriptions.push(vscode.languages.registerHoverProvider(
+        LANG_ID, 
+        util.combineHoverProviders(helpProvider, database)
+    ));
     context.subscriptions.push(vscode.languages.registerDefinitionProvider(LANG_ID, database));
 
     /* WIP: end */
