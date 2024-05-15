@@ -62,102 +62,9 @@ interface ParseResult {
     dependencies: string[];
 }
 
-function createParserRegexp() {
-    // TODO: finish the regexp construction
-    const id = `([A-Za-z_][\\w']*`;
-    const letExpr = `let\\s+(?:rec\\s+)?${id}((?:\\s+${id})*)\\s*=\\s*`;
-    const prove = `prove\\w*\\s*\\(`;
-    // It is dangerous to use non-greedy matches for comments \(\*.*?\*\) because
-    // it may lead to performance issues
-    return /(?:^|;;)(?:\s|\(\*[^*]*\*\))*let\s+(?:rec\s+)?([a-z_][\w']*)((?:\s+[a-z_][\w']*)*)\s*=\s*(new_definition|new_basic_definition|define|prove_by_refinement|prove)\b[\s*\(]*`(.*?)`/gids;
-}
-
-const PARSE_REGEXP = createParserRegexp();
-
 export function parseText(text: string, uri?: vscode.Uri): ParseResult {
     // console.log(`Parsing: ${uri}\nText length: ${text.length}`);
     return new Parser(text).parse(uri);
-    // const definitions: Definition[] = [];
-    // const lineStarts: number[] = [];
-    // for (let i = 0; i >= 0; i = text.indexOf('\n', i + 1)) {
-    //     if (text[i] === '\r') {
-    //         ++i;
-    //     }
-    //     lineStarts.push(i + 1);
-    // }
-    // console.log(`Lines: ${lineStarts.length}`);
-
-    // let line = 0;
-    // let match: RegExpExecArray | null;
-    // PARSE_REGEXP.lastIndex = 0;
-    // while (match = PARSE_REGEXP.exec(text)) {
-    //     let pos: number;
-    //     try {
-    //         pos = (match as any).indices[1][0];
-    //     } catch {
-    //         pos = match.index;
-    //     }
-    //     while (line + 1 < lineStarts.length && pos >= lineStarts[line + 1]) {
-    //         line++;
-    //     }
-    //     const definition = new Definition(
-    //         match[1], 
-    //         match[3]?.startsWith('prove') ? DefinitionType.theorem : DefinitionType.definition, 
-    //         match[4], 
-    //         new vscode.Position(line, pos - lineStarts[line]),
-    //         uri
-    //     );
-    //     definitions.push(definition);
-    // }
-
-    // console.log(`Done: ${definitions.length} definitions`);
-
-    // return definitions;
-}
-
-export function parseDocument(document: vscode.TextDocument): Definition[] {
-    console.log('Parsing: ' + document.fileName);
-    const result: Definition[] = [];
-    const text = document.getText();
-    console.log(`Text length: ${text.length}`);
-    new Parser(text).parse(document.uri);
-
-    let match: RegExpExecArray | null;
-    PARSE_REGEXP.lastIndex = 0;
-    while (match = PARSE_REGEXP.exec(text)) {
-        let pos: number;
-        try {
-            pos = (match as any).indices[1][0];
-        } catch {
-            pos = match.index;
-        }
-        const definition = new Definition(
-            match[1], 
-            match[3]?.startsWith('prove') ? DefinitionType.theorem : DefinitionType.definition, 
-            match[4], 
-            document.positionAt(pos),
-            document.uri
-        );
-        result.push(definition);
-    }
-
-    console.log(`Done: ${result.length} definitions`);
-    // console.log(result.join(',\n'));
-
-    return result;
-}
-
-export function parseDependencies(text: string): string[] {
-    // TODO: make this pattern extendable with user-defined commands (e.g., flyspeck_needs)
-    const re = /\b(needs|loads|loadt|flyspeck_needs)\s*"(.*?)"/g;
-    const deps: string[] = [];
-    let match: RegExpExecArray | null;
-    while (match = re.exec(text)) {
-        if (match[2]) {
-            deps.push(match[2]);
-        }
-    }
-    return deps;
 }
 
 async function resolveDependencyPath(dep: string, basePath: string, roots: string[]): Promise<string | null> {
@@ -202,25 +109,6 @@ enum TokenType {
     identifier,
     other,
 }
-
-// class Token extends vscode.Range {
-//     readonly type: TokenType;
-//     readonly value?: string;
-//     readonly startPos: number;
-//     readonly endPos: number;
-
-//     constructor(type: TokenType, start: number, end: number, startLine: number, startCharacter: number, endLine: number, endCharacter: number, value?: string) {
-//         super(startLine, startCharacter, endLine, endCharacter);
-//         this.type = type;
-//         this.startPos = start;
-//         this.endPos = end;
-//         this.value = value;
-//     }
-
-//     getValue(text: string): string {
-//         return this.value || text.slice(this.startPos, this.endPos);
-//     }
-// }
 
 class Token {
     readonly type: TokenType;
