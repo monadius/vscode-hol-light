@@ -139,9 +139,9 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         });
     }
 
-    async indexBaseHolLightFiles(holPath: string, progress?: vscode.Progress<{ increment: number, message: string }>): Promise<string> {
+    async indexBaseHolLightFiles(holPath: string, progress?: vscode.Progress<{ increment: number, message: string }>) {
         if (!holPath) {
-            return 'No HOL Light path provided';
+            throw vscode.FileSystemError.FileNotFound('HOL Light path is not provided');
         }
 
         const files: string[] = [];
@@ -149,7 +149,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         try {
             if (!await util.isFileExists(holPath, true)) {
                 console.error(`Not a directory: ${holPath}`);
-                return `Not a directory: ${holPath}`;
+                throw vscode.FileSystemError.FileNotFound(holPath);
             }
             for (const file of await fs.readdir(holPath, {withFileTypes: true})) {
                 const name = file.name;
@@ -168,13 +168,12 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
                     }
                 }
             }
-        } catch(err) {
+        } catch (err) {
             console.error(`indexBaseHolLightFiles("${holPath}") error: ${err}`);
-            return `Error: ${err}`;
+            throw err;
         }
         console.log(`Done`);
         this.baseHolLightFiles = new Set(files);
-        return '';
     }
 
     async indexDocument(document: vscode.TextDocument, rootPaths: string[]) {
@@ -186,9 +185,14 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
     }
 
     async indexDocumentWithDependencies(document: vscode.TextDocument, holPath: string, rootPaths: string[], progress?: vscode.Progress<{ increment: number, message: string }>) {
+        let retError: any = null;
         if (!this.baseHolLightFiles.size) {
             // Index HOL Light files first
-            await this.indexBaseHolLightFiles(holPath, progress);
+            try {
+                await this.indexBaseHolLightFiles(holPath, progress);
+            } catch (err) {
+                retError = err;
+            }
         }
 
         const docText = document.getText();
@@ -225,8 +229,11 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
 
         if (unresolvedDeps.length > 0) {
             const unresolvedMessage = `Unresolved dependencies:\n ${unresolvedDeps.join('\n')}`;
-            console.log(unresolvedMessage);
             vscode.window.showWarningMessage(unresolvedMessage);
+        }
+
+        if (retError) {
+            throw retError;
         }
     }
 

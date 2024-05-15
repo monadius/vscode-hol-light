@@ -279,6 +279,9 @@ class Parser {
     }
 
     parse(uri?: vscode.Uri): ParseResult {
+        this.pos = 0;
+        this.curToken = undefined;
+
         // TODO: imports and definition words should be customizable
         const mkRegExp = (words: string[]) => new RegExp(`^(?:${words.join('|')})`);
         const importRe = mkRegExp(['needs', 'loads', 'loadt', 'flyspeck_needs']);
@@ -298,7 +301,7 @@ class Parser {
                 const pos = m[3]!.getPosition(this.lineStarts);
                 // `do { } while (false)` in order to be able to use `break`
                 do {
-                    if (this.match(['='])) {
+                    if (this.match('=')) {
                         if (m = this.match(theoremRe, '(', TokenType.term)) {
                             definitions.push(new Definition(name, DefinitionType.theorem, m[2]!.getValue(this.text).slice(1, -1), pos, uri));
                             break;
@@ -356,11 +359,8 @@ class Parser {
     }
 
     parseTerm(pos: number): Token {
-        let end = this.text.indexOf('`', pos + 1);
-        if (end < 0) {
-            end = this.text.length;
-        }
-        this.pos = end + 1;
+        const end = this.text.indexOf('`', pos + 1);
+        this.pos = end < 0 ? this.text.length : end + 1;
         return new Token(TokenType.term, pos, this.pos);
     }
 }

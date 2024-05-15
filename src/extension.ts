@@ -151,30 +151,23 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('hol-light.parse_hol_light', async () => {
-            const path = config.getConfigOption(config.HOLLIGHT_PATH, '');
-            const err = await vscode.window.withProgress({
-                location: vscode.ProgressLocation.Notification,
-                cancellable: false
-            }, (progress, _token) => database.indexBaseHolLightFiles(path, progress));
-            if (err) {
-                const res = await vscode.window.showErrorMessage(`Invalid HOL Light path: ${err}`, 'Change path...');
-                if (res === 'Change path...') {
-                    chooseHOLLightPath();
-                }
-            }
-        })
-    );
-
-    context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.index', async editor => {
             const rootPaths = config.getRootPaths();
             console.log(`rootPaths: ${rootPaths}`);
             const holPath = config.getConfigOption(config.HOLLIGHT_PATH, '');
-            await vscode.window.withProgress({
-                location: vscode.ProgressLocation.Notification,
-                cancellable: false
-            }, (progress, _token) => database.indexDocumentWithDependencies(editor.document, holPath, rootPaths, progress));
+            try {
+                await vscode.window.withProgress({
+                    location: vscode.ProgressLocation.Notification,
+                    cancellable: false
+                }, (progress, _token) => database.indexDocumentWithDependencies(editor.document, holPath, rootPaths, progress));
+            } catch (err) {
+                if (err instanceof vscode.FileSystemError) {
+                    const res = await vscode.window.showErrorMessage(`Invalid HOL Light path: ${holPath}`, 'Change path...');
+                    if (res === 'Change path...') {
+                        await chooseHOLLightPath();
+                    }
+                }
+            }
         })
     );
 
