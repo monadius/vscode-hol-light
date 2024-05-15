@@ -336,12 +336,17 @@ class Parser {
     }
 
     // [string] represents an optional string value
-    match(patterns: (TokenType | string | RegExp | [string])[]): (Token | null)[] | null {
+    // null represents any token (except eof)
+    match(...patterns: (TokenType | string | RegExp | [string] | null)[]): (Token | null)[] | null {
         const res: (Token | null)[] = [];
         for (const pat of patterns) {
             this.skipComments();
             const tok = this.peek();
-            if (pat instanceof RegExp) {
+            if (pat === null) {
+                if (tok.type === TokenType.eof) {
+                    return null;
+                }
+            } else if (pat instanceof RegExp) {
                 if (!pat.test(tok.getValue(this.text))) {
                     return null;
                 }
@@ -369,28 +374,35 @@ class Parser {
         const importRe = mkRegExp(['needs', 'loads', 'loadt', 'flyspeck_needs']);
         const theoremRe = mkRegExp(['prove', 'prove_by_refinement']);
         const definitionRe = mkRegExp(['new_definition', 'new_basic_definition', 'define']);
+        const defOtherRe = mkRegExp(['new_recursive_definition']);
 
         const definitions: Definition[] = [];
         const dependencies: string[] = [];
 
         while (this.peek().type !== TokenType.eof) {
             let m: (Token | null)[] | null;
-            if (m = this.match([importRe, TokenType.string])) {
+            if (m = this.match(importRe, TokenType.string)) {
                 dependencies.push(m[1]!.getValue(this.text).slice(1, -1));
-            } else if (m = this.match(['let', ['rec'], ['('], TokenType.identifier])) {
+            } else if (m = this.match('let', ['rec'], ['('], TokenType.identifier)) {
                 const name = m[3]!.getValue(this.text);
                 const pos = m[3]!.getPosition(this.lineStarts);
-                if (this.match(['='])) {
-                    if (m = this.match([theoremRe, '(', TokenType.term])) {
-                        definitions.push(new Definition(name, DefinitionType.theorem, m[2]!.getValue(this.text).slice(1, -1), pos, uri));
-                    } else if (m = this.match([definitionRe, TokenType.term])) {
-                        definitions.push(new Definition(name, DefinitionType.definition, m[1]!.getValue(this.text).slice(1, -1), pos, uri));
-                    } else {
-                        definitions.push(new Definition(name, DefinitionType.other, '', pos, uri));
+                // `do { } while (false)` in order to be able to use `break`
+                do {
+                    if (this.match(['='])) {
+                        if (m = this.match(theoremRe, '(', TokenType.term)) {
+                            definitions.push(new Definition(name, DefinitionType.theorem, m[2]!.getValue(this.text).slice(1, -1), pos, uri));
+                            break;
+                        } else if (m = this.match(definitionRe, TokenType.term)) {
+                            definitions.push(new Definition(name, DefinitionType.definition, m[1]!.getValue(this.text).slice(1, -1), pos, uri));
+                            break;
+                        } else if (m = this.match(defOtherRe, null, TokenType.term)) {
+                            definitions.push(new Definition(name, DefinitionType.definition, m[2]!.getValue(this.text).slice(1, -1), pos, uri));
+                            break;
+                        }
                     }
-                } else {
+                    // Default case
                     definitions.push(new Definition(name, DefinitionType.other, '', pos, uri));
-                }
+                } while (false);
             }
             this.skipToNextStatement();
         }
