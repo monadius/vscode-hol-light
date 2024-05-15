@@ -9,6 +9,7 @@ import * as tactic from './tactic';
 import * as util from './util';
 
 import * as parser from './parser';
+import { hrtime } from 'process';
 
 const LANG_ID = 'hol-light-ocaml';
 
@@ -137,10 +138,14 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.parse', editor => {
+            const text = editor.document.getText();
+            const uri = editor.document.uri;
             console.time('parsing');
             // database.indexDocument(editor.document, config.getRootPaths());
             // const definitions = parser.parseDocument(editor.document);
-            parser.parseText(editor.document.getText(), editor.document.uri);
+            for (let i = 0; i < 100; i++) {
+                parser.parseText(text, uri);
+            }
             console.timeEnd('parsing');
             // database.addDefinitions(definitions);
         })
