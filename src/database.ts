@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
-import { Definition, parseText, parseAndResolveDependencies } from './parser';
+import { Definition, parseText, resolveDependencies } from './parser';
 import * as util from './util';
 
 function getWordAtPosition(document: vscode.TextDocument, position: vscode.Position): string | null {
@@ -85,15 +85,15 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
     /**
      * Indexes the given file if it is not indexed yet or if it has been modified.
      * @param filePath
-     * @param rootPaths 
+     * @param rootPaths if null then dependencies are not resolved and not added to the index
      * @returns an object where the `indexed` field indicates whether the file has been indexed
      */
     async indexFile(filePath: string, rootPaths: string[] | null): Promise<{ indexed: boolean, deps: string[], unresolvedDeps: string[] }> {
         const mtime = (await fs.stat(filePath)).mtimeMs;
         if (mtime > (this.modificationTimes[filePath] || -1)) {
             const text = await fs.readFile(filePath, 'utf-8');
-            const { deps, unresolvedDeps } = rootPaths ? await parseAndResolveDependencies(text, path.dirname(filePath), rootPaths) : { deps: [], unresolvedDeps: [] };
-            const definitions = parseText(text, vscode.Uri.file(filePath));
+            const { definitions, dependencies } = parseText(text, vscode.Uri.file(filePath));
+            const { deps, unresolvedDeps } = rootPaths ? await resolveDependencies(dependencies, path.dirname(filePath), rootPaths) : { deps: [], unresolvedDeps: [] };
             this.addToIndex(filePath, deps, definitions);
             // addToIndex calls removeFromIndex so the modification time should be updated after addToIndex
             this.modificationTimes[filePath] = mtime;
@@ -180,9 +180,9 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
     async indexDocument(document: vscode.TextDocument, rootPaths: string[]) {
         const docText = document.getText();
         const docPath = document.uri.fsPath;
-        const docDefinitions = parseText(docText, document.uri);
-        const { deps: docDeps } = await parseAndResolveDependencies(docText, path.dirname(docPath), rootPaths);
-        this.addToIndex(docPath, docDeps, docDefinitions);
+        const { definitions, dependencies } = parseText(docText, document.uri);
+        const { deps: docDeps } = await resolveDependencies(dependencies, path.dirname(docPath), rootPaths);
+        this.addToIndex(docPath, docDeps, definitions);
     }
 
     async indexDocumentWithDependencies(document: vscode.TextDocument, holPath: string, rootPaths: string[], progress?: vscode.Progress<{ increment: number, message: string }>) {
@@ -193,8 +193,8 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
 
         const docText = document.getText();
         const docPath = document.uri.fsPath;
-        const docDefinitions = parseText(docText, document.uri);
-        const { deps: docDeps, unresolvedDeps } = await parseAndResolveDependencies(docText, path.dirname(docPath), rootPaths);
+        const { definitions: docDefinitions, dependencies } = parseText(docText, document.uri);
+        const { deps: docDeps, unresolvedDeps } = await resolveDependencies(dependencies, path.dirname(docPath), rootPaths);
         this.addToIndex(docPath, docDeps, docDefinitions);
         // TODO: do we need to update modifiedTimes?
         // If there is a cyclic dependency on this document then it will be indexed twice.

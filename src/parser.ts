@@ -57,6 +57,11 @@ export class Definition {
     }
 }
 
+interface ParseResult {
+    definitions: Definition[];
+    dependencies: string[];
+}
+
 function createParserRegexp() {
     // TODO: finish the regexp construction
     const id = `([A-Za-z_][\\w']*`;
@@ -69,9 +74,9 @@ function createParserRegexp() {
 
 const PARSE_REGEXP = createParserRegexp();
 
-export function parseText(text: string, uri?: vscode.Uri): Definition[] {
-    console.log(`Parsing: ${uri}\nText length: ${text.length}`);
-    return new Parser(text).parse(uri).definitions;
+export function parseText(text: string, uri?: vscode.Uri): ParseResult {
+    // console.log(`Parsing: ${uri}\nText length: ${text.length}`);
+    return new Parser(text).parse(uri);
     // const definitions: Definition[] = [];
     // const lineStarts: number[] = [];
     // for (let i = 0; i >= 0; i = text.indexOf('\n', i + 1)) {
@@ -172,18 +177,18 @@ async function resolveDependencyPath(dep: string, basePath: string, roots: strin
     return null;
 }
 
-export async function parseAndResolveDependencies(text: string, basePath: string, rootPaths: string[]): Promise<{ deps: string[], unresolvedDeps: string[] }> {
-    const deps: string[] = [];
+export async function resolveDependencies(dependencies: string[], basePath: string, rootPaths: string[]): Promise<{ deps: string[], unresolvedDeps: string[] }> {
+    const resolvedDeps: string[] = [];
     const unresolvedDeps: string[] = [];
-    for (const dep of parseDependencies(text)) {
+    for (const dep of dependencies) {
         const depPath = await resolveDependencyPath(dep, basePath, rootPaths);
         if (depPath) {
-            deps.push(depPath);
+            resolvedDeps.push(depPath);
         } else {
             unresolvedDeps.push(dep);
         }
     }
-    return { deps, unresolvedDeps };
+    return { deps: resolvedDeps, unresolvedDeps };
 }
 
 enum TokenType {
@@ -215,11 +220,6 @@ class Token extends vscode.Range {
     getValue(text: string): string {
         return this.value || text.slice(this.startPos, this.endPos);
     }
-}
-
-interface ParseResult {
-    definitions: Definition[];
-    dependencies: string[];
 }
 
 class Parser {
