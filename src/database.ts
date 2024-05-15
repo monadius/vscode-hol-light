@@ -38,7 +38,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
     /**
      * The index of definitions. Definitions with the same name (key) could be defined in different files.
      */
-    private definitionIndex: { [key: string]: Definition[] } = {};
+    private definitionIndex: Map<string, Definition[]> = new Map();
 
     /**
      * Adds definitions and dependencies to the database for a specific file.
@@ -51,10 +51,10 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         this.dependencies[filePath] = [...deps];
         this.allDefinitions[filePath] = [...defs];
         for (const def of defs) {
-            if (!this.definitionIndex[def.name]) {
-                this.definitionIndex[def.name] = [];
+            if (!this.definitionIndex.has(def.name)) {
+                this.definitionIndex.set(def.name, []);
             }
-            this.definitionIndex[def.name].push(def);
+            this.definitionIndex.get(def.name)!.push(def);
         }
     }
 
@@ -71,12 +71,12 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         }
         delete this.allDefinitions[filePath];
         for (const def of defs) {
-            const xs = this.definitionIndex[def.name];
+            const xs = this.definitionIndex.get(def.name);
             if (xs) {
                 const i = xs.indexOf(def);
                 xs.splice(i, 1);
                 if (xs.length === 0) {
-                    delete this.definitionIndex[def.name];
+                    this.definitionIndex.delete(def.name);
                 }
             }
         }
@@ -132,7 +132,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
     }
 
     findDefinitions(filePath: string, word: string): Definition[] {
-        const defs = this.definitionIndex[word] || [];
+        const defs = this.definitionIndex.get(word) || [];
         return defs.filter(def => {
             const dep = def.getFilePath();
             return dep ? this.isDependency(filePath, dep) : false;
@@ -163,8 +163,8 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
                         // For debugging:
                         // await new Promise(resolve => setTimeout(resolve, 100));
                         files.push(filePath);
-                    } catch(err) {
-                        console.error(`indexBaseHolLightFiles: cannot load ${file.name}`);
+                    } catch (err) {
+                        console.error(`indexBaseHolLightFiles: cannot load ${file.name}\n${err}`);
                     }
                 }
             }
@@ -209,14 +209,18 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             }
             progress?.report({ increment: 0, message: `Indexing: ${depPath}` });
             visited.add(depPath);
-            const { indexed, deps, unresolvedDeps: unresolved } = await this.indexFile(depPath, rootPaths);
-            if (indexed) {
-                console.log(`Indexed: ${depPath}`);
+            try {
+                const { indexed, deps, unresolvedDeps: unresolved } = await this.indexFile(depPath, rootPaths);
+                if (indexed) {
+                    console.log(`Indexed: ${depPath}`);
+                }
+                unresolvedDeps.push(...unresolved);
+                // We do not check if the dependencies has already been indexed or not.
+                // Add everything to the queue and call this.indexFile for all dependencies.
+                queue.push(...deps);
+            } catch (err) {
+                console.error(`File indexing error: ${depPath}\n${err}`);
             }
-            unresolvedDeps.push(...unresolved);
-            // We do not check if the dependencies has already been indexed or not.
-            // Add everything to the queue and call this.indexFile for all dependencies.
-            queue.push(...deps);
         }
 
         if (unresolvedDeps.length > 0) {
