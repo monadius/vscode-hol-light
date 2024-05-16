@@ -116,7 +116,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             return true;
         }
         const queue = [filePath];
-        const visited = new Set<string>();
+        const visited = new Set<string>([filePath]);
         while (queue.length) {
             const name = queue.pop()!;
             for (const dep of this.dependencies[name] || []) {
@@ -132,12 +132,55 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         return false;
     }
 
+    /**
+     * Returns all dependencies for a file
+     * @param filePath
+     */
+    allDependencies(filePath: string): Set<string> {
+        const queue = [filePath];
+        const visited = new Set<string>([filePath]);
+        while (queue.length) {
+            const name = queue.pop()!;
+            for (const dep of this.dependencies[name] || []) {
+                if (!visited.has(dep)) {
+                    visited.add(dep);
+                    queue.push(dep);
+                }
+            }
+        }
+        return visited;
+    }
+
+    /**
+     * Returns all definitions corresponding to the given word and which belong
+     * to the dependencies of the given file (including the file itself)
+     * @param filePath
+     * @param word 
+     */
     findDefinitions(filePath: string, word: string): Definition[] {
         const defs = this.definitionIndex.get(word) || [];
         return defs.filter(def => {
             const dep = def.getFilePath();
             return dep ? this.isDependency(filePath, dep) : false;
         });
+    }
+
+    /**
+     * Returns all definitions which have the given prefix and which belong
+     * to the dependencies of the given file (including the file itself)
+     * @param filePath 
+     * @param prefix 
+     */
+    findDefinitionsWithPrefix(filePath: string, prefix: string): Definition[] {
+        const res = [];
+        for (const dep of this.allDependencies(filePath)) {
+            for (const def of this.allDefinitions[dep] || []) {
+                if (def.name.startsWith(prefix)) {
+                    res.push(def);
+                }
+            }
+        }
+        return res;
     }
 
     async indexBaseHolLightFiles(holPath: string, progress?: vscode.Progress<{ increment: number, message: string }>) {

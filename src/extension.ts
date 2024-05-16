@@ -143,8 +143,12 @@ export function activate(context: vscode.ExtensionContext) {
             console.time('parsing');
             // database.indexDocument(editor.document, config.getRootPaths());
             // const definitions = parser.parseDocument(editor.document);
+            const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
             for (let i = 0; i < 100; i++) {
-                parser.parseText(text, customNames, uri);
+                // parser.parseText(text, customNames, uri);
+                for (const letter of letters) {
+                    database.findDefinitionsWithPrefix(uri.fsPath, letter);
+                }
             }
             console.timeEnd('parsing');
             // database.addDefinitions(definitions);
