@@ -24,8 +24,17 @@ export function affectsConfiguration(e: vscode.ConfigurationChangeEvent, name: s
 
 export function getRootPaths(): string[] {
     const paths = getConfigOption<string[]>('rootPaths', []);
-    // Path parts in braces are replaced with corresponding option values
-    return paths.map(path => path.replace(/\{(.*?)\}/g, (_, option) => getConfigOption(option, '')));
+    // Path parts in braces are replaced with corresponding special values
+    return paths.map(path => path.replace(/\{(.*?)\}/g, (_, key) => {
+        switch (key) {
+            case 'hol': 
+                return getConfigOption(HOLLIGHT_PATH, '');
+            case 'workspace':
+                return vscode.workspace.workspaceFolders?.[0].uri.fsPath || '';
+        }
+        return '';
+    }));
+
 }
 
 export function getReplDecorationType(): vscode.TextEditorDecorationType | undefined {

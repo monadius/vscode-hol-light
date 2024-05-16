@@ -257,7 +257,7 @@
                 },
                 "hol-light.rootPaths": {
                     "type": "array",
-                    "default": [".", "{path}"],
+                    "default": [".", "{hol}", "{workspace}"],
                     "description": "Paths for searching dependencies"
                 },
                 "hol-light.tacticMaxLines": {
