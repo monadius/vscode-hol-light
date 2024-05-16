@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
+import { CustomCommandNames } from './config';
 import { Definition, parseText, resolveDependencies } from './parser';
 import * as util from './util';
 
@@ -88,11 +89,11 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
      * @param rootPaths if null then dependencies are not resolved and not added to the index
      * @returns an object where the `indexed` field indicates whether the file has been indexed
      */
-    async indexFile(filePath: string, rootPaths: string[] | null): Promise<{ indexed: boolean, deps: string[], unresolvedDeps: string[] }> {
+    async indexFile(filePath: string, rootPaths: string[] | null, customNames: CustomCommandNames): Promise<{ indexed: boolean, deps: string[], unresolvedDeps: string[] }> {
         const mtime = (await fs.stat(filePath)).mtimeMs;
         if (mtime > (this.modificationTimes[filePath] || -1)) {
             const text = await fs.readFile(filePath, 'utf-8');
-            const { definitions, dependencies } = parseText(text, vscode.Uri.file(filePath));
+            const { definitions, dependencies } = parseText(text, customNames, vscode.Uri.file(filePath));
             const { deps, unresolvedDeps } = rootPaths ? await resolveDependencies(dependencies, path.dirname(filePath), rootPaths) : { deps: [], unresolvedDeps: [] };
             this.addToIndex(filePath, deps, definitions);
             // addToIndex calls removeFromIndex so the modification time should be updated after addToIndex
@@ -144,6 +145,12 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             throw vscode.FileSystemError.FileNotFound('HOL Light path is not provided');
         }
 
+        // Custom command names should not be used for parsing base HOL Light files
+        const emptyCustomNames: CustomCommandNames = {
+            customImports: [],
+            customDefinitions: [],
+            customTheorems: [],
+        };
         const files: string[] = [];
         progress?.report({increment: 0, message: `Indexing HOL Light files: ${holPath}`});
         try {
@@ -157,7 +164,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
                     try {
                         const filePath = path.join(holPath, file.name);
                         progress?.report({increment: 0, message: `Indexing: ${filePath}`});
-                        if ((await this.indexFile(filePath, null)).indexed) {
+                        if ((await this.indexFile(filePath, null, emptyCustomNames)).indexed) {
                             console.log(`Indexed: ${filePath}`);
                         }
                         // For debugging:
@@ -176,15 +183,20 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         this.baseHolLightFiles = new Set(files);
     }
 
-    async indexDocument(document: vscode.TextDocument, rootPaths: string[]) {
+    async indexDocument(document: vscode.TextDocument, rootPaths: string[], customNames: CustomCommandNames) {
         const docText = document.getText();
         const docPath = document.uri.fsPath;
-        const { definitions, dependencies } = parseText(docText, document.uri);
+        const { definitions, dependencies } = parseText(docText, customNames, document.uri);
         const { deps: docDeps } = await resolveDependencies(dependencies, path.dirname(docPath), rootPaths);
         this.addToIndex(docPath, docDeps, definitions);
     }
 
-    async indexDocumentWithDependencies(document: vscode.TextDocument, holPath: string, rootPaths: string[], progress?: vscode.Progress<{ increment: number, message: string }>) {
+    async indexDocumentWithDependencies(
+            document: vscode.TextDocument, 
+            holPath: string, 
+            rootPaths: string[], 
+            customNames: CustomCommandNames,
+            progress?: vscode.Progress<{ increment: number, message: string }>) {
         let retError: any = null;
         if (!this.baseHolLightFiles.size) {
             // Index HOL Light files first
@@ -197,7 +209,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
 
         const docText = document.getText();
         const docPath = document.uri.fsPath;
-        const { definitions: docDefinitions, dependencies } = parseText(docText, document.uri);
+        const { definitions: docDefinitions, dependencies } = parseText(docText, customNames, document.uri);
         const { deps: docDeps, unresolvedDeps } = await resolveDependencies(dependencies, path.dirname(docPath), rootPaths);
         this.addToIndex(docPath, docDeps, docDefinitions);
         // TODO: do we need to update modifiedTimes?
@@ -214,7 +226,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             progress?.report({ increment: 0, message: `Indexing: ${depPath}` });
             visited.add(depPath);
             try {
-                const { indexed, deps, unresolvedDeps: unresolved } = await this.indexFile(depPath, rootPaths);
+                const { indexed, deps, unresolvedDeps: unresolved } = await this.indexFile(depPath, rootPaths, customNames);
                 if (indexed) {
                     console.log(`Indexed: ${depPath}`);
                 }

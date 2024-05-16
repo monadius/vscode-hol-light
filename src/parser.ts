@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 
+import { CustomCommandNames } from './config';
 import * as util from './util';
 
 enum DefinitionType {
@@ -62,9 +63,9 @@ interface ParseResult {
     dependencies: string[];
 }
 
-export function parseText(text: string, uri?: vscode.Uri): ParseResult {
+export function parseText(text: string, customNames: CustomCommandNames, uri: vscode.Uri): ParseResult {
     // console.log(`Parsing: ${uri}\nText length: ${text.length}`);
-    return new Parser(text).parse(uri);
+    return new Parser(text, customNames).parse(uri);
 }
 
 async function resolveDependencyPath(dep: string, basePath: string, roots: string[]): Promise<string | null> {
@@ -150,12 +151,15 @@ class Token {
 
 class Parser {
     private text: string;
+    private customNames: CustomCommandNames;
+
     private lineStarts: number[];
     private pos: number;
     private curToken?: Token;
 
-    constructor(text: string) {
+    constructor(text: string, customNames: CustomCommandNames) {
         this.text = text;
+        this.customNames = customNames;
         this.pos = 0;
         this.lineStarts = [];
         let i = 0;
@@ -282,11 +286,10 @@ class Parser {
         this.pos = 0;
         this.curToken = undefined;
 
-        // TODO: imports and definition words should be customizable
-        const mkRegExp = (words: string[]) => new RegExp(`^(?:${words.join('|')})`);
-        const importRe = mkRegExp(['needs', 'loads', 'loadt', 'flyspeck_needs']);
-        const theoremRe = mkRegExp(['prove', 'prove_by_refinement']);
-        const definitionRe = mkRegExp(['new_definition', 'new_basic_definition', 'define']);
+        const mkRegExp = (words: string[]) => new RegExp(`^(?:${words.join('|')})$`);
+        const importRe = mkRegExp(['needs', 'loads', 'loadt', ...this.customNames.customImports]);
+        const theoremRe = mkRegExp(['prove', ...this.customNames.customTheorems]);
+        const definitionRe = mkRegExp(['new_definition', 'new_basic_definition', 'define', ...this.customNames.customDefinitions]);
         const defOtherRe = mkRegExp(['new_recursive_definition']);
 
         const definitions: Definition[] = [];

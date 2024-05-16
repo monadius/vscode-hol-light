@@ -260,6 +260,21 @@
                     "default": [".", "{hol}", "{workspace}"],
                     "description": "Paths for searching dependencies"
                 },
+                "hol-light.customImports": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Custom import command names used in the project (e.g., `my_needs`). Use commas or spaces to separate multiple names"
+                },
+                "hol-light.customDefinitions": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Custom definition command names used in the project (e.g., `my_define`). Use commas or spaces to separate multiple names"
+                },
+                "hol-light.customTheorems": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Custom theorem command names used in the project (e.g., `my_prove`). Use commas or spaces to separate multiple names"
+                },
                 "hol-light.tacticMaxLines": {
                     "type": "number",
                     "default": 30,

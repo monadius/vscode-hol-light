@@ -137,13 +137,14 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.parse', editor => {
+            const customNames = config.getCustomCommandNames();
             const text = editor.document.getText();
             const uri = editor.document.uri;
             console.time('parsing');
             // database.indexDocument(editor.document, config.getRootPaths());
             // const definitions = parser.parseDocument(editor.document);
             for (let i = 0; i < 100; i++) {
-                parser.parseText(text, uri);
+                parser.parseText(text, customNames, uri);
             }
             console.timeEnd('parsing');
             // database.addDefinitions(definitions);
@@ -152,6 +153,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.index', async editor => {
+            const customNames = config.getCustomCommandNames();
             const rootPaths = config.getRootPaths();
             console.log(`rootPaths: ${rootPaths}`);
             const holPath = config.getConfigOption(config.HOLLIGHT_PATH, '');
@@ -159,7 +161,7 @@ export function activate(context: vscode.ExtensionContext) {
                 await vscode.window.withProgress({
                     location: vscode.ProgressLocation.Notification,
                     cancellable: false
-                }, (progress, _token) => database.indexDocumentWithDependencies(editor.document, holPath, rootPaths, progress));
+                }, (progress, _token) => database.indexDocumentWithDependencies(editor.document, holPath, rootPaths, customNames, progress));
             } catch (err) {
                 if (err instanceof vscode.FileSystemError) {
                     const res = await vscode.window.showErrorMessage(`Invalid HOL Light path: ${holPath}`, 'Change path...');
