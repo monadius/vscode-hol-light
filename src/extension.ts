@@ -185,6 +185,7 @@ export function activate(context: vscode.ExtensionContext) {
         util.combineHoverProviders(helpProvider, database)
     ));
     context.subscriptions.push(vscode.languages.registerDefinitionProvider(LANG_ID, database));
+    context.subscriptions.push(vscode.languages.registerCompletionItemProvider(LANG_ID, database));
 
     /* WIP: end */
 

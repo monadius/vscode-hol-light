@@ -17,6 +17,7 @@ export class Definition {
     readonly content: string;
     readonly position: vscode.Position;
     private uri?: vscode.Uri;
+    private completionItem?: vscode.CompletionItem;
 
     constructor(name: string, type: DefinitionType, content: string, position: vscode.Position, uri?: vscode.Uri) {
         this.name = name;
@@ -35,10 +36,6 @@ export class Definition {
     }
 
     toString() {
-        return `${this.name} |- ${this.content}`;
-    }
-
-    toHoverItem(): vscode.Hover {
         let text = '';
         switch (this.type) {
             case DefinitionType.theorem:
@@ -54,7 +51,23 @@ export class Definition {
                 text += `*${this.name}*`;
                 break;
         }
+        return text;
+    }
+
+    toHoverItem(): vscode.Hover {
+        const text = this.toString();
         return new vscode.Hover(new vscode.MarkdownString(text));
+    }
+
+    toCompletionItem(): vscode.CompletionItem {
+        if (this.completionItem) {
+            return this.completionItem;
+        }
+        const item = this.completionItem = new vscode.CompletionItem(this.name);
+        if (this.type !== DefinitionType.other) {
+            item.documentation = new vscode.MarkdownString(this.toString());
+        }
+        return item;
     }
 }
 

@@ -15,7 +15,7 @@ function getWordAtPosition(document: vscode.TextDocument, position: vscode.Posit
     return document.getText(range);
 }
 
-export class Database implements vscode.DefinitionProvider, vscode.HoverProvider {
+export class Database implements vscode.DefinitionProvider, vscode.HoverProvider, vscode.CompletionItemProvider {
     /**
      * A set of base HOL Light files. It is assumed that all other files depend on these files.
      */
@@ -322,4 +322,14 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         const defs = this.findDefinitions(document.uri.fsPath, word);
         return defs[0]?.toHoverItem();
     }
+
+    provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken, _context: vscode.CompletionContext) {
+        const word = getWordAtPosition(document, position);
+        if (!word || word.length < 1) {
+            return null;
+        }
+        const defs = this.findDefinitionsWithPrefix(document.uri.fsPath, word);
+        return defs.map(def => def.toCompletionItem());
+    }
+
 }
