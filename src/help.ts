@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
+import { getWordAtPosition } from './util';
+
 class HelpItem {
     readonly name: string;
     
@@ -69,14 +71,6 @@ class HelpItem {
         }
         return this.hoverItem;
     }
-}
-
-function getWordAtPosition(document: vscode.TextDocument, position: vscode.Position): string | null {
-    const range = document.getWordRangeAtPosition(position);
-    if (!range) {
-        return null;
-    }
-    return document.getText(range);
 }
 
 export class HelpProvider implements vscode.HoverProvider, vscode.CompletionItemProvider {

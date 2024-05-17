@@ -8,14 +8,6 @@ import { Definition, parseText, resolveDependencies } from './parser';
 import { Trie } from './trie';
 import * as util from './util';
 
-function getWordAtPosition(document: vscode.TextDocument, position: vscode.Position): string | null {
-    const range = document.getWordRangeAtPosition(position);
-    if (!range) {
-        return null;
-    }
-    return document.getText(range);
-}
-
 export class Database implements vscode.DefinitionProvider, vscode.HoverProvider, vscode.CompletionItemProvider {
     /**
      * A set of base HOL Light files. It is assumed that all other files depend on these files.
@@ -316,7 +308,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
     }
 
     provideDefinition(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken) {
-        const word = getWordAtPosition(document, position);
+        const word = util.getWordAtPosition(document, position);
         if (!word) {
             return null;
         }
@@ -326,7 +318,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
     }
 
     provideHover(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken) {
-        const word = getWordAtPosition(document, position);
+        const word = util.getWordAtPosition(document, position);
         if (!word) {
             return null;
         }
@@ -335,8 +327,8 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
     }
 
     provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken, _context: vscode.CompletionContext) {
-        const word = getWordAtPosition(document, position);
-        if (!word || word.length < 1) {
+        const word = util.getWordAtPosition(document, position);
+        if (!word /*|| word.length < 2*/) {
             return null;
         }
         const defs = this.findDefinitionsWithPrefix(document.uri.fsPath, word);

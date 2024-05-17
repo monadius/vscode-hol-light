@@ -1,6 +1,14 @@
 import * as fs from 'fs/promises';
 import * as vscode from 'vscode';
 
+export function getWordAtPosition(document: vscode.TextDocument, position: vscode.Position): string | null {
+    const range = document.getWordRangeAtPosition(position);
+    if (!range) {
+        return null;
+    }
+    return document.getText(range);
+}
+
 export async function isFileExists(filePath: string, checkDir: boolean): Promise<boolean> {
     try {
         const stats = await fs.stat(filePath);
