@@ -143,14 +143,17 @@ export function activate(context: vscode.ExtensionContext) {
             console.time('parsing');
             // database.indexDocument(editor.document, config.getRootPaths());
             // const definitions = parser.parseDocument(editor.document);
-            const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+            const res: {[key: string]: number} = {};
+            const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
             for (let i = 0; i < 100; i++) {
                 // parser.parseText(text, customNames, uri);
                 for (const letter of letters) {
-                    database.findDefinitionsWithPrefix(uri.fsPath, letter);
+                    const defs = database.findDefinitionsWithPrefix(uri.fsPath, letter + letter);
+                    res[letter] = defs.length;
                 }
             }
             console.timeEnd('parsing');
+            console.log(res);
             // database.addDefinitions(definitions);
         })
     );

@@ -4,6 +4,7 @@ import * as path from 'path';
 
 import { CustomCommandNames } from './config';
 import { Definition, parseText, resolveDependencies } from './parser';
+import { Trie } from './trie';
 import * as util from './util';
 
 function getWordAtPosition(document: vscode.TextDocument, position: vscode.Position): string | null {
@@ -42,6 +43,11 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
     private definitionIndex: Map<string, Definition[]> = new Map();
 
     /**
+     * The trie index which stores definition names
+     */
+    private trieIndex: Trie<string> = new Trie<string>();
+
+    /**
      * Adds definitions and dependencies to the database for a specific file.
      * @param filePath
      * @param deps 
@@ -56,6 +62,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
                 this.definitionIndex.set(def.name, []);
             }
             this.definitionIndex.get(def.name)!.push(def);
+            this.trieIndex.add(def.name, def.name);
         }
     }
 
@@ -81,6 +88,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
                 }
             }
         }
+        // TODO: remove from trieIndex (probably, not necessary since trieIndex stores names only)
     }
 
     /**
@@ -138,7 +146,8 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
      */
     allDependencies(filePath: string): Set<string> {
         const queue = [filePath];
-        const visited = new Set<string>([filePath]);
+        const visited = new Set<string>(this.baseHolLightFiles);
+        visited.add(filePath);
         while (queue.length) {
             const name = queue.pop()!;
             for (const dep of this.dependencies[name] || []) {
@@ -172,14 +181,17 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
      * @param prefix 
      */
     findDefinitionsWithPrefix(filePath: string, prefix: string): Definition[] {
-        const res = [];
-        for (const dep of this.allDependencies(filePath)) {
-            for (const def of this.allDefinitions[dep] || []) {
-                if (def.name.startsWith(prefix)) {
+        const res: Definition[] = [];
+        const deps = this.allDependencies(filePath);
+
+        for (const name of this.trieIndex.findPrefix(prefix)) {
+            for (const def of this.definitionIndex.get(name) || []) {
+                if (deps.has(def.getFilePath() || '')) {
                     res.push(def);
                 }
             }
         }
+
         return res;
     }
 
