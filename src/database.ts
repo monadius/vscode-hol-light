@@ -3,6 +3,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 
 import { CustomCommandNames } from './config';
+import * as help from './help';
 import { Definition, parseText, resolveDependencies } from './parser';
 import { Trie } from './trie';
 import * as util from './util';
@@ -46,6 +47,16 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
      * The trie index which stores definition names
      */
     private trieIndex: Trie<string> = new Trie<string>();
+
+    /**
+     * A completion provider for HOL Light help entries.
+     * It is used to deduplicate results of the Database completion provider.
+     */
+    private helpProvider?: help.HelpProvider;
+
+    constructor(helpProvider?: help.HelpProvider) {
+        this.helpProvider = helpProvider;
+    }
 
     /**
      * Adds definitions and dependencies to the database for a specific file.
@@ -329,7 +340,8 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             return null;
         }
         const defs = this.findDefinitionsWithPrefix(document.uri.fsPath, word);
-        return defs.map(def => def.toCompletionItem());
+        return defs.filter(def => !this.helpProvider?.isHelpItem(def.name) || !this.baseHolLightFiles.has(def.getFilePath() || ''))
+                   .map(def => def.toCompletionItem());
     }
 
 }

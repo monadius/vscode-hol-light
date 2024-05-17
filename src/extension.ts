@@ -133,7 +133,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     /* WIP: parser */
 
-    const database = new data.Database();
+    const database = new data.Database(helpProvider);
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.parse', editor => {
@@ -146,11 +146,11 @@ export function activate(context: vscode.ExtensionContext) {
             const res: {[key: string]: number} = {};
             const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
             for (let i = 0; i < 100; i++) {
-                // parser.parseText(text, customNames, uri);
-                for (const letter of letters) {
-                    const defs = database.findDefinitionsWithPrefix(uri.fsPath, letter + letter);
-                    res[letter] = defs.length;
-                }
+                parser.parseText(text, customNames, uri);
+                // for (const letter of letters) {
+                //     const defs = database.findDefinitionsWithPrefix(uri.fsPath, letter + letter);
+                //     res[letter] = defs.length;
+                // }
             }
             console.timeEnd('parsing');
             console.log(res);

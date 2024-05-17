@@ -82,7 +82,7 @@ function getWordAtPosition(document: vscode.TextDocument, position: vscode.Posit
 export class HelpProvider implements vscode.HoverProvider, vscode.CompletionItemProvider {
     private helpItems: HelpItem[] = [];
 
-    private helpIndex: {[key: string]: HelpItem} = {};
+    private helpIndex: Map<string, HelpItem> = new Map<string, HelpItem>();
 
     // Loads (or reloads) all help items from the given path to HOL Light
     async loadHelpItems(holPath: string): Promise<boolean> {
@@ -112,12 +112,17 @@ export class HelpProvider implements vscode.HoverProvider, vscode.CompletionItem
                 return false;
             }
             this.helpItems = items;
-            this.helpIndex = Object.fromEntries(items.map(item => [item.name, item]));
+            this.helpIndex.clear();
+            items.forEach(item => this.helpIndex.set(item.name, item));
         } catch(err) {
             console.error(`loadHelpItems("${holPath}") error: ${err}`);
             return false;
         }
         return true;
+    }
+
+    isHelpItem(key: string): boolean {
+        return this.helpIndex.has(key);
     }
 
     provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken, _context: vscode.CompletionContext) {
@@ -137,9 +142,9 @@ export class HelpProvider implements vscode.HoverProvider, vscode.CompletionItem
 
     provideHover(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken) {
         const word = getWordAtPosition(document, position);
-        if (!word || !this.helpIndex[word]) {
+        if (!word || !this.helpIndex.has(word)) {
             return null;
         }
-        return this.helpIndex[word].toHoverItem();
+        return this.helpIndex.get(word)?.toHoverItem();
     }
 }
