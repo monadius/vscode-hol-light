@@ -207,16 +207,12 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('hol-light.repl_send_statement', async () => {
+        vscode.commands.registerTextEditorCommand('hol-light.repl_send_statement', async (editor) => {
             const repl = await getREPL();
             if (!repl) {
                 return;
             }
             repl.show(true);
-            const editor = vscode.window.activeTextEditor;
-            if (!editor) {
-                return;
-            }
 
             if (!editor.selection.isEmpty) {
                 const statement = editor.document.getText(editor.selection).trim();
@@ -252,16 +248,12 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('hol-light.repl_send_goal', async () => {
+        vscode.commands.registerTextEditorCommand('hol-light.repl_send_goal', async (editor) => {
             const repl = await getREPL();
             if (!repl) {
                 return;
             }
             repl.show(true);
-            const editor = vscode.window.activeTextEditor;
-            if (!editor) {
-                return;
-            }
             const pos = editor.document.offsetAt(editor.selection.active);
 
             const term = config.getConfigOption(config.SIMPLE_SELECTION, false) ?
@@ -278,16 +270,12 @@ export function activate(context: vscode.ExtensionContext) {
 
     const tacticRe = /^\s*(?:THEN\b|THENL\b(\s*\[)?)|\b(?:THEN|THENL(\s*\[)?)\s*$/g;
 
-    async function replSendTactic(multiline: boolean, newline: boolean) {
+    async function replSendTactic(editor: vscode.TextEditor, multiline: boolean, newline: boolean) {
         const repl = await getREPL();
         if (!repl) {
             return;
         }
         repl.show(true);
-        const editor = vscode.window.activeTextEditor;
-        if (!editor) {
-            return;
-        }
         if (!editor.selection.isEmpty) {
             // If the selection is not empty then use it
             let text = editor.document.getText(editor.selection);
@@ -318,22 +306,18 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('hol-light.repl_send_tactic_multline', 
-                                        replSendTactic.bind(null, true, true)),
-        vscode.commands.registerCommand('hol-light.repl_send_tactic_multline_no_newline', 
-                                        replSendTactic.bind(null, true, false)),
-        vscode.commands.registerCommand('hol-light.repl_send_tactic', 
-                                        replSendTactic.bind(null, false, true)),
-        vscode.commands.registerCommand('hol-light.repl_send_tactic_no_newline',
-                                        replSendTactic.bind(null, false, false))
+        vscode.commands.registerTextEditorCommand('hol-light.repl_send_tactic_multline', 
+                editor => replSendTactic(editor, true, true)),
+        vscode.commands.registerTextEditorCommand('hol-light.repl_send_tactic_multline_no_newline', 
+                editor => replSendTactic(editor, true, false)),
+        vscode.commands.registerTextEditorCommand('hol-light.repl_send_tactic', 
+                editor => replSendTactic(editor, false, true)),
+        vscode.commands.registerTextEditorCommand('hol-light.repl_send_tactic_no_newline',
+                editor => replSendTactic(editor, false, false))
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('hol-light.select_tactic_multline', async () => {
-            const editor = vscode.window.activeTextEditor;
-            if (!editor) {
-                return;
-            }
+        vscode.commands.registerTextEditorCommand('hol-light.select_tactic_multline', async (editor) => {
             const maxLines = config.getConfigOption(config.TACTIC_MAX_LINES, 30);
             const selection = tactic.selectTactic(editor, maxLines, true);
             if (selection && !selection.range.isEmpty) {
@@ -407,20 +391,13 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('hol-light.remove_highlighting', () => {
-            const editor = vscode.window.activeTextEditor;
-            if (editor) {
-                decorations.highlightRange(editor.document, null);
-            }
+        vscode.commands.registerTextEditorCommand('hol-light.remove_highlighting', (editor) => {
+            decorations.highlightRange(editor.document, null);
         })
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('hol-light.jump_to_highlighting', () => {
-            const editor = vscode.window.activeTextEditor;
-            if (!editor) {
-                return;
-            }
+        vscode.commands.registerTextEditorCommand('hol-light.jump_to_highlighting', (editor) => {
             const range = decorations.getHighlightedRange(editor.document);
             if (range) {
                 const pos = range.end;
