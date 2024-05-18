@@ -78,8 +78,19 @@ export class HelpProvider implements vscode.HoverProvider, vscode.CompletionItem
 
     private helpIndex: Map<string, HelpItem> = new Map<string, HelpItem>();
 
+    private tokenSource?: vscode.CancellationTokenSource;
+
+    loadHelpItems(holPath: string): Promise<boolean> {
+        if (this.tokenSource) {
+            this.tokenSource.cancel();
+            this.tokenSource.dispose();
+        }
+        this.tokenSource = new vscode.CancellationTokenSource();
+        return this.loadHelpItemsImpl(holPath, this.tokenSource.token);
+    }
+
     // Loads (or reloads) all help items from the given path to HOL Light
-    async loadHelpItems(holPath: string): Promise<boolean> {
+    private async loadHelpItemsImpl(holPath: string, token: vscode.CancellationToken): Promise<boolean> {
         if (!holPath) {
             return false;
         }
@@ -93,6 +104,10 @@ export class HelpProvider implements vscode.HoverProvider, vscode.CompletionItem
             }
             const items = [];
             for (const file of await fs.readdir(helpPath, {withFileTypes: true})) {
+                if (token.isCancellationRequested) {
+                    // Return true because we do not want to show errors when the operation is cancelled
+                    return true;
+                }
                 if (file.isFile() && file.name.endsWith('.hlp')) {
                     try {
                         const text = await fs.readFile(path.join(helpPath, file.name), 'utf-8');
@@ -105,9 +120,14 @@ export class HelpProvider implements vscode.HoverProvider, vscode.CompletionItem
             if (!items.length) {
                 return false;
             }
+            if (token.isCancellationRequested) {
+                // Return true because we do not want to show errors when the operation is cancelled
+                return true;
+            }
             this.helpItems = items;
             this.helpIndex.clear();
             items.forEach(item => this.helpIndex.set(item.name, item));
+            console.log(`loadHelpItems: loaded from ${holPath}`);
         } catch(err) {
             console.error(`loadHelpItems("${holPath}") error: ${err}`);
             return false;

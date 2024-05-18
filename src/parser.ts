@@ -311,7 +311,11 @@ class Parser {
         while (this.peek().type !== TokenType.eof) {
             let m: (Token | null)[] | null;
             if (m = this.match(importRe, TokenType.string)) {
-                dependencies.push(m[1]!.getValue(this.text).slice(1, -1));
+                const token = m[1]!;
+                // Skip very long strings. They are most definitely invalid (probably, they are not properly closed yet)
+                if (token.endPos - token.startPos <= 2000) {
+                    dependencies.push(m[1]!.getValue(this.text).slice(1, -1));
+                }
             } else if (m = this.match('let', ['rec'], ['('], TokenType.identifier)) {
                 const name = m[3]!.getValue(this.text);
                 const pos = m[3]!.getPosition(this.lineStarts);
