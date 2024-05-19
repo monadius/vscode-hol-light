@@ -18,11 +18,19 @@ export function activate(context: vscode.ExtensionContext) {
 
     let replTerm: vscode.Terminal | null = null;
 
+    // A completion and hover provider for documentation items defined in {hol-path}/Help
     const helpProvider = new help.HelpProvider();
 
+    // A completion, definition, and hover provider for all HOL Light definition
+    const database = new data.Database(helpProvider);
+
+    // A helper class for managing highlighted regions in editors
     const decorations = new decoration.Decorations(config.getReplDecorationType());
 
     loadHelpItems(config.getConfigOption(config.HOLLIGHT_PATH, ''));
+    if (config.getConfigOption(config.AUTO_INDEX, false)) {
+        loadBaseHolLightFiles(config.getConfigOption(config.HOLLIGHT_PATH, ''), true);
+    }
 
     async function chooseHOLLightPath() {
         const uri = await vscode.window.showOpenDialog({
@@ -45,6 +53,17 @@ export function activate(context: vscode.ExtensionContext) {
         }
     }
 
+    async function loadBaseHolLightFiles(path: string, withProgress: boolean) {
+        if (withProgress) {
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                cancellable: false
+            }, (progress, _token) => database.indexBaseHolLightFiles(path, progress));
+        } else {
+            await database.indexBaseHolLightFiles(path);
+        }
+    }
+
     function highlightStartEnd(document: vscode.TextDocument, start: number, end: number) {
         decorations.highlightRange(document, new vscode.Range(document.positionAt(start), document.positionAt(end)));
     }
@@ -60,7 +79,11 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.workspace.onDidChangeConfiguration(e => {
             if (config.affectsConfiguration(e, config.HOLLIGHT_PATH)) {
-                loadHelpItems(config.getConfigOption(config.HOLLIGHT_PATH, ''));
+                const holPath = config.getConfigOption(config.HOLLIGHT_PATH, '');
+                loadHelpItems(holPath);
+                if (config.getConfigOption(config.AUTO_INDEX, false)) {
+                    loadBaseHolLightFiles(holPath, true);
+                }
             } else if (config.affectsConfiguration(e, config.HIGHLIGHT_COLOR)) {
                 decorations.setDecoration(config.getReplDecorationType());
             }
@@ -132,8 +155,6 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     /* WIP: parser */
-
-    const database = new data.Database(helpProvider);
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.parse', editor => {

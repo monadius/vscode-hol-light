@@ -226,6 +226,11 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
                 console.error(`Not a directory: ${holPath}`);
                 return false;
             }
+            // Verify that the directory contains HOL Light files
+            if (!await util.isFileExists(path.join(holPath, 'hol.ml'), false)) {
+                console.error(`hol.ml does not exists: ${holPath}`);
+                return false;
+            }
             for (const file of await fs.readdir(holPath, {withFileTypes: true})) {
                 if (token.isCancellationRequested) {
                     // We do not remove already indexed files here.
