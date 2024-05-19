@@ -100,12 +100,16 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
      * @param rootPaths if null then dependencies are not resolved and not added to the index
      * @returns an object where the `indexed` field indicates whether the file has been indexed
      */
-    async indexFile(filePath: string, rootPaths: string[] | null, customNames: CustomCommandNames): Promise<{ indexed: boolean, deps: string[], unresolvedDeps: string[] }> {
+    async indexFile(filePath: string, rootPaths: string[] | null, customNames: CustomCommandNames, token?: vscode.CancellationToken): Promise<{ indexed: boolean, deps: string[], unresolvedDeps: string[] }> {
         const mtime = (await fs.stat(filePath)).mtimeMs;
         if (mtime > (this.modificationTimes[filePath] || -1)) {
             const text = await fs.readFile(filePath, 'utf-8');
             const { definitions, dependencies } = parseText(text, customNames, vscode.Uri.file(filePath));
             const { deps, unresolvedDeps } = rootPaths ? await resolveDependencies(dependencies, path.dirname(filePath), rootPaths) : { deps: [], unresolvedDeps: [] };
+            // Check the cancellation token before modifying any global state
+            if (token?.isCancellationRequested) {
+                return { indexed: false, deps, unresolvedDeps };
+            }
             this.addToIndex(filePath, deps, definitions);
             // addToIndex calls removeFromIndex so the modification time should be updated after addToIndex
             this.modificationTimes[filePath] = mtime;
@@ -198,10 +202,17 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         return res;
     }
 
-    async indexBaseHolLightFiles(holPath: string, progress?: vscode.Progress<{ increment: number, message: string }>) {
+    indexBaseHolLightFiles = util.runWhenFirstArgChanges(async function(this: Database, token: vscode.CancellationToken, holPath: string, progress?: vscode.Progress<{ increment: number, message: string }>): Promise<boolean> {
+        console.log(`Indexing Base HOL Light files: ${holPath}`);
         if (!holPath) {
-            throw vscode.FileSystemError.FileNotFound('HOL Light path is not provided');
+            return false;
         }
+
+        // Remove existing database entries
+        for (const filePath of this.baseHolLightFiles) {
+            this.removeFromIndex(filePath);
+        }
+        this.baseHolLightFiles.clear();
 
         // Custom command names should not be used for parsing base HOL Light files
         const emptyCustomNames: CustomCommandNames = {
@@ -209,25 +220,33 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             customDefinitions: [],
             customTheorems: [],
         };
-        const files: string[] = [];
         progress?.report({increment: 0, message: `Indexing HOL Light files: ${holPath}`});
         try {
             if (!await util.isFileExists(holPath, true)) {
                 console.error(`Not a directory: ${holPath}`);
-                throw vscode.FileSystemError.FileNotFound(holPath);
+                return false;
             }
             for (const file of await fs.readdir(holPath, {withFileTypes: true})) {
+                if (token.isCancellationRequested) {
+                    // We do not remove already indexed files here.
+                    // The general rule is to not modify any global state after cancellation is requested.
+                    // When this operation is cancelled, another operation may be in progress already and 
+                    // the global state should be managed by this new operation only.
+                    return true;
+                }
                 const name = file.name;
                 if (file.isFile() && name.endsWith('.ml') && !name.startsWith('pa_j') && !name.startsWith('update_database')) {
                     try {
                         const filePath = path.join(holPath, file.name);
                         progress?.report({increment: 0, message: `Indexing: ${filePath}`});
-                        if ((await this.indexFile(filePath, null, emptyCustomNames)).indexed) {
+                        // Add the file path to this set before indexing the file.
+                        // If the ope
+                        this.baseHolLightFiles.add(filePath);
+                        if ((await this.indexFile(filePath, null, emptyCustomNames, token)).indexed) {
                             console.log(`Indexed: ${filePath}`);
                         }
                         // For debugging:
                         // await new Promise(resolve => setTimeout(resolve, 100));
-                        files.push(filePath);
                     } catch (err) {
                         console.error(`indexBaseHolLightFiles: cannot load ${file.name}\n${err}`);
                     }
@@ -235,11 +254,11 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             }
         } catch (err) {
             console.error(`indexBaseHolLightFiles("${holPath}") error: ${err}`);
-            throw err;
+            return false;
         }
-        console.log(`Done`);
-        this.baseHolLightFiles = new Set(files);
-    }
+        console.log(`Done indexing HOL Light base files`);
+        return true;
+    });
 
     async indexDocument(document: vscode.TextDocument, rootPaths: string[], customNames: CustomCommandNames) {
         const docText = document.getText();
@@ -255,15 +274,9 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             rootPaths: string[], 
             customNames: CustomCommandNames,
             progress?: vscode.Progress<{ increment: number, message: string }>) {
-        let retError: any = null;
-        if (!this.baseHolLightFiles.size) {
-            // Index HOL Light files first
-            try {
-                await this.indexBaseHolLightFiles(holPath, progress);
-            } catch (err) {
-                retError = err;
-            }
-        }
+        // Index HOL Light files first.
+        // This function will do nothing if HOL Light files have been already indexed at the given path.
+        await this.indexBaseHolLightFiles(holPath, progress);
 
         const docText = document.getText();
         const docPath = document.uri.fsPath;
@@ -300,10 +313,6 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         if (unresolvedDeps.length > 0) {
             const unresolvedMessage = `Unresolved dependencies:\n ${unresolvedDeps.join('\n')}`;
             vscode.window.showWarningMessage(unresolvedMessage);
-        }
-
-        if (retError) {
-            throw retError;
         }
     }
 

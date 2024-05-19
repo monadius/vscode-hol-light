@@ -62,7 +62,6 @@ export function combineCompletionItemProviders(...providers: vscode.CompletionIt
  * @returns 
  */
 export function cancelPreviousCall<T, A extends any[], R>(fn: (this: T, token: vscode.CancellationToken, ...args: A) => R): (this: T, ...args: A) => R {
-    console.log('cancelRunning is called');
     let src: vscode.CancellationTokenSource | undefined;
     return function(...args: A) {
         if (src) {
@@ -71,5 +70,24 @@ export function cancelPreviousCall<T, A extends any[], R>(fn: (this: T, token: v
         }
         src = new vscode.CancellationTokenSource();
         return fn.call(this, src.token, ...args);
+    };
+}
+
+/**
+ * Returns a function which calls the provided async functional argument when the argument a1 (string or number)
+ * has a different value from a previous call.
+ * Whenever fn is called, the previous call is cancelled.
+ * @param fn
+ * @returns 
+ */
+export function runWhenFirstArgChanges<T, A1 extends string | number, A extends any[], R>(fn: (this: T, token: vscode.CancellationToken, a1: A1, ...args: A) => Promise<R>): (this: T, a1: A1, ...args: A) => Promise<R | undefined> {
+    let v: A1 | undefined;
+    const g = cancelPreviousCall(fn);
+    return function(a1: A1, ...args: A) {
+        if (v !== a1) {
+            v = a1;
+            return g.call(this, a1, ...args);
+        }
+        return Promise.resolve(undefined);
     };
 }
