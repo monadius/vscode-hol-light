@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
-import { getWordAtPosition } from './util';
+import { getWordAtPosition, cancelPreviousCall } from './util';
 
 class HelpItem {
     readonly name: string;
@@ -78,19 +78,8 @@ export class HelpProvider implements vscode.HoverProvider, vscode.CompletionItem
 
     private helpIndex: Map<string, HelpItem> = new Map<string, HelpItem>();
 
-    private tokenSource?: vscode.CancellationTokenSource;
-
-    loadHelpItems(holPath: string): Promise<boolean> {
-        if (this.tokenSource) {
-            this.tokenSource.cancel();
-            this.tokenSource.dispose();
-        }
-        this.tokenSource = new vscode.CancellationTokenSource();
-        return this.loadHelpItemsImpl(holPath, this.tokenSource.token);
-    }
-
     // Loads (or reloads) all help items from the given path to HOL Light
-    private async loadHelpItemsImpl(holPath: string, token: vscode.CancellationToken): Promise<boolean> {
+    loadHelpItems = cancelPreviousCall(async function(this: HelpProvider, token: vscode.CancellationToken, holPath: string): Promise<boolean> {
         if (!holPath) {
             return false;
         }
@@ -133,7 +122,7 @@ export class HelpProvider implements vscode.HoverProvider, vscode.CompletionItem
             return false;
         }
         return true;
-    }
+    });
 
     isHelpItem(key: string): boolean {
         return this.helpIndex.has(key);

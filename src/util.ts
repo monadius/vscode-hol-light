@@ -53,3 +53,23 @@ export function combineCompletionItemProviders(...providers: vscode.CompletionIt
         }
     };
 }
+
+/**
+ * Returns a function which calls the provided (async) functional argument with a cancellation token.
+ * When the returned function is called it cancels the previous call.
+ * Useful for async functions only.
+ * @param fn
+ * @returns 
+ */
+export function cancelPreviousCall<T, A extends any[], R>(fn: (this: T, token: vscode.CancellationToken, ...args: A) => R): (this: T, ...args: A) => R {
+    console.log('cancelRunning is called');
+    let src: vscode.CancellationTokenSource | undefined;
+    return function(...args: A) {
+        if (src) {
+            src.cancel();
+            src.dispose();
+        }
+        src = new vscode.CancellationTokenSource();
+        return fn.call(this, src.token, ...args);
+    };
+}
