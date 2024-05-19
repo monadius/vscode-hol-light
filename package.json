@@ -260,6 +260,11 @@
                     "default": [".", "{hol}", "{workspace}"],
                     "description": "Paths for searching dependencies"
                 },
+                "hol-light.autoIndex": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Automatically index HOL Light files"
+                },
                 "hol-light.customImports": {
                     "type": "string",
                     "default": "",
