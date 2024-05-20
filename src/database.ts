@@ -370,8 +370,11 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         // This function will do nothing if HOL Light files have been already indexed at the given path.
         await this.indexBaseHolLightFiles(holPath, progress);
 
-        const docText = document.getText();
         const docPath = document.uri.fsPath;
+        progress?.report({ increment: 0, message: `Indexing: ${docPath}` });
+        console.log(`Indexing: ${docPath}`);
+
+        const docText = document.getText();
         const { definitions: docDefinitions, dependencies } = parseText(docText, customNames, document.uri);
         if (!fullIndex && this.isSameDependencyNames(docPath, dependencies.map(dep => dep.name))) {
             // Full indexing is not requested and all dependency names are the same as existing names.
@@ -380,11 +383,14 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             this.addToIndex(docPath, file?.dependencies ?? [], dependencies.map(dep => dep.name), docDefinitions, null);
             return;
         }
+
+        console.log(`Full index for ${docPath}`);
+
         const { deps: docDeps, unresolvedDeps } = await resolveDependencies(dependencies, { basePath: path.dirname(docPath), holPath, rootPaths });
-        this.addToIndex(docPath, docDeps, dependencies.map(dep => dep.name), docDefinitions, null);
         // TODO: do we need to update modifiedTimes?
         // If there is a cyclic dependency on this document then it will be indexed twice.
         // On the other hand, cyclic dependencies should be removed.
+        this.addToIndex(docPath, docDeps, dependencies.map(dep => dep.name), docDefinitions, null);
         const visited = new Set<string>([document.uri.fsPath]);
         const queue: string[] = docDeps.map(dep => dep.path);
     

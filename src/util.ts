@@ -91,3 +91,20 @@ export function runWhenFirstArgChanges<T, A1 extends string | number, A extends 
         return Promise.resolve(undefined);
     };
 }
+
+/**
+ * Returns a function which calls the prodived function after the given delay. 
+ * If there is a pending call, it is cancelled and a new delayed call is created.
+ * @param fn
+ * @param delay 
+ */
+export function throttleWithDelay<T, A extends any[], R>(fn: (this: T, ...args: A) => R, delay: number): (this: T, ...args: A) => void {
+    let timeout: NodeJS.Timeout | undefined;
+    return function(...args: A) {
+        if (timeout) {
+            clearTimeout(timeout);
+            timeout = undefined;
+        }
+        timeout = setTimeout(() => fn.apply(this, args), delay);
+    };
+}

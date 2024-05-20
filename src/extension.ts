@@ -208,6 +208,22 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
+    const indexDocument = util.throttleWithDelay((doc: vscode.TextDocument) => {
+        const customNames = config.getCustomCommandNames();
+        const rootPaths = config.getRootPaths();
+        const holPath = config.getConfigOption(config.HOLLIGHT_PATH, '');
+        database.indexDocumentWithDependencies(doc, holPath, rootPaths, customNames, false);
+    }, 1000);
+
+    context.subscriptions.push(
+        vscode.workspace.onDidChangeTextDocument(event => {
+            const autoIndex = config.getConfigOption(config.AUTO_INDEX, false);
+            if (autoIndex && vscode.window.activeTextEditor?.document === event.document) {
+                indexDocument(event.document);
+            }
+        })
+    );
+
     context.subscriptions.push(vscode.languages.registerHoverProvider(
         LANG_ID, 
         util.combineHoverProviders(helpProvider, database)
