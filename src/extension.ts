@@ -189,7 +189,14 @@ export function activate(context: vscode.ExtensionContext) {
                 await vscode.window.withProgress({
                     location: vscode.ProgressLocation.Notification,
                     cancellable: false
-                }, (progress, _token) => database.indexDocumentWithDependencies(editor.document, holPath, rootPaths, customNames, progress));
+                }, (progress, _token) => 
+                        database.indexDocumentWithDependencies(
+                            editor.document, 
+                            holPath, 
+                            rootPaths, 
+                            customNames, 
+                            true,
+                            progress));
             } catch (err) {
                 if (err instanceof vscode.FileSystemError) {
                     const res = await vscode.window.showErrorMessage(`Invalid HOL Light path: ${holPath}`, 'Change path...');
