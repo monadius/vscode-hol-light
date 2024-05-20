@@ -108,7 +108,7 @@
             "name2": "support.function.hol-light"
         },
         {
-            "match": "\\b(needs|loadt)\\b",
+            "match": "\\b(needs|loads|loadt)\\b",
             "name": "keyword.control.import.hol-light"
         },
         {

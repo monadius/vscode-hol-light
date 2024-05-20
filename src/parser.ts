@@ -1,8 +1,19 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
 
 import { CustomCommandNames } from './config';
-import * as util from './util';
+
+export class Dependency {
+    readonly name: string;
+    
+    // This flag indicates that the path should be resolved relative to the HOL Light base directory
+    // if it is not an absolute path (used by `loads`)
+    readonly holLightRelative: boolean;
+
+    constructor(name: string, holLightRelative: boolean) {
+        this.name = name;
+        this.holLightRelative = holLightRelative;
+    }
+}
 
 enum DefinitionType {
     theorem,
@@ -73,7 +84,7 @@ export class Definition {
 
 interface ParseResult {
     definitions: Definition[];
-    dependencies: string[];
+    dependencies: Dependency[];
 }
 
 export function parseText(text: string, customNames: CustomCommandNames, uri: vscode.Uri): ParseResult {
@@ -275,7 +286,7 @@ class Parser {
         const defOtherRe = mkRegExp(['new_recursive_definition']);
 
         const definitions: Definition[] = [];
-        const dependencies: string[] = [];
+        const dependencies: Dependency[] = [];
 
         while (this.peek().type !== TokenType.eof) {
             let m: (Token | null)[] | null;
@@ -283,7 +294,8 @@ class Parser {
                 const token = m[1]!;
                 // Skip very long strings. They are most definitely invalid (probably, they are not properly closed yet)
                 if (token.endPos - token.startPos <= 2000) {
-                    dependencies.push(m[1]!.getValue(this.text).slice(1, -1));
+                    const dep = new Dependency(token.getValue(this.text).slice(1, -1), m[0]!.getValue(this.text) === 'loads');
+                    dependencies.push(dep);
                 }
             } else if (m = this.match('let', ['rec'], ['('], TokenType.identifier)) {
                 const name = m[3]!.getValue(this.text);

@@ -4,20 +4,36 @@ import * as path from 'path';
 
 import { CustomCommandNames } from './config';
 import * as help from './help';
-import { Definition, parseText } from './parser';
+import { Definition, parseText, Dependency as ParserDependency } from './parser';
 import { Trie } from './trie';
 import * as util from './util';
 
-async function resolveDependencyPath(dep: string, basePath: string, roots: string[]): Promise<string | null> {
-    if (path.isAbsolute(dep)) {
-        return await util.isFileExists(dep, false) ? dep : null;
+class Dependency {
+    constructor(readonly name: string, readonly path: string) {}
+}
+
+// This interface emulates keyword arguments
+interface PathParameters {
+    holPath: string;
+    basePath: string;
+    rootPaths: string[];
+}
+
+async function resolveDependencyPath(dep: ParserDependency, pp: PathParameters): Promise<string | null> {
+    if (path.isAbsolute(dep.name)) {
+        return await util.isFileExists(dep.name, false) ? dep.name : null;
     }
-    for (const root of roots) {
+    if (dep.holLightRelative) {
+        // holPath is only used if dep.holLightRelative == true
+        const p = path.join(pp.holPath, dep.name);
+        return await util.isFileExists(p, false) ? p : null;
+    }
+    for (const root of pp.rootPaths) {
         if (!root) {
             // Skip empty roots
             continue;
         }
-        const p = path.join(root === '.' ? basePath : root, dep);
+        const p = path.join(root === '.' ? pp.basePath : root, dep.name);
         if (await util.isFileExists(p, false)) {
             return p;
         }
@@ -25,15 +41,15 @@ async function resolveDependencyPath(dep: string, basePath: string, roots: strin
     return null;
 }
 
-async function resolveDependencies(dependencies: string[], basePath: string, rootPaths: string[]): Promise<{ deps: string[], unresolvedDeps: string[] }> {
-    const resolvedDeps: string[] = [];
+async function resolveDependencies(dependencies: ParserDependency[], pp: PathParameters): Promise<{ deps: Dependency[], unresolvedDeps: string[] }> {
+    const resolvedDeps: Dependency[] = [];
     const unresolvedDeps: string[] = [];
     for (const dep of dependencies) {
-        const depPath = await resolveDependencyPath(dep, basePath, rootPaths);
+        const depPath = await resolveDependencyPath(dep, pp);
         if (depPath) {
-            resolvedDeps.push(depPath);
+            resolvedDeps.push(new Dependency(dep.name, depPath));
         } else {
-            unresolvedDeps.push(dep);
+            unresolvedDeps.push(dep.name);
         }
     }
     return { deps: resolvedDeps, unresolvedDeps };
@@ -54,7 +70,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
      * Dependencies of files. Dependencies could by cyclic ("needs" allows cyclic dependencies
      * but the result could be unpredictable).
      */
-    private dependencies: { [filePath: string]: string[] } = {};
+    private dependencies: { [filePath: string]: Dependency[] } = {};
 
     /**
      * All definitions associated with indexed files
@@ -87,8 +103,11 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
      * @param deps 
      * @param defs 
      */
-    private addToIndex(filePath: string, deps: string[], defs: Definition[]) {
+    private addToIndex(filePath: string, deps: Dependency[], defs: Definition[], mtime: number | null) {
         this.removeFromIndex(filePath);
+        if (mtime !== null) {
+            this.modificationTimes[filePath] = mtime;
+        }
         this.dependencies[filePath] = [...deps];
         this.allDefinitions[filePath] = [...defs];
         for (const def of defs) {
@@ -131,19 +150,17 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
      * @param rootPaths if null then dependencies are not resolved and not added to the index
      * @returns an object where the `indexed` field indicates whether the file has been indexed
      */
-    async indexFile(filePath: string, rootPaths: string[] | null, customNames: CustomCommandNames, token?: vscode.CancellationToken): Promise<{ indexed: boolean, deps: string[], unresolvedDeps: string[] }> {
+    async indexFile(filePath: string, holPath: string, rootPaths: string[] | null, customNames: CustomCommandNames, token?: vscode.CancellationToken): Promise<{ indexed: boolean, deps: Dependency[], unresolvedDeps: string[] }> {
         const mtime = (await fs.stat(filePath)).mtimeMs;
         if (mtime > (this.modificationTimes[filePath] || -1)) {
             const text = await fs.readFile(filePath, 'utf-8');
             const { definitions, dependencies } = parseText(text, customNames, vscode.Uri.file(filePath));
-            const { deps, unresolvedDeps } = rootPaths ? await resolveDependencies(dependencies, path.dirname(filePath), rootPaths) : { deps: [], unresolvedDeps: [] };
+            const { deps, unresolvedDeps } = rootPaths ? await resolveDependencies(dependencies, { basePath: path.dirname(filePath), holPath, rootPaths }) : { deps: [], unresolvedDeps: [] };
             // Check the cancellation token before modifying any global state
             if (token?.isCancellationRequested) {
                 return { indexed: false, deps, unresolvedDeps };
             }
-            this.addToIndex(filePath, deps, definitions);
-            // addToIndex calls removeFromIndex so the modification time should be updated after addToIndex
-            this.modificationTimes[filePath] = mtime;
+            this.addToIndex(filePath, deps, definitions, mtime);
             return { indexed: true, deps, unresolvedDeps };
         }
         // Return existing dependencies for a file which has already been indexed
@@ -156,9 +173,9 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
      * @param dependency 
      * @returns 
      */
-    isDependency(filePath: string, dependency: string): boolean {
+    isDependency(filePath: string, dependencyPath: string): boolean {
         // All files depend on base HOL Light files
-        if (filePath === dependency || this.baseHolLightFiles.has(dependency)) {
+        if (filePath === dependencyPath || this.baseHolLightFiles.has(dependencyPath)) {
             return true;
         }
         const queue = [filePath];
@@ -166,12 +183,12 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         while (queue.length) {
             const name = queue.pop()!;
             for (const dep of this.dependencies[name] || []) {
-                if (dep === dependency) {
+                if (dep.path === dependencyPath) {
                     return true;
                 }
-                if (!visited.has(dep)) {
-                    visited.add(dep);
-                    queue.push(dep);
+                if (!visited.has(dep.path)) {
+                    visited.add(dep.path);
+                    queue.push(dep.path);
                 }
             }
         }
@@ -189,9 +206,9 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         while (queue.length) {
             const name = queue.pop()!;
             for (const dep of this.dependencies[name] || []) {
-                if (!visited.has(dep)) {
-                    visited.add(dep);
-                    queue.push(dep);
+                if (!visited.has(dep.path)) {
+                    visited.add(dep.path);
+                    queue.push(dep.path);
                 }
             }
         }
@@ -278,7 +295,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
                         // Add the file path to this set before indexing the file.
                         // If the ope
                         this.baseHolLightFiles.add(filePath);
-                        if ((await this.indexFile(filePath, null, emptyCustomNames, token)).indexed) {
+                        if ((await this.indexFile(filePath, holPath, null, emptyCustomNames, token)).indexed) {
                             console.log(`Indexed: ${filePath}`);
                         }
                         // For debugging:
@@ -296,12 +313,12 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         return true;
     });
 
-    async indexDocument(document: vscode.TextDocument, rootPaths: string[], customNames: CustomCommandNames) {
+    async indexDocument(document: vscode.TextDocument, holPath: string, rootPaths: string[], customNames: CustomCommandNames) {
         const docText = document.getText();
         const docPath = document.uri.fsPath;
         const { definitions, dependencies } = parseText(docText, customNames, document.uri);
-        const { deps: docDeps } = await resolveDependencies(dependencies, path.dirname(docPath), rootPaths);
-        this.addToIndex(docPath, docDeps, definitions);
+        const { deps: docDeps } = await resolveDependencies(dependencies, { basePath: path.dirname(docPath), holPath, rootPaths });
+        this.addToIndex(docPath, docDeps, definitions, null);
     }
 
     async indexDocumentWithDependencies(
@@ -317,13 +334,13 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         const docText = document.getText();
         const docPath = document.uri.fsPath;
         const { definitions: docDefinitions, dependencies } = parseText(docText, customNames, document.uri);
-        const { deps: docDeps, unresolvedDeps } = await resolveDependencies(dependencies, path.dirname(docPath), rootPaths);
-        this.addToIndex(docPath, docDeps, docDefinitions);
+        const { deps: docDeps, unresolvedDeps } = await resolveDependencies(dependencies, { basePath: path.dirname(docPath), holPath, rootPaths });
+        this.addToIndex(docPath, docDeps, docDefinitions, null);
         // TODO: do we need to update modifiedTimes?
         // If there is a cyclic dependency on this document then it will be indexed twice.
         // On the other hand, cyclic dependencies should be removed.
         const visited = new Set<string>([document.uri.fsPath]);
-        const queue: string[] = docDeps;
+        const queue: string[] = docDeps.map(dep => dep.path);
     
         while (queue.length) {
             const depPath = queue.pop()!;
@@ -333,14 +350,14 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             progress?.report({ increment: 0, message: `Indexing: ${depPath}` });
             visited.add(depPath);
             try {
-                const { indexed, deps, unresolvedDeps: unresolved } = await this.indexFile(depPath, rootPaths, customNames);
+                const { indexed, deps, unresolvedDeps: unresolved } = await this.indexFile(depPath, holPath, rootPaths, customNames);
                 if (indexed) {
                     console.log(`Indexed: ${depPath}`);
                 }
                 unresolvedDeps.push(...unresolved);
                 // We do not check if the dependencies has already been indexed or not.
                 // Add everything to the queue and call this.indexFile for all dependencies.
-                queue.push(...deps);
+                queue.push(...deps.map(dep => dep.path));
             } catch (err) {
                 console.error(`File indexing error: ${depPath}\n${err}`);
             }
