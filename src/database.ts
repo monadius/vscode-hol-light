@@ -186,6 +186,16 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
     }
 
     /**
+     * Checks that dependency names of the given indexed file are the same as the given names
+     * @param filePath
+     * @param depNames 
+     */
+    isSameDependencyNames(filePath: string, depNames: string[]): boolean {
+        const names = this.fileIndex.get(filePath)?.dependencyNames;
+        return !names ? depNames.length === 0 : depNames.every(name => names.has(name));
+    }
+
+    /**
      * Checks if the given `filePath` depends on `dependency` 
      * @param filePath
      * @param dependency 
@@ -363,6 +373,13 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         const docText = document.getText();
         const docPath = document.uri.fsPath;
         const { definitions: docDefinitions, dependencies } = parseText(docText, customNames, document.uri);
+        if (!fullIndex && this.isSameDependencyNames(docPath, dependencies.map(dep => dep.name))) {
+            // Full indexing is not requested and all dependency names are the same as existing names.
+            // Update the index and do not update dependencies
+            const file = this.fileIndex.get(docPath);
+            this.addToIndex(docPath, file?.dependencies ?? [], dependencies.map(dep => dep.name), docDefinitions, null);
+            return;
+        }
         const { deps: docDeps, unresolvedDeps } = await resolveDependencies(dependencies, { basePath: path.dirname(docPath), holPath, rootPaths });
         this.addToIndex(docPath, docDeps, dependencies.map(dep => dep.name), docDefinitions, null);
         // TODO: do we need to update modifiedTimes?
@@ -384,6 +401,9 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
                     console.log(`Indexed: ${depPath}`);
                 }
                 unresolvedDeps.push(...unresolved);
+                if (!fullIndex && this.isSameDependencyNames(depPath, [...deps.map(dep => dep.name), ...unresolved])) {
+                    continue;
+                }
                 // We do not check if the dependencies has already been indexed or not.
                 // Add everything to the queue and call this.indexFile for all dependencies.
                 queue.push(...deps.map(dep => dep.path));
