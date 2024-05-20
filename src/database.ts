@@ -4,9 +4,40 @@ import * as path from 'path';
 
 import { CustomCommandNames } from './config';
 import * as help from './help';
-import { Definition, parseText, resolveDependencies } from './parser';
+import { Definition, parseText } from './parser';
 import { Trie } from './trie';
 import * as util from './util';
+
+async function resolveDependencyPath(dep: string, basePath: string, roots: string[]): Promise<string | null> {
+    if (path.isAbsolute(dep)) {
+        return await util.isFileExists(dep, false) ? dep : null;
+    }
+    for (const root of roots) {
+        if (!root) {
+            // Skip empty roots
+            continue;
+        }
+        const p = path.join(root === '.' ? basePath : root, dep);
+        if (await util.isFileExists(p, false)) {
+            return p;
+        }
+    }
+    return null;
+}
+
+async function resolveDependencies(dependencies: string[], basePath: string, rootPaths: string[]): Promise<{ deps: string[], unresolvedDeps: string[] }> {
+    const resolvedDeps: string[] = [];
+    const unresolvedDeps: string[] = [];
+    for (const dep of dependencies) {
+        const depPath = await resolveDependencyPath(dep, basePath, rootPaths);
+        if (depPath) {
+            resolvedDeps.push(depPath);
+        } else {
+            unresolvedDeps.push(dep);
+        }
+    }
+    return { deps: resolvedDeps, unresolvedDeps };
+}
 
 export class Database implements vscode.DefinitionProvider, vscode.HoverProvider, vscode.CompletionItemProvider {
     /**
