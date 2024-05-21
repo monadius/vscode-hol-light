@@ -10,6 +10,10 @@ import * as util from './util';
 
 class Dependency {
     constructor(readonly name: string, readonly path: string) {}
+
+    getLocation() : vscode.Location | null {
+        return this.path ? new vscode.Location(vscode.Uri.file(this.path), new vscode.Position(0, 0)) : null;
+    }
 }
 
 // This interface emulates keyword arguments
@@ -247,6 +251,10 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         });
     }
 
+    findDependency(filePath: string, name: string): Dependency | undefined {
+        return this.fileIndex.get(filePath)?.dependencies.find(dep => dep.name === name);
+    }
+
     /**
      * Returns all definitions which have the given prefix and which belong
      * to the dependencies of the given file (including the file itself)
@@ -422,6 +430,17 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
     }
 
     provideDefinition(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken) {
+        const line = document.lineAt(position.line);
+        const m = line.text.match(/^\s*(?:needs|loads|loadt)\s*"(.*?)"/);
+        if (m) {
+            const i1 = m[0].indexOf('"'), i2 = m[0].lastIndexOf('"');
+            if (position.character >= i1 && position.character <= i2) {
+                const loc = this.findDependency(document.uri.fsPath, m[1])?.getLocation();
+                // TODO: originalSelectionRange does not work and only a word at the position is underlined
+                const originalSelectionRange = new vscode.Range(position.line, i1, position.line, i2);
+                return loc ? [<vscode.LocationLink>{ targetUri: loc.uri, targetRange: loc.range, originalSelectionRange }] : null;
+            }
+        }
         const word = util.getWordAtPosition(document, position);
         if (!word) {
             return null;

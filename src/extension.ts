@@ -8,8 +8,6 @@ import * as selection from './selection';
 import * as tactic from './tactic';
 import * as util from './util';
 
-import * as parser from './parser';
-
 const LANG_ID = 'hol-light-ocaml';
 
 // this method is called when the extension is activated
