@@ -9,6 +9,11 @@ export function getWordAtPosition(document: vscode.TextDocument, position: vscod
     return document.getText(range);
 }
 
+export function difference<T>(xs: Iterable<T>, ys: Iterable<T>): T[] {
+    const s = ys instanceof Set ? ys : new Set(ys);
+    return [...xs].filter(x => !s.has(x));
+}
+
 export async function isFileExists(filePath: string, checkDir: boolean): Promise<boolean> {
     try {
         const stats = await fs.stat(filePath);

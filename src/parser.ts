@@ -294,8 +294,12 @@ class Parser {
                 const token = m[1]!;
                 // Skip very long strings. They are most definitely invalid (probably, they are not properly closed yet)
                 if (token.endPos - token.startPos <= 2000) {
-                    const dep = new Dependency(token.getValue(this.text).slice(1, -1), m[0]!.getValue(this.text) === 'loads');
-                    dependencies.push(dep);
+                    const text = token.getValue(this.text).slice(1, -1);
+                    // Ignore multiline strings
+                    if (!text.includes('\n')) {
+                        const dep = new Dependency(text, m[0]!.getValue(this.text) === 'loads');
+                        dependencies.push(dep);
+                    }
                 }
             } else if (m = this.match('let', ['rec'], ['('], TokenType.identifier)) {
                 const name = m[3]!.getValue(this.text);

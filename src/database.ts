@@ -118,7 +118,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
      * @param deps 
      * @param defs 
      */
-    private addToIndex(filePath: string, deps: Dependency[], depNames: string[], defs: Definition[], mtime: number | null) {
+    private addToIndex(filePath: string, deps: Dependency[], depNames: Iterable<string>, defs: Definition[], mtime: number | null) {
         this.removeFromIndex(filePath);
 
         this.fileIndex.set(filePath, {
@@ -183,16 +183,6 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         }
         // Return existing dependencies for a file which has already been indexed
         return { indexed: false, deps: file?.dependencies || [], unresolvedDeps: [] };
-    }
-
-    /**
-     * Checks that dependency names of the given indexed file are the same as the given names
-     * @param filePath
-     * @param depNames 
-     */
-    isSameDependencyNames(filePath: string, depNames: string[]): boolean {
-        const names = this.fileIndex.get(filePath)?.dependencyNames;
-        return !names ? depNames.length === 0 : depNames.every(name => names.has(name));
     }
 
     /**
@@ -376,23 +366,28 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
 
         const docText = document.getText();
         const { definitions: docDefinitions, dependencies } = parseText(docText, customNames, document.uri);
-        if (!fullIndex && this.isSameDependencyNames(docPath, dependencies.map(dep => dep.name))) {
-            // Full indexing is not requested and all dependency names are the same as existing names.
-            // Update the index and do not update dependencies
+        const docDepNames = new Set(dependencies.map(dep => dep.name));
+
+        if (!fullIndex && util.difference(docDepNames, this.fileIndex.get(docPath)?.dependencyNames ?? []).length === 0) {
+            // Full indexing is not requested and there are no new dependency names.
+            // Update the index and do not resolve dependencies.
             const file = this.fileIndex.get(docPath);
-            this.addToIndex(docPath, file?.dependencies ?? [], dependencies.map(dep => dep.name), docDefinitions, null);
+            const deps = file?.dependencies.filter(dep => docDepNames.has(dep.name)) ?? [];
+            this.addToIndex(docPath, deps, docDepNames, docDefinitions, null);
             return;
         }
 
-        console.log(`Full index for ${docPath}`);
+        console.log(`Indexing ${fullIndex ? 'all' : 'new'} dependencies of ${docPath}`);
 
+        const oldPaths = this.fileIndex.get(docPath)?.dependencies.map(dep => dep.path) ?? [];
         const { deps: docDeps, unresolvedDeps } = await resolveDependencies(dependencies, { basePath: path.dirname(docPath), holPath, rootPaths });
         // TODO: do we need to update modifiedTimes?
         // If there is a cyclic dependency on this document then it will be indexed twice.
         // On the other hand, cyclic dependencies should be removed.
-        this.addToIndex(docPath, docDeps, dependencies.map(dep => dep.name), docDefinitions, null);
+        this.addToIndex(docPath, docDeps, docDepNames, docDefinitions, null);
         const visited = new Set<string>([document.uri.fsPath]);
-        const queue: string[] = docDeps.map(dep => dep.path);
+        const newPaths = docDeps.map(dep => dep.path);
+        const queue: string[] = fullIndex ? newPaths : util.difference(newPaths, oldPaths);
     
         while (queue.length) {
             const depPath = queue.pop()!;
@@ -402,17 +397,15 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             progress?.report({ increment: 0, message: `Indexing: ${depPath}` });
             visited.add(depPath);
             try {
+                const oldPaths = this.fileIndex.get(depPath)?.dependencies.map(dep => dep.path) ?? [];
                 const { indexed, deps, unresolvedDeps: unresolved } = await this.indexFile(depPath, holPath, rootPaths, customNames);
                 if (indexed) {
                     console.log(`Indexed: ${depPath}`);
                 }
                 unresolvedDeps.push(...unresolved);
-                if (!fullIndex && this.isSameDependencyNames(depPath, [...deps.map(dep => dep.name), ...unresolved])) {
-                    continue;
-                }
-                // We do not check if the dependencies has already been indexed or not.
-                // Add everything to the queue and call this.indexFile for all dependencies.
-                queue.push(...deps.map(dep => dep.path));
+                // For fullIndex == true we do not check if the dependencies has already been indexed or not.
+                const newPaths = deps.map(dep => dep.path);
+                queue.push(...fullIndex ? newPaths : util.difference(newPaths, oldPaths));
             } catch (err) {
                 console.error(`File indexing error: ${depPath}\n${err}`);
             }
