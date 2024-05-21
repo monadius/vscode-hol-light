@@ -23,8 +23,8 @@ export function updateConfigOption<T>(name: string, value: T): void {
     configuration.update(name, value, false);
 }
 
-export function affectsConfiguration(e: vscode.ConfigurationChangeEvent, name: string): boolean {
-    return e.affectsConfiguration(SECTION + '.' + name);
+export function affectsConfiguration(e: vscode.ConfigurationChangeEvent, ...names: string[]): boolean {
+    return names.some(name => e.affectsConfiguration(SECTION + '.' + name));
 }
 
 export function getRootPaths(): string[] {

@@ -112,8 +112,24 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
      */
     private helpProvider?: help.HelpProvider;
 
-    constructor(helpProvider?: help.HelpProvider) {
+    /**
+     * Custom command names for parsing.
+     */
+    private customCommandNames: CustomCommandNames;
+
+    /**
+     * A regexp for recognizing imports (used for providing definitions for dependencies)
+     */
+    private importRe?: RegExp;
+
+    constructor(helpProvider?: help.HelpProvider, customCommandNames?: CustomCommandNames) {
         this.helpProvider = helpProvider;
+        this.customCommandNames = customCommandNames ?? { customDefinitions: [], customImports: [], customTheorems: [] };
+    }
+
+    setCustomCommandNames(customCommandNames: CustomCommandNames) {
+        this.customCommandNames = customCommandNames;
+        this.importRe = undefined;
     }
 
     /**
@@ -169,6 +185,8 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
      * Indexes the given file if it is not indexed yet or if it has been modified.
      * @param filePath
      * @param rootPaths if null then dependencies are not resolved and not added to the index
+     * @param customNames explicitly pass custom command names to this function. 
+     *                    There should be no custom names for base HOL Light files.
      * @returns an object where the `indexed` field indicates whether the file has been indexed
      */
     async indexFile(filePath: string, holPath: string, rootPaths: string[] | null, customNames: CustomCommandNames, token?: vscode.CancellationToken): Promise<{ indexed: boolean, deps: Dependency[], unresolvedDeps: string[] }> {
@@ -339,10 +357,10 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         return true;
     });
 
-    async indexDocument(document: vscode.TextDocument, holPath: string, rootPaths: string[], customNames: CustomCommandNames) {
+    async indexDocument(document: vscode.TextDocument, holPath: string, rootPaths: string[]) {
         const docText = document.getText();
         const docPath = document.uri.fsPath;
-        const { definitions, dependencies } = parseText(docText, customNames, document.uri);
+        const { definitions, dependencies } = parseText(docText, this.customCommandNames, document.uri);
         const { deps: docDeps } = await resolveDependencies(dependencies, { basePath: path.dirname(docPath), holPath, rootPaths });
         this.addToIndex(docPath, docDeps, dependencies.map(dep => dep.name), definitions, null);
     }
@@ -361,7 +379,6 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             document: vscode.TextDocument, 
             holPath: string, 
             rootPaths: string[], 
-            customNames: CustomCommandNames,
             fullIndex: boolean,
             progress?: vscode.Progress<{ increment: number, message: string }>) {
         // Index HOL Light files first.
@@ -374,7 +391,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         console.log(`Indexing: ${docPath}`);
 
         const docText = document.getText();
-        const { definitions: docDefinitions, dependencies } = parseText(docText, customNames, document.uri);
+        const { definitions: docDefinitions, dependencies } = parseText(docText, this.customCommandNames, document.uri);
         const docDepNames = new Set(dependencies.map(dep => dep.name));
 
         if (!fullIndex && util.difference(docDepNames, this.fileIndex.get(docPath)?.dependencyNames ?? []).length === 0) {
@@ -409,7 +426,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             try {
                 // oldPaths should be computed before this.indexFile is called
                 const oldPaths = this.fileIndex.get(depPath)?.dependencies.map(dep => dep.path) ?? [];
-                const { indexed, deps, unresolvedDeps: unresolved } = await this.indexFile(depPath, holPath, rootPaths, customNames);
+                const { indexed, deps, unresolvedDeps: unresolved } = await this.indexFile(depPath, holPath, rootPaths, this.customCommandNames);
                 if (indexed) {
                     console.log(`Indexed: ${depPath}`);
                 }
@@ -431,7 +448,11 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
 
     provideDefinition(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken) {
         const line = document.lineAt(position.line);
-        const m = line.text.match(/^\s*(?:needs|loads|loadt)\s*"(.*?)"/);
+        if (!this.importRe) {
+            const customImports = this.customCommandNames.customImports.join('|');
+            this.importRe = new RegExp(`^\\s*(?:needs|loads|loadt|${customImports})\\s*"(.*?)"`);
+        }
+        const m = line.text.match(this.importRe);
         if (m) {
             const i1 = m[0].indexOf('"'), i2 = m[0].lastIndexOf('"');
             if (position.character >= i1 && position.character <= i2) {

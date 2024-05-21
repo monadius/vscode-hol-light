@@ -20,7 +20,7 @@ export function activate(context: vscode.ExtensionContext) {
     const helpProvider = new help.HelpProvider();
 
     // A completion, definition, and hover provider for all HOL Light definition
-    const database = new data.Database(helpProvider);
+    const database = new data.Database(helpProvider, config.getCustomCommandNames());
 
     // A helper class for managing highlighted regions in editors
     const decorations = new decoration.Decorations(config.getReplDecorationType());
@@ -104,6 +104,8 @@ export function activate(context: vscode.ExtensionContext) {
                 if (config.getConfigOption(config.AUTO_INDEX, false) && vscode.window.activeTextEditor) {
                     indexDocument(vscode.window.activeTextEditor.document);
                 }
+            } else if (config.affectsConfiguration(e, config.CUSTOM_DEFINITIONS, config.CUSTOM_IMPORTS, config.CUSTOM_THEOREMS)) {
+                database.setCustomCommandNames(config.getCustomCommandNames());
             }
         })
     );
@@ -198,7 +200,6 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.index', async editor => {
-            const customNames = config.getCustomCommandNames();
             const rootPaths = config.getRootPaths();
             const holPath = config.getConfigOption(config.HOLLIGHT_PATH, '');
             await vscode.window.withProgress({
@@ -206,15 +207,14 @@ export function activate(context: vscode.ExtensionContext) {
                     cancellable: false
             }, (progress, _token) => 
                 database.indexDocumentWithDependencies(
-                    editor.document, holPath, rootPaths, customNames, true, progress));
+                    editor.document, holPath, rootPaths, true, progress));
         })
     );
 
     function indexDocument(doc: vscode.TextDocument) {
-        const customNames = config.getCustomCommandNames();
         const rootPaths = config.getRootPaths();
         const holPath = config.getConfigOption(config.HOLLIGHT_PATH, '');
-        database.indexDocumentWithDependencies(doc, holPath, rootPaths, customNames, false);
+        database.indexDocumentWithDependencies(doc, holPath, rootPaths, false);
     }
 
     // Calls database.indexDocumentWithDependencies with a 1000ms delay
