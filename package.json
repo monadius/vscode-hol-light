@@ -110,11 +110,6 @@
             },
             {
                 "category": "HOL Light",
-                "command": "hol-light.parse",
-                "title": "Parse"
-            },
-            {
-                "category": "HOL Light",
                 "command": "hol-light.index",
                 "title": "Index File and its Dependencies"
             }

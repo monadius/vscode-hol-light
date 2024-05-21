@@ -362,6 +362,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
 
         const docPath = document.uri.fsPath;
         progress?.report({ increment: 0, message: `Indexing: ${docPath}` });
+
         console.log(`Indexing: ${docPath}`);
 
         const docText = document.getText();
@@ -385,6 +386,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         // If there is a cyclic dependency on this document then it will be indexed twice.
         // On the other hand, cyclic dependencies should be removed.
         this.addToIndex(docPath, docDeps, docDepNames, docDefinitions, null);
+
         const visited = new Set<string>([document.uri.fsPath]);
         const newPaths = docDeps.map(dep => dep.path);
         const queue: string[] = fullIndex ? newPaths : util.difference(newPaths, oldPaths);
@@ -397,6 +399,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             progress?.report({ increment: 0, message: `Indexing: ${depPath}` });
             visited.add(depPath);
             try {
+                // oldPaths should be computed before this.indexFile is called
                 const oldPaths = this.fileIndex.get(depPath)?.dependencies.map(dep => dep.path) ?? [];
                 const { indexed, deps, unresolvedDeps: unresolved } = await this.indexFile(depPath, holPath, rootPaths, customNames);
                 if (indexed) {
@@ -411,7 +414,8 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             }
         }
 
-        if (unresolvedDeps.length > 0) {
+        // Show a warning message only when a progress indicator is shown
+        if (progress && unresolvedDeps.length > 0) {
             const unresolvedMessage = `Unresolved dependencies:\n ${unresolvedDeps.join('\n')}`;
             vscode.window.showWarningMessage(unresolvedMessage);
         }

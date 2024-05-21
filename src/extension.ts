@@ -68,6 +68,8 @@ export function activate(context: vscode.ExtensionContext) {
         decorations.highlightRange(document, new vscode.Range(document.positionAt(start), document.positionAt(end)));
     }
 
+    // Register completion, definition, and hover providers
+
     context.subscriptions.push(
         vscode.languages.registerCompletionItemProvider(LANG_ID, helpProvider)
     );
@@ -75,6 +77,20 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.languages.registerHoverProvider(LANG_ID, helpProvider)
     );
+
+    context.subscriptions.push(
+        vscode.languages.registerHoverProvider(LANG_ID, util.combineHoverProviders(helpProvider, database))
+    );
+    
+    context.subscriptions.push(
+        vscode.languages.registerDefinitionProvider(LANG_ID, database)
+    );
+
+    context.subscriptions.push(
+        vscode.languages.registerCompletionItemProvider(LANG_ID, database)
+    );
+
+    // Register a configuration change event handler
 
     context.subscriptions.push(
         vscode.workspace.onDidChangeConfiguration(e => {
@@ -86,6 +102,10 @@ export function activate(context: vscode.ExtensionContext) {
                 }
             } else if (config.affectsConfiguration(e, config.HIGHLIGHT_COLOR)) {
                 decorations.setDecoration(config.getReplDecorationType());
+            } else if (config.affectsConfiguration(e, config.AUTO_INDEX)) {
+                if (config.getConfigOption(config.AUTO_INDEX, false) && vscode.window.activeTextEditor) {
+                    indexDocument(vscode.window.activeTextEditor.document);
+                }
             }
         })
     );
@@ -154,84 +174,74 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
-    /* WIP: parser */
-
-    context.subscriptions.push(
-        vscode.commands.registerTextEditorCommand('hol-light.parse', editor => {
-            const customNames = config.getCustomCommandNames();
-            const text = editor.document.getText();
-            const uri = editor.document.uri;
-            console.time('parsing');
-            // database.indexDocument(editor.document, config.getRootPaths());
-            // const definitions = parser.parseDocument(editor.document);
-            const res: {[key: string]: number} = {};
-            const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
-            for (let i = 0; i < 100; i++) {
-                parser.parseText(text, customNames, uri);
-                // for (const letter of letters) {
-                //     const defs = database.findDefinitionsWithPrefix(uri.fsPath, letter + letter);
-                //     res[letter] = defs.length;
-                // }
-            }
-            console.timeEnd('parsing');
-            console.log(res);
-            // database.addDefinitions(definitions);
-        })
-    );
+    // A command for testing and debugging
+    // context.subscriptions.push(
+    //     vscode.commands.registerTextEditorCommand('hol-light.parse', editor => {
+    //         const customNames = config.getCustomCommandNames();
+    //         const text = editor.document.getText();
+    //         const uri = editor.document.uri;
+    //         console.time('parsing');
+    //         // database.indexDocument(editor.document, config.getRootPaths());
+    //         // const definitions = parser.parseDocument(editor.document);
+    //         const res: {[key: string]: number} = {};
+    //         const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+    //         for (let i = 0; i < 100; i++) {
+    //             parser.parseText(text, customNames, uri);
+    //             // for (const letter of letters) {
+    //             //     const defs = database.findDefinitionsWithPrefix(uri.fsPath, letter + letter);
+    //             //     res[letter] = defs.length;
+    //             // }
+    //         }
+    //         console.timeEnd('parsing');
+    //         console.log(res);
+    //         // database.addDefinitions(definitions);
+    //     })
+    // );
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.index', async editor => {
             const customNames = config.getCustomCommandNames();
             const rootPaths = config.getRootPaths();
-            console.log(`rootPaths: ${rootPaths}`);
             const holPath = config.getConfigOption(config.HOLLIGHT_PATH, '');
-            try {
-                await vscode.window.withProgress({
+            await vscode.window.withProgress({
                     location: vscode.ProgressLocation.Notification,
                     cancellable: false
-                }, (progress, _token) => 
-                        database.indexDocumentWithDependencies(
-                            editor.document, 
-                            holPath, 
-                            rootPaths, 
-                            customNames, 
-                            true,
-                            progress));
-            } catch (err) {
-                if (err instanceof vscode.FileSystemError) {
-                    const res = await vscode.window.showErrorMessage(`Invalid HOL Light path: ${holPath}`, 'Change path...');
-                    if (res === 'Change path...') {
-                        await chooseHOLLightPath();
-                    }
-                }
-            }
+            }, (progress, _token) => 
+                database.indexDocumentWithDependencies(
+                    editor.document, holPath, rootPaths, customNames, true, progress));
         })
     );
 
-    const indexDocument = util.throttleWithDelay((doc: vscode.TextDocument) => {
+    function indexDocument(doc: vscode.TextDocument) {
         const customNames = config.getCustomCommandNames();
         const rootPaths = config.getRootPaths();
         const holPath = config.getConfigOption(config.HOLLIGHT_PATH, '');
         database.indexDocumentWithDependencies(doc, holPath, rootPaths, customNames, false);
-    }, 1000);
+    }
+
+    // Calls database.indexDocumentWithDependencies with a 1000ms delay
+    const indexDocumentDebounced = util.debounceWithDelay(indexDocument, 1000);
 
     context.subscriptions.push(
         vscode.workspace.onDidChangeTextDocument(event => {
             const autoIndex = config.getConfigOption(config.AUTO_INDEX, false);
             if (autoIndex && vscode.window.activeTextEditor?.document === event.document) {
-                indexDocument(event.document);
+                indexDocumentDebounced(event.document);
             }
         })
     );
 
-    context.subscriptions.push(vscode.languages.registerHoverProvider(
-        LANG_ID, 
-        util.combineHoverProviders(helpProvider, database)
-    ));
-    context.subscriptions.push(vscode.languages.registerDefinitionProvider(LANG_ID, database));
-    context.subscriptions.push(vscode.languages.registerCompletionItemProvider(LANG_ID, database));
+    context.subscriptions.push(
+        vscode.window.onDidChangeActiveTextEditor(editor => {
+            if (editor && config.getConfigOption(config.AUTO_INDEX, false)) {
+                indexDocument(editor.document);
+            }
+        })
+    );
 
-    /* WIP: end */
+    if (vscode.window.activeTextEditor && config.getConfigOption(config.AUTO_INDEX, false)) {
+        indexDocument(vscode.window.activeTextEditor.document);
+    }
 
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.repl', async () => {

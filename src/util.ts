@@ -103,7 +103,7 @@ export function runWhenFirstArgChanges<T, A1 extends string | number, A extends 
  * @param fn
  * @param delay 
  */
-export function throttleWithDelay<T, A extends any[], R>(fn: (this: T, ...args: A) => R, delay: number): (this: T, ...args: A) => void {
+export function debounceWithDelay<T, A extends any[], R>(fn: (this: T, ...args: A) => R, delay: number): (this: T, ...args: A) => void {
     let timeout: NodeJS.Timeout | undefined;
     return function(...args: A) {
         if (timeout) {
