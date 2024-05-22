@@ -13,6 +13,10 @@ export const CUSTOM_THEOREMS = 'customTheorems';
 export const TACTIC_MAX_LINES = 'tacticMaxLines';
 export const SIMPLE_SELECTION = 'simpleSelection';
 
+export function getFullConfigName(name: string): string {
+    return SECTION + '.' + name;
+}
+
 export function getConfigOption<T>(name: string, defaultValue: T): T {
     const configuration = vscode.workspace.getConfiguration(SECTION);
     return configuration.get(name, defaultValue);

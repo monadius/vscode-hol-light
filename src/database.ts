@@ -3,6 +3,7 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 
 import { CustomCommandNames } from './config';
+import * as config from './config';
 import * as help from './help';
 import { Definition, parseText, Dependency as ParserDependency } from './parser';
 import { Trie } from './trie';
@@ -442,7 +443,12 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         // Show a warning message only when a progress indicator is shown
         if (progress && unresolvedDeps.length > 0) {
             const unresolvedMessage = `Unresolved dependencies:\n ${unresolvedDeps.join('\n')}`;
-            vscode.window.showWarningMessage(unresolvedMessage);
+            const editPaths = 'Edit rootPaths...';
+            const result = await vscode.window.showWarningMessage(unresolvedMessage, editPaths);
+            if (result === editPaths) {
+                const arg = { revealSetting: { key: config.getFullConfigName(config.ROOT_PATHS), edit: false } };
+                vscode.commands.executeCommand('workbench.action.openWorkspaceSettingsFile', arg);
+            }
         }
     }
 
