@@ -4,13 +4,16 @@ import { CustomCommandNames } from './config';
 
 export class Dependency {
     readonly name: string;
+
+    readonly range: vscode.Range;
     
     // This flag indicates that the path should be resolved relative to the HOL Light base directory
     // if it is not an absolute path (used by `loads`)
     readonly holLightRelative: boolean;
 
-    constructor(name: string, holLightRelative: boolean) {
+    constructor(name: string, range: vscode.Range, holLightRelative: boolean) {
         this.name = name;
+        this.range = range;
         this.holLightRelative = holLightRelative;
     }
 }
@@ -297,7 +300,8 @@ class Parser {
                     const text = token.getValue(this.text).slice(1, -1);
                     // Ignore multiline strings
                     if (!text.includes('\n')) {
-                        const dep = new Dependency(text, m[0]!.getValue(this.text) === 'loads');
+                        const range = new vscode.Range(m[0]!.getPosition(this.lineStarts), m[1]!.getPosition(this.lineStarts).translate(0, text.length + 2));
+                        const dep = new Dependency(text, range, m[0]!.getValue(this.text) === 'loads');
                         dependencies.push(dep);
                     }
                 }

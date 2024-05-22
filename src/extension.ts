@@ -16,11 +16,13 @@ export function activate(context: vscode.ExtensionContext) {
 
     let replTerm: vscode.Terminal | null = null;
 
+    const diagnosticCollection = vscode.languages.createDiagnosticCollection('hol-imports');
+
     // A completion and hover provider for documentation items defined in {hol-path}/Help
     const helpProvider = new help.HelpProvider();
 
     // A completion, definition, and hover provider for all HOL Light definition
-    const database = new data.Database(helpProvider, config.getCustomCommandNames());
+    const database = new data.Database(diagnosticCollection, helpProvider, config.getCustomCommandNames());
 
     // A helper class for managing highlighted regions in editors
     const decorations = new decoration.Decorations(config.getReplDecorationType());
