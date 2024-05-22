@@ -298,6 +298,15 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         return res;
     }
 
+    updateUnresolvedDependenciesDiagnostic(uri: vscode.Uri, deps: Dependency[]) {
+        const diagnostic = deps.filter(dep => !dep.isResolved).map(dep => {
+            const diagnostic = new vscode.Diagnostic(dep.range, 'Unresolved dependency', vscode.DiagnosticSeverity.Warning);
+            // TODO: add code for code actions
+            return diagnostic;
+        });
+        this.diagnosticCollection.set(uri, diagnostic.length ? diagnostic : undefined);
+    }
+
     indexBaseHolLightFiles = util.runWhenFirstArgChanges(async function(this: Database, token: vscode.CancellationToken, holPath: string, progress?: vscode.Progress<{ increment: number, message: string }>): Promise<boolean> {
         console.log(`Indexing Base HOL Light files: ${holPath}`);
         if (!holPath) {
@@ -406,6 +415,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             const deps = file?.dependencies
                               .filter(dep => docDepNames.has(dep.name))
                               .map(dep => new Dependency(docDepNames.get(dep.name)!, dep.path)) ?? [];
+            this.updateUnresolvedDependenciesDiagnostic(document.uri, deps);
             this.addToIndex(docPath, deps, docDefinitions, null);
             return;
         }
@@ -416,6 +426,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         const docDeps = await resolveDependencies(dependencies, { basePath: path.dirname(docPath), holPath, rootPaths });
 
         const unresolvedDeps: Dependency[] = docDeps.filter(dep => !dep.isResolved);
+        this.updateUnresolvedDependenciesDiagnostic(document.uri, unresolvedDeps);
        
         // TODO: do we need to update modifiedTimes?
         // If there is a cyclic dependency on this document then it will be indexed twice.
@@ -440,7 +451,9 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
                 if (indexed) {
                     console.log(`Indexed: ${depPath}`);
                 }
-                unresolvedDeps.push(...deps.filter(dep => !dep.isResolved));
+                const unresolved = deps.filter(dep => !dep.isResolved);
+                this.updateUnresolvedDependenciesDiagnostic(vscode.Uri.file(depPath), unresolved);
+                unresolvedDeps.push(...unresolved);
                 // For fullIndex == true we do not check if the dependencies has already been indexed or not.
                 const newPaths = deps.filter(dep => dep.isResolved).map(dep => dep.path!);
                 queue.push(...fullIndex ? newPaths : util.difference(newPaths, oldPaths));
