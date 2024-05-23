@@ -14,6 +14,17 @@ export function difference<T>(xs: Iterable<T>, ys: Iterable<T>): T[] {
     return [...xs].filter(x => !s.has(x));
 }
 
+export function filterMap<T, R>(xs: Iterable<T>, f: (x: T) => R | null | undefined): R[] {
+    const res: R[] = [];
+    for (const x of xs) {
+        const r = f(x);
+        if (r !== null && typeof r !== 'undefined') {
+            res.push(r);
+        }
+    }
+    return res;
+}
+
 export async function isFileExists(filePath: string, checkDir: boolean): Promise<boolean> {
     try {
         const stats = await fs.stat(filePath);

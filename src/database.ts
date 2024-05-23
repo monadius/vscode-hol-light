@@ -422,7 +422,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
 
         console.log(`Indexing ${fullIndex ? 'all' : 'new'} dependencies of ${docPath}`);
 
-        const oldPaths = this.fileIndex.get(docPath)?.dependencies.filter(dep => dep.isResolved).map(dep => dep.path!) ?? [];
+        const oldPaths = util.filterMap(this.fileIndex.get(docPath)?.dependencies ?? [], dep => dep.path);
         const docDeps = await resolveDependencies(dependencies, { basePath: path.dirname(docPath), holPath, rootPaths });
 
         const unresolvedDeps: Dependency[] = docDeps.filter(dep => !dep.isResolved);
@@ -434,7 +434,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         this.addToIndex(docPath, docDeps, docDefinitions, null);
 
         const visited = new Set<string>([document.uri.fsPath]);
-        const newPaths = docDeps.filter(dep => dep.isResolved).map(dep => dep.path!);
+        const newPaths = util.filterMap(docDeps, dep => dep.path);
         const queue: string[] = fullIndex ? newPaths : util.difference(newPaths, oldPaths);
     
         while (queue.length) {
@@ -446,7 +446,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             visited.add(depPath);
             try {
                 // oldPaths should be computed before this.indexFile is called
-                const oldPaths = this.fileIndex.get(depPath)?.dependencies.filter(dep => dep.isResolved).map(dep => dep.path!) ?? [];
+                const oldPaths = util.filterMap(this.fileIndex.get(depPath)?.dependencies ?? [], dep => dep.path);
                 const { indexed, deps } = await this.indexFile(depPath, holPath, rootPaths, this.customCommandNames);
                 if (indexed) {
                     console.log(`Indexed: ${depPath}`);
@@ -455,7 +455,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
                 this.updateUnresolvedDependenciesDiagnostic(vscode.Uri.file(depPath), unresolved);
                 unresolvedDeps.push(...unresolved);
                 // For fullIndex == true we do not check if the dependencies has already been indexed or not.
-                const newPaths = deps.filter(dep => dep.isResolved).map(dep => dep.path!);
+                const newPaths = util.filterMap(deps, dep => dep.path);
                 queue.push(...fullIndex ? newPaths : util.difference(newPaths, oldPaths));
             } catch (err) {
                 console.error(`File indexing error: ${depPath}\n${err}`);
