@@ -45,7 +45,7 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     async function loadHelpItems(path: string) {
-        if (!await helpProvider.loadHelpItems(path) && path) {
+        if (!await helpProvider.loadHelpItems(path)) {
             const res = await vscode.window.showErrorMessage(`Invalid HOL Light path: ${path}`, 'Change path...');
             if (res === 'Change path...') {
                 chooseHOLLightPath();
