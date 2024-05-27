@@ -225,7 +225,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.workspace.onDidChangeTextDocument(event => {
             const autoIndex = config.getConfigOption(config.AUTO_INDEX, false);
-            if (autoIndex && vscode.window.activeTextEditor?.document === event.document) {
+            if (autoIndex && event.document.languageId === LANG_ID && vscode.window.activeTextEditor?.document === event.document) {
                 indexDocumentDebounced(event.document);
             }
         })
@@ -233,7 +233,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.window.onDidChangeActiveTextEditor(editor => {
-            if (editor && config.getConfigOption(config.AUTO_INDEX, false)) {
+            if (editor && editor.document.languageId === LANG_ID && config.getConfigOption(config.AUTO_INDEX, false)) {
                 indexDocument(editor.document);
             }
         })
