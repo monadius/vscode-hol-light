@@ -190,7 +190,7 @@ class Parser {
             this.curToken = undefined;
             return res;
         }
-        const re = /\(\*|["`()\[\],]|[-+*/#><=!?~%&$^@:]+|;+|[_a-zA-Z][\w'.]*/g;
+        const re = /\(\*|["`'()\[\],]|[-+*/#><=!?~%&$^@:]+|;+|[_a-zA-Z][\w'.]*/g;
         re.lastIndex = this.pos;
         let m: RegExpExecArray | null;
         while (m = re.exec(this.text)) {
@@ -252,6 +252,16 @@ class Parser {
         }
     }
 
+    peekSkipComments() {
+        this.skipComments();
+        return this.peek();
+    }
+
+    nextSkipComments() {
+        this.skipComments();
+        return this.next();
+    }
+
     // [string] represents an optional string value
     // null represents any token (except eof)
     match(...patterns: (TokenType | string | RegExp | [string] | null)[]): (Token | null)[] | null {
@@ -284,6 +294,60 @@ class Parser {
         }
         return res;
     }
+
+    private parseType(allowComma: boolean = false): string | undefined {
+        const atom = (): string | undefined => {
+            let result = '';
+            let token = this.nextSkipComments();
+            if (token.value === '(') {
+                // ( type )
+                const inner = this.parseType(true);
+                if (!inner || this.nextSkipComments().value !== ')') {
+                    return;
+                }
+                result = `(${inner})`;
+            } else if (token.type === TokenType.identifier) {
+                // identifier
+                result = token.value!;
+            } else if (token.value === "'") {
+                // 'identifier
+                token = this.nextSkipComments();
+                if (token.type !== TokenType.identifier) {
+                    return;
+                }
+                result = "'" + token.value;
+            }
+            token = this.peekSkipComments();
+            if (token.type === TokenType.identifier) {
+                // type constructor
+                this.next();
+                result = result + ' ' + token.value;
+            }
+            return result;
+        };
+
+        const compoundType = (): string | undefined => {
+            const result: string[] = [];
+            while (true) {
+                const type = atom();
+                if (!type) {
+                    return;
+                }
+                result.push(type);
+                const token = this.peekSkipComments();
+                if (token.value === '->' || token.value === '*' || allowComma && token.value === ',') {
+                    this.next();
+                    result.push(token.value === ',' ? ', ' : ' ' + token.value + ' ');
+                } else {
+                    break;
+                }
+            }
+            return result.join('');
+        };
+
+        return compoundType();
+    }
+    
 
     parse(uri?: vscode.Uri): ParseResult {
         this.pos = 0;
