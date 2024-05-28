@@ -105,12 +105,27 @@ enum TokenType {
     other,
 }
 
+function findLineNumber(lineStarts: number[], pos: number): number {
+    const n = lineStarts.length;
+    let a = 0, b = n;
+    while (a < b) {
+        const m = a + b >> 1;
+        if (pos < lineStarts[m]) {
+            b = m;
+        } else {
+            a = m + 1;
+        }
+    }
+    return a - 1;
+}
+
 class Token {
     readonly type: TokenType;
     readonly value?: string;
     readonly startPos: number;
     readonly endPos: number;
-    private position?: vscode.Position;
+    private startPosition?: vscode.Position;
+    private endPosition?: vscode.Position;
 
     constructor(type: TokenType, start: number, end: number, value?: string) {
         this.type = type;
@@ -123,22 +138,20 @@ class Token {
         return this.value || text.slice(this.startPos, this.endPos);
     }
 
-    getPosition(lineStarts: number[]): vscode.Position {
-        if (this.position) {
-            return this.position;
+    getStartPosition(lineStarts: number[]): vscode.Position {
+        if (this.startPosition) {
+            return this.startPosition;
         }
-        const n = lineStarts.length;
-        const pos = this.startPos;
-        let a = 0, b = n;
-        while (a < b) {
-            const m = a + b >> 1;
-            if (pos < lineStarts[m]) {
-                b = m;
-            } else {
-                a = m + 1;
-            }
+        const line = findLineNumber(lineStarts, this.startPos);
+        return this.startPosition = new vscode.Position(line, this.startPos - lineStarts[line]);
+    }
+
+    getEndPosition(lineStarts: number[]): vscode.Position {
+        if (this.endPosition) {
+            return this.endPosition;
         }
-        return this.position = new vscode.Position(a - 1, pos - lineStarts[a - 1]);
+        const line = findLineNumber(lineStarts, this.endPos - 1);
+        return this.endPosition = new vscode.Position(line, this.endPos - lineStarts[line]);
     }
 }
 
@@ -294,14 +307,14 @@ class Parser {
                     const text = token.getValue(this.text).slice(1, -1);
                     // Ignore multiline strings
                     if (!text.includes('\n')) {
-                        const range = new vscode.Range(m[0]!.getPosition(this.lineStarts), m[1]!.getPosition(this.lineStarts).translate(0, text.length + 2));
+                        const range = new vscode.Range(m[0]!.getStartPosition(this.lineStarts), m[1]!.getEndPosition(this.lineStarts));
                         const dep = new Dependency(text, range, m[0]!.getValue(this.text) === 'loads');
                         dependencies.push(dep);
                     }
                 }
             } else if (m = this.match('let', ['rec'], ['('], TokenType.identifier)) {
                 const name = m[3]!.getValue(this.text);
-                const pos = m[3]!.getPosition(this.lineStarts);
+                const pos = m[3]!.getStartPosition(this.lineStarts);
                 // `do { } while (false)` in order to be able to use `break`
                 do {
                     if (this.match('=')) {
