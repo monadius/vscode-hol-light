@@ -401,7 +401,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         const docPath = document.uri.fsPath;
         progress?.report({ increment: 0, message: `Indexing: ${docPath}` });
 
-        // console.log(`Indexing: ${docPath}`);
+        console.log(`Indexing: ${docPath}`);
 
         const docText = document.getText();
         const { definitions: docDefinitions, dependencies } = parseText(docText, this.customCommandNames, document.uri);
@@ -420,7 +420,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             return;
         }
 
-        // console.log(`Indexing ${fullIndex ? 'all' : 'new'} dependencies of ${docPath}`);
+        console.log(`Indexing ${fullIndex ? 'all' : 'new'} dependencies of ${docPath}`);
 
         const oldPaths = util.filterMap(this.fileIndex.get(docPath)?.dependencies ?? [], dep => dep.path);
         const docDeps = await resolveDependencies(dependencies, { basePath: path.dirname(docPath), holPath, rootPaths });

@@ -35,11 +35,17 @@ class Tokenizer {
 
     private static readonly eofToken = new Token(TokenType.eof, '', 0, 0, 0, 0);
     private static readonly tokenTypes: {[key: string]: TokenType} = {
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         'THEN': TokenType.then,
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         'THENL': TokenType.then,
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         '(': TokenType.bracket,
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         ')': TokenType.bracket,
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         '[': TokenType.bracket,
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         ']': TokenType.bracket
     };
 
