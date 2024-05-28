@@ -268,6 +268,13 @@ class Parser {
         return this.next();
     }
 
+    expect(value: string): void {
+        const token = this.nextSkipComments();
+        if (token.value !== value) {
+            throw new ParserError(`${value} expected`, token);
+        }
+    }
+
     // [string] represents an optional string value
     // null represents any token (except eof)
     match(...patterns: (TokenType | string | RegExp | [string] | null)[]): (Token | null)[] | null {
@@ -308,9 +315,7 @@ class Parser {
             if (token.value === '(') {
                 // ( type )
                 const inner = this.parseType(true);
-                if ((token = this.nextSkipComments()).value !== ')') {
-                    throw new ParserError(') expected', token);
-                }
+                this.expect(')');
                 result = `(${inner})`;
             } else if (token.type === TokenType.identifier) {
                 // identifier
@@ -365,9 +370,7 @@ class Parser {
                         inner[0].type = type;
                     }
                 }
-                if ((token = this.nextSkipComments()).value !== ')') {
-                    throw new ParserError(') expected', token);
-                }
+                this.expect(')');
                 return inner;
             } else if (token.value === '[') {
                 // list of patterns
@@ -375,15 +378,14 @@ class Parser {
                 while ((token = this.nextSkipComments()).value === ';') {
                     result.push(...this.parsePattern());
                 }
-                if (token.value !== ']') {
-                    throw new ParserError('] expected', token);
-                }
+                this.expect(']');
                 return result;
             } else if (token.type === TokenType.identifier) {
                 // identifier
                 return token.value === '_' ? [] : [{ name: token.value! }];
             }
-            throw new ParserError('identifier or ( expected', token);
+
+            throw new ParserError('identifier, (, or [ expected', token);
         };
 
         const tuple = (): { name: string, type?: string }[] => {
@@ -398,7 +400,38 @@ class Parser {
 
         return tuple();
     }
-    
+
+    parseParameter(): { name: string, type?: string }[] {
+        // TODO: parse labels
+        return this.parsePattern();
+    }
+
+    // Parses the left hand side of a let binding including `=`
+    parseLetBindingLhs(): { name: string, type?: string }[] {
+        const result = this.parsePattern();
+        const types: string[] = [];
+
+        let token = this.nextSkipComments();
+        while (token.value !== ':' && token.value !== '=') {
+            const par = this.parseParameter();
+            if (par.length === 1 && par[0].type) {
+                types.push(par[0].type);
+            } else {
+                types.push('?');
+            }
+        }
+
+        if (token.value === ':') {
+            const type = this.parseType();
+            if (result.length === 1 && !result[0].type) {
+                types.push(type);
+                result[0].type = types.map(t => t.includes('->') ? `(${t})` : t).join(' -> ');
+            }
+            this.expect('=');
+        }
+
+        return result;
+    }
 
     parse(uri?: vscode.Uri): ParseResult {
         this.pos = 0;
