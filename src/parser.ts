@@ -101,8 +101,6 @@ enum TokenType {
     string,
     term,
     statementSeparator,
-    leftParen,
-    rightParen,
     identifier,
     other,
 }
@@ -179,7 +177,7 @@ class Parser {
             this.curToken = undefined;
             return res;
         }
-        const re = /\(\*|["`()]|[=]+|;;+|[_a-zA-Z][\w']*/g;
+        const re = /\(\*|["`()\[\],]|[-+*/#><=!?~%&$^@:]+|;+|[_a-zA-Z][\w'.]*/g;
         re.lastIndex = this.pos;
         let m: RegExpExecArray | null;
         while (m = re.exec(this.text)) {
@@ -197,10 +195,6 @@ class Parser {
                         type = TokenType.statementSeparator;
                     } else if (/[_a-zA-Z]/.test(m[0][0])) {
                         type = TokenType.identifier;
-                    } else if (m[0] === '(') {
-                        type = TokenType.leftParen;
-                    } else if (m[0] === ')') {
-                        type = TokenType.rightParen;
                     }
                     return new Token(type, m.index, this.pos, m[0]);
                 }
