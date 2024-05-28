@@ -155,6 +155,12 @@ class Token {
     }
 }
 
+class ParserError extends Error {
+    constructor(message: string, readonly token?: Token) {
+        super(message);
+    }
+}
+
 
 class Parser {
     private text: string;
@@ -295,15 +301,15 @@ class Parser {
         return res;
     }
 
-    private parseType(allowComma: boolean = false): string | undefined {
-        const atom = (): string | undefined => {
+    private parseType(allowComma: boolean = false): string {
+        const atom = (): string => {
             let result = '';
             let token = this.nextSkipComments();
             if (token.value === '(') {
                 // ( type )
                 const inner = this.parseType(true);
-                if (!inner || this.nextSkipComments().value !== ')') {
-                    return;
+                if ((token = this.nextSkipComments()).value !== ')') {
+                    throw new ParserError(') expected', token);
                 }
                 result = `(${inner})`;
             } else if (token.type === TokenType.identifier) {
@@ -313,7 +319,7 @@ class Parser {
                 // 'identifier
                 token = this.nextSkipComments();
                 if (token.type !== TokenType.identifier) {
-                    return;
+                    throw new ParserError("identifier expected after '", token);
                 }
                 result = "'" + token.value;
             }
@@ -326,13 +332,10 @@ class Parser {
             return result;
         };
 
-        const compoundType = (): string | undefined => {
+        const compoundType = (): string => {
             const result: string[] = [];
             while (true) {
                 const type = atom();
-                if (!type) {
-                    return;
-                }
                 result.push(type);
                 const token = this.peekSkipComments();
                 if (token.value === '->' || token.value === '*' || allowComma && token.value === ',') {
@@ -346,6 +349,54 @@ class Parser {
         };
 
         return compoundType();
+    }
+
+    private parsePattern(): { name: string, type?: string }[] {
+        const atom = (): { name: string, type?: string }[] => {
+            let token = this.nextSkipComments();
+            if (token.value === '(') {
+                // ( pattern [: type] )
+                const inner = this.parsePattern();
+                token = this.nextSkipComments();
+                if (token.value === ':') {
+                    const type = this.parseType();
+                    if (inner.length === 1 && !inner[0].type) {
+                        // Assume that a pattern with a single name is just a simple pattern
+                        inner[0].type = type;
+                    }
+                }
+                if ((token = this.nextSkipComments()).value !== ')') {
+                    throw new ParserError(') expected', token);
+                }
+                return inner;
+            } else if (token.value === '[') {
+                // list of patterns
+                const result = this.parsePattern();
+                while ((token = this.nextSkipComments()).value === ';') {
+                    result.push(...this.parsePattern());
+                }
+                if (token.value !== ']') {
+                    throw new ParserError('] expected', token);
+                }
+                return result;
+            } else if (token.type === TokenType.identifier) {
+                // identifier
+                return token.value === '_' ? [] : [{ name: token.value! }];
+            }
+            throw new ParserError('identifier or ( expected', token);
+        };
+
+        const tuple = (): { name: string, type?: string }[] => {
+            const result = atom();
+            let token: Token;
+            while ((token = this.peekSkipComments()).value === ',') {
+                this.next();
+                result.push(...atom());
+            }
+            return result;
+        };
+
+        return tuple();
     }
     
 
