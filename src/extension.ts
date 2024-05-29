@@ -75,10 +75,6 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.languages.registerHoverProvider(LANG_ID, helpProvider)
-    );
-
-    context.subscriptions.push(
         vscode.languages.registerHoverProvider(LANG_ID, util.combineHoverProviders(helpProvider, database))
     );
     
