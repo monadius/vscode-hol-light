@@ -63,6 +63,10 @@ export class Definition {
                 break;
             case DefinitionType.other:
                 text += `*${this.name}*`;
+                if (this.content) {
+                    // content represents type
+                    text += ` : ${this.content}`;
+                }
                 break;
         }
         return text;
@@ -402,7 +406,8 @@ class Parser {
             } else if (token.value === '[') {
                 // list of patterns
                 result = this.parsePattern();
-                while ((token = this.nextSkipComments()).value === ';') {
+                while (this.peekSkipComments().value === ';') {
+                    this.next();
                     result.push(...this.parsePattern());
                 }
                 this.expect(']');
@@ -521,7 +526,10 @@ class Parser {
                     } while (false);
                 } catch (err) {
                     if (err instanceof ParserError) {
-                        console.warn(`Error: ${err.message} at ${err.token?.startPos}`);
+                        const pos = err.token?.getStartPosition(this.lineStarts);
+                        const line = (pos?.line ?? -1) + 1;
+                        const col = (pos?.character ?? -1) + 1;
+                        console.warn(`Error: ${err.message} at ${[line, col]} in ${uri?.fsPath}:${line}:${col}`);
                     }
                 }
             }
