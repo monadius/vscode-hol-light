@@ -392,17 +392,23 @@ class Parser {
             let result: Binding[];
             if (token.value === '(') {
                 // ( pattern [: type] )
-                result = this.parsePattern();
-                token = this.peekSkipComments();
-                if (token.value === ':') {
+                if (this.peekSkipComments().value === ')') {
+                    // unit pattern
                     this.next();
-                    const type = this.parseType();
-                    if (result.length === 1 && !result[0].type) {
-                        // Assume that a pattern with a single name is just a simple pattern
-                        result[0].type = type;
+                    result = [];
+                } else {
+                    result = this.parsePattern();
+                    token = this.peekSkipComments();
+                    if (token.value === ':') {
+                        this.next();
+                        const type = this.parseType();
+                        if (result.length === 1 && !result[0].type) {
+                            // Assume that a pattern with a single name is just a simple pattern
+                            result[0].type = type;
+                        }
                     }
+                    this.expect(')');
                 }
-                this.expect(')');
             } else if (token.value === '[') {
                 // list of patterns
                 result = this.parsePattern();
