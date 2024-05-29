@@ -105,6 +105,7 @@ enum TokenType {
     string,
     term,
     statementSeparator,
+    operator,
     identifier,
     other,
 }
@@ -226,7 +227,7 @@ class Parser {
             this.curToken = undefined;
             return res;
         }
-        const re = /\(\*|["`'()\[\],]|[-+*/#><=!?~%&$^@:]+|;+|[_a-zA-Z][\w'.]*/g;
+        const re = /\(\*|["`'()\[\],{}]|[-+*/#><=!?~%&$^@:.|]+|;+|[_a-zA-Z][\w'.]*/g;
         re.lastIndex = this.pos;
         let m: RegExpExecArray | null;
         while (m = re.exec(this.text)) {
@@ -244,6 +245,8 @@ class Parser {
                         type = TokenType.statementSeparator;
                     } else if (/[_a-zA-Z]/.test(m[0][0])) {
                         type = TokenType.identifier;
+                    } else if (/[-+*/#><=!?~%&$^@:.|]/.test(m[0][0])) {
+                        type = TokenType.operator;
                     }
                     return new Token(type, m.index, this.pos, m[0]);
                 }
@@ -266,12 +269,15 @@ class Parser {
             switch (m[0]) {
                 case '(*':
                     this.parseComment(m.index);
+                    re.lastIndex = this.pos;
                     break;
                 case '"':
                     this.parseString(m.index);
+                    re.lastIndex = this.pos;
                     break;
                 case '`':
                     this.parseTerm(m.index);
+                    re.lastIndex = this.pos;
                     break;
                 default: {
                     this.pos = re.lastIndex;
@@ -386,18 +392,24 @@ class Parser {
         return compoundType();
     }
 
-    private parsePattern(): Binding[] {
+    private parsePattern(allowConstructor: boolean): Binding[] {
         const atom = (): Binding[] => {
             let token = this.nextSkipComments();
             let result: Binding[];
             if (token.value === '(') {
                 // ( pattern [: type] )
-                if (this.peekSkipComments().value === ')') {
+                token = this.peekSkipComments();
+                if (token.value === ')') {
                     // unit pattern
                     this.next();
                     result = [];
+                } else if (token.type === TokenType.operator) {
+                    // ( operator )
+                    this.next();
+                    result = [{ nameToken: token }];
+                    this.expect(')');
                 } else {
-                    result = this.parsePattern();
+                    result = this.parsePattern(true);
                     token = this.peekSkipComments();
                     if (token.value === ':') {
                         this.next();
@@ -411,32 +423,72 @@ class Parser {
                 }
             } else if (token.value === '[') {
                 // list of patterns
-                result = this.parsePattern();
+                result = this.parsePattern(true);
                 while (this.peekSkipComments().value === ';') {
                     this.next();
-                    result.push(...this.parsePattern());
+                    result.push(...this.parsePattern(true));
                 }
                 this.expect(']');
+            } else if (token.value === '{') {
+                // record pattern
+                result = recordField();
+                while (this.peekSkipComments().value === ';') {
+                    this.next();
+                    result.push(...recordField());
+                }
+                this.expect('}');
             } else if (token.type === TokenType.identifier) {
                 // identifier
                 result = token.value === '_' ? [] : [{ nameToken: token }];
+                if (allowConstructor && /^[A-Z]/.test(token.value!)) {
+                    // constructor?
+                    token = this.peekSkipComments();
+                    if (token.type === TokenType.identifier) {
+                        // constructor with one argument
+                        this.next();
+                        result = token.value === '_' ? [] : [{ nameToken: token }];
+                    } else if (['(', '[', '{'].includes(token.value || 'x')) {
+                        // constructor with a pattern
+                        result = this.parsePattern(false);
+                    }
+                }
             } else {
                 throw new ParserError('identifier, (, or [ expected', token);
-            }
-
-            if (this.peekSkipComments().value === 'as') {
-                this.next();
-                this.expect(TokenType.identifier);
             }
 
             return result;
         };
 
-        const tuple = (): Binding[] => {
-            const result = atom();
-            while (this.peekSkipComments().value === ',') {
+        const recordField = (): Binding[] => {
+            const field = this.nextSkipComments();
+            if (field.type !== TokenType.identifier) {
+                throw new ParserError('field name: identifier expected', field);
+            }
+            const result: Binding[] = [{ nameToken: field }];
+            if (this.peekSkipComments().value === ':') {
                 this.next();
+                const type = this.parseType();
+                result[0].type = type;
+            }
+            if (this.peekSkipComments().value === '=') {
+                this.next();
+                return this.parsePattern(true);
+            }
+            return result;
+        };
+
+        const tuple = (): Binding[] => {
+            const result = [];
+            while (true) {
                 result.push(...atom());
+                if (this.peekSkipComments().value === 'as') {
+                    this.next();
+                    this.expect(TokenType.identifier);
+                }
+                if (this.peekSkipComments().value !== ',') {
+                    break;
+                }
+                this.next();
             }
             return result;
         };
@@ -446,12 +498,12 @@ class Parser {
 
     private parseParameter(): Binding[] {
         // TODO: parse labels
-        return this.parsePattern();
+        return this.parsePattern(false);
     }
 
     // Parses the left hand side of a let binding (`=` is not included and may be missing)
     private parseLetBindingLhs(): Binding[] {
-        const result = this.parsePattern();
+        const result = this.parsePattern(false);
         const types: string[] = [];
 
         let token: Token;
