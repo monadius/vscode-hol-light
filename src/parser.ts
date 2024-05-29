@@ -161,29 +161,50 @@ class ParserError extends Error {
     }
 }
 
+interface ParserState {
+    readonly pos: number;
+    readonly curToken?: Token;
+}
 
 class Parser {
-    private text: string;
-    private customNames: CustomCommandNames;
+    private readonly text: string;
+    private readonly eofToken: Token;
+    private readonly lineStarts: number[];
+    
+    private readonly importRe: RegExp;
+    private readonly theoremRe: RegExp;
+    private readonly definitionRe: RegExp;
+    private readonly defOtherRe: RegExp;
 
-    private lineStarts: number[];
     private pos: number;
     private curToken?: Token;
 
     constructor(text: string, customNames: CustomCommandNames) {
         this.text = text;
-        this.customNames = customNames;
-        this.pos = 0;
+        this.eofToken = new Token(TokenType.eof, this.text.length, this.text.length, '');
         this.lineStarts = [];
         let i = 0;
         do {
             this.lineStarts.push(i);
             i = text.indexOf('\n', i) + 1;
         } while (i > 0);
+
+        const mkRegExp = (words: string[]) => new RegExp(`^(?:${words.join('|')})$`);
+        this.importRe = mkRegExp(['needs', 'loads', 'loadt', ...customNames.customImports]);
+        this.theoremRe = mkRegExp(['prove', ...customNames.customTheorems]);
+        this.definitionRe = mkRegExp(['new_definition', 'new_basic_definition', 'define', ...customNames.customDefinitions]);
+        this.defOtherRe = mkRegExp(['new_recursive_definition']);
+
+        this.pos = 0;
     }
 
-    private eof(): Token {
-        return new Token(TokenType.eof, this.text.length, this.text.length, '');
+    resetState(state: ParserState) {
+        this.pos = state.pos;
+        this.curToken = state.curToken;
+    }
+
+    saveState(): ParserState {
+        return { pos: this.pos, curToken: this.curToken };
     }
 
     peek(): Token {
@@ -220,7 +241,7 @@ class Parser {
             }
         }
         this.pos = this.text.length;
-        return this.eof();
+        return this.eofToken;
     }
 
     skipToNextStatement() {
@@ -401,13 +422,13 @@ class Parser {
         return tuple();
     }
 
-    parseParameter(): { name: string, type?: string }[] {
+    private parseParameter(): { name: string, type?: string }[] {
         // TODO: parse labels
         return this.parsePattern();
     }
 
     // Parses the left hand side of a let binding including `=`
-    parseLetBindingLhs(): { name: string, type?: string }[] {
+    private parseLetBindingLhs(): { name: string, type?: string }[] {
         const result = this.parsePattern();
         const types: string[] = [];
 
@@ -434,21 +455,14 @@ class Parser {
     }
 
     parse(uri?: vscode.Uri): ParseResult {
-        this.pos = 0;
-        this.curToken = undefined;
-
-        const mkRegExp = (words: string[]) => new RegExp(`^(?:${words.join('|')})$`);
-        const importRe = mkRegExp(['needs', 'loads', 'loadt', ...this.customNames.customImports]);
-        const theoremRe = mkRegExp(['prove', ...this.customNames.customTheorems]);
-        const definitionRe = mkRegExp(['new_definition', 'new_basic_definition', 'define', ...this.customNames.customDefinitions]);
-        const defOtherRe = mkRegExp(['new_recursive_definition']);
+        this.resetState({ pos: 0 });
 
         const definitions: Definition[] = [];
         const dependencies: Dependency[] = [];
 
         while (this.peek().type !== TokenType.eof) {
             let m: (Token | null)[] | null;
-            if (m = this.match(importRe, TokenType.string)) {
+            if (m = this.match(this.importRe, TokenType.string)) {
                 const token = m[1]!;
                 // Skip very long strings. They are most definitely invalid (probably, they are not properly closed yet)
                 if (token.endPos - token.startPos <= 2000) {
@@ -466,13 +480,13 @@ class Parser {
                 // `do { } while (false)` in order to be able to use `break`
                 do {
                     if (this.match('=')) {
-                        if (m = this.match(theoremRe, '(', TokenType.term)) {
+                        if (m = this.match(this.theoremRe, '(', TokenType.term)) {
                             definitions.push(new Definition(name, DefinitionType.theorem, m[2]!.getValue(this.text).slice(1, -1), pos, uri));
                             break;
-                        } else if (m = this.match(definitionRe, TokenType.term)) {
+                        } else if (m = this.match(this.definitionRe, TokenType.term)) {
                             definitions.push(new Definition(name, DefinitionType.definition, m[1]!.getValue(this.text).slice(1, -1), pos, uri));
                             break;
-                        } else if (m = this.match(defOtherRe, null, TokenType.term)) {
+                        } else if (m = this.match(this.defOtherRe, null, TokenType.term)) {
                             definitions.push(new Definition(name, DefinitionType.definition, m[2]!.getValue(this.text).slice(1, -1), pos, uri));
                             break;
                         }
