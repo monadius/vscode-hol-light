@@ -166,6 +166,11 @@ interface ParserState {
     readonly curToken?: Token;
 }
 
+interface Binding {
+    readonly nameToken: Token;
+    type?: string;
+}
+
 class Parser {
     private readonly text: string;
     private readonly eofToken: Token;
@@ -289,9 +294,9 @@ class Parser {
         return this.next();
     }
 
-    expect(value: string): void {
+    expect(value: string | TokenType): void {
         const token = this.nextSkipComments();
-        if (token.value !== value) {
+        if (typeof value === 'string' ? token.value !== value : token.type !== value) {
             throw new ParserError(`${value} expected`, token);
         }
     }
@@ -377,42 +382,48 @@ class Parser {
         return compoundType();
     }
 
-    private parsePattern(): { name: string, type?: string }[] {
-        const atom = (): { name: string, type?: string }[] => {
+    private parsePattern(): Binding[] {
+        const atom = (): Binding[] => {
             let token = this.nextSkipComments();
+            let result: Binding[];
             if (token.value === '(') {
                 // ( pattern [: type] )
-                const inner = this.parsePattern();
-                token = this.nextSkipComments();
+                result = this.parsePattern();
+                token = this.peekSkipComments();
                 if (token.value === ':') {
+                    this.next();
                     const type = this.parseType();
-                    if (inner.length === 1 && !inner[0].type) {
+                    if (result.length === 1 && !result[0].type) {
                         // Assume that a pattern with a single name is just a simple pattern
-                        inner[0].type = type;
+                        result[0].type = type;
                     }
                 }
                 this.expect(')');
-                return inner;
             } else if (token.value === '[') {
                 // list of patterns
-                const result = this.parsePattern();
+                result = this.parsePattern();
                 while ((token = this.nextSkipComments()).value === ';') {
                     result.push(...this.parsePattern());
                 }
                 this.expect(']');
-                return result;
             } else if (token.type === TokenType.identifier) {
                 // identifier
-                return token.value === '_' ? [] : [{ name: token.value! }];
+                result = token.value === '_' ? [] : [{ nameToken: token }];
+            } else {
+                throw new ParserError('identifier, (, or [ expected', token);
             }
 
-            throw new ParserError('identifier, (, or [ expected', token);
+            if (this.peekSkipComments().value === 'as') {
+                this.next();
+                this.expect(TokenType.identifier);
+            }
+
+            return result;
         };
 
-        const tuple = (): { name: string, type?: string }[] => {
+        const tuple = (): Binding[] => {
             const result = atom();
-            let token: Token;
-            while ((token = this.peekSkipComments()).value === ',') {
+            while (this.peekSkipComments().value === ',') {
                 this.next();
                 result.push(...atom());
             }
@@ -422,18 +433,18 @@ class Parser {
         return tuple();
     }
 
-    private parseParameter(): { name: string, type?: string }[] {
+    private parseParameter(): Binding[] {
         // TODO: parse labels
         return this.parsePattern();
     }
 
-    // Parses the left hand side of a let binding including `=`
-    private parseLetBindingLhs(): { name: string, type?: string }[] {
+    // Parses the left hand side of a let binding (`=` is not included and may be missing)
+    private parseLetBindingLhs(): Binding[] {
         const result = this.parsePattern();
         const types: string[] = [];
 
-        let token = this.nextSkipComments();
-        while (token.value !== ':' && token.value !== '=') {
+        let token: Token;
+        while ((token = this.peekSkipComments()).value !== ':' && token.value !== '=') {
             const par = this.parseParameter();
             if (par.length === 1 && par[0].type) {
                 types.push(par[0].type);
@@ -443,12 +454,12 @@ class Parser {
         }
 
         if (token.value === ':') {
+            this.next();
             const type = this.parseType();
             if (result.length === 1 && !result[0].type) {
                 types.push(type);
                 result[0].type = types.map(t => t.includes('->') ? `(${t})` : t).join(' -> ');
             }
-            this.expect('=');
         }
 
         return result;
@@ -461,6 +472,13 @@ class Parser {
         const dependencies: Dependency[] = [];
 
         while (this.peek().type !== TokenType.eof) {
+            // Save the parser state and restore it at the end of this loop.
+            // It is possible that some parser methods consume a statement separator
+            // but we don't want to skip it.
+            // An example when the statement separator is consumed:
+            // `let x;;`
+            const state = this.saveState();
+
             let m: (Token | null)[] | null;
             if (m = this.match(this.importRe, TokenType.string)) {
                 const token = m[1]!;
@@ -474,33 +492,47 @@ class Parser {
                         dependencies.push(dep);
                     }
                 }
-            } else if (m = this.match('let', ['rec'], ['('], TokenType.identifier)) {
-                const name = m[3]!.getValue(this.text);
-                const pos = m[3]!.getStartPosition(this.lineStarts);
-                // `do { } while (false)` in order to be able to use `break`
-                do {
-                    if (this.match('=')) {
-                        if (m = this.match(this.theoremRe, ['('], TokenType.term)) {
-                            definitions.push(new Definition(name, DefinitionType.theorem, m[2]!.getValue(this.text).slice(1, -1), pos, uri));
-                            break;
-                        } else if (m = this.match(this.definitionRe, TokenType.term)) {
-                            definitions.push(new Definition(name, DefinitionType.definition, m[1]!.getValue(this.text).slice(1, -1), pos, uri));
-                            break;
-                        } else if (m = this.match(this.defOtherRe, null, TokenType.term)) {
-                            definitions.push(new Definition(name, DefinitionType.definition, m[2]!.getValue(this.text).slice(1, -1), pos, uri));
-                            break;
+            } else if (this.match('let', ['rec'])) {
+                try {
+                    const lhs = this.parseLetBindingLhs();
+                    // `do { } while (false)` in order to be able to use `break`
+                    do {
+                        if (lhs.length === 1 && this.match('=')) {
+                            const name = lhs[0].nameToken.getValue(this.text);
+                            const pos = lhs[0].nameToken.getStartPosition(this.lineStarts);
+                            if (m = this.match(this.theoremRe, ['('], TokenType.term)) {
+                                definitions.push(new Definition(name, DefinitionType.theorem, m[2]!.getValue(this.text).slice(1, -1), pos, uri));
+                                break;
+                            } else if (m = this.match(this.definitionRe, TokenType.term)) {
+                                definitions.push(new Definition(name, DefinitionType.definition, m[1]!.getValue(this.text).slice(1, -1), pos, uri));
+                                break;
+                            } else if (m = this.match(this.defOtherRe, null, TokenType.term)) {
+                                definitions.push(new Definition(name, DefinitionType.definition, m[2]!.getValue(this.text).slice(1, -1), pos, uri));
+                                break;
+                            }
                         }
+                        // Default case
+                        for (const binding of lhs) {
+                            const name = binding.nameToken.getValue(this.text);
+                            const pos = binding.nameToken.getStartPosition(this.lineStarts);
+                            const type = binding.type ?? '';
+                            definitions.push(new Definition(name, DefinitionType.other, type, pos, uri));
+                        }
+                    } while (false);
+                } catch (err) {
+                    if (err instanceof ParserError) {
+                        console.warn(`Error: ${err.message} at ${err.token?.startPos}`);
                     }
-                    // Default case
-                    definitions.push(new Definition(name, DefinitionType.other, '', pos, uri));
-                } while (false);
+                }
             }
+
+            this.resetState(state);
             this.skipToNextStatement();
         }
         return { definitions, dependencies };
     }
 
-    parseComment(pos: number): Token {
+    private parseComment(pos: number): Token {
         const re = /\(\*|\*\)/g;
         re.lastIndex = pos + 2;
         let level = 1;
@@ -522,7 +554,7 @@ class Parser {
         return new Token(TokenType.comment, pos, this.pos);
     }
 
-    parseString(pos: number): Token {
+    private parseString(pos: number): Token {
         const re = /"|\\./g;
         let m: RegExpExecArray | null;
         re.lastIndex = pos + 1;
@@ -536,7 +568,7 @@ class Parser {
         return new Token(TokenType.string, pos, this.pos);
     }
 
-    parseTerm(pos: number): Token {
+    private parseTerm(pos: number): Token {
         const end = this.text.indexOf('`', pos + 1);
         this.pos = end < 0 ? this.text.length : end + 1;
         return new Token(TokenType.term, pos, this.pos);
