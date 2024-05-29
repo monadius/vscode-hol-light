@@ -191,7 +191,7 @@ class Parser {
 
         const mkRegExp = (words: string[]) => new RegExp(`^(?:${words.join('|')})$`);
         this.importRe = mkRegExp(['needs', 'loads', 'loadt', ...customNames.customImports]);
-        this.theoremRe = mkRegExp(['prove', ...customNames.customTheorems]);
+        this.theoremRe = mkRegExp(['prove', 'VECTOR_ARITH', 'ARITH_RULE', 'REAL_ARITH', ...customNames.customTheorems]);
         this.definitionRe = mkRegExp(['new_definition', 'new_basic_definition', 'define', ...customNames.customDefinitions]);
         this.defOtherRe = mkRegExp(['new_recursive_definition']);
 
@@ -480,7 +480,7 @@ class Parser {
                 // `do { } while (false)` in order to be able to use `break`
                 do {
                     if (this.match('=')) {
-                        if (m = this.match(this.theoremRe, '(', TokenType.term)) {
+                        if (m = this.match(this.theoremRe, ['('], TokenType.term)) {
                             definitions.push(new Definition(name, DefinitionType.theorem, m[2]!.getValue(this.text).slice(1, -1), pos, uri));
                             break;
                         } else if (m = this.match(this.definitionRe, TokenType.term)) {
