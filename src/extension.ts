@@ -257,6 +257,15 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
+        vscode.commands.registerCommand('hol-light.associate_ml_files', () => {
+            const files = config.getConfigOption<{ [key: string]: string }>('associations', {}, 'files');
+            files['*.ml'] = 'hol-light-ocaml';
+            config.updateConfigOption('associations', files, 'files');
+        })
+    );
+
+
+    context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.repl_send_statement', async (editor) => {
             const repl = await getREPL();
             if (!repl) {

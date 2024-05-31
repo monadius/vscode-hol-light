@@ -7,6 +7,13 @@ A simple HOL Light extension for Visual Studio Code. It supports basic syntax hi
 HOL Light should be installed separately. See [HOL Light repository](https://github.com/jrh13/hol-light/) for installation instructions.
 
 The extension is automatically activated for `.hl` files. If a HOL Light file has a different file type (e.g., `.ml`) then it is required to activate the HOL Light extension manually by selecting `HOL Light` language mode.
+It is also possible to associate `.ml` files with the HOL Light extension by executing the command `HOL Light: Associate .ml Files with HOL Light`. This command adds the following lines to the workspace settings file:
+```
+    "files.associations": {
+        "*.ml": "hol-light-ocaml"
+    }
+```
+Other file types can be associated with HOL Light by adding the corresponding lines to the `files.associations` options in a settings file.
 
 The extension does not start a HOL Light REPL automatically. Whenever any command which interacts with HOL Light is invoked, a dialog will appear where a script for starting a HOL Light session should be selected. One possible choice is to select `hol.sh` from the HOL Light directory. Any other script can also be selected (e.g., `dmtcp_restart_script.sh` if DMTCP checkpointing is used).
 
@@ -91,6 +98,10 @@ All commands can be invoked from the command palette or by pressing the correspo
 1) **HOL Light: Set HOL Light Path**
 
     Opens a dialog where a path to HOL Light should be selected. This path is required for enabling autocompletion for items defined in the HOL Light `Help` directory.
+
+1) **HOL Light: Associate .ml Files with HOL Light**
+
+    Adds the `"*.ml": "hol-light-ocaml"` line to the `files.associations` option in the current workspace settings file.
 
 Note: Text which is sent to a HOL Light REPL is highlighted. The highlighting color can be specified with the configuration option `hol-light.highlightColor`.
 

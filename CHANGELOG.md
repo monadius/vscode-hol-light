@@ -1,5 +1,8 @@
 # Change Log
 
+## 2.0.0
+- New command: associate .ml files with HOL Light
+
 ## 1.2.0
 - Bug fixes
 - New command: remove highlighting

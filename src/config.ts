@@ -17,13 +17,13 @@ export function getFullConfigName(name: string): string {
     return SECTION + '.' + name;
 }
 
-export function getConfigOption<T>(name: string, defaultValue: T): T {
-    const configuration = vscode.workspace.getConfiguration(SECTION);
+export function getConfigOption<T>(name: string, defaultValue: T, section = SECTION): T {
+    const configuration = vscode.workspace.getConfiguration(section);
     return configuration.get(name, defaultValue);
 }
 
-export function updateConfigOption<T>(name: string, value: T): void {
-    const configuration = vscode.workspace.getConfiguration(SECTION);
+export function updateConfigOption(name: string, value: any, section: string = SECTION): void {
+    const configuration = vscode.workspace.getConfiguration(section);
     configuration.update(name, value, false);
 }
 
