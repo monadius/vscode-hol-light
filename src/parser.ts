@@ -256,13 +256,20 @@ class Parser {
         return this.eofToken;
     }
 
-    skipToNextStatement() {
+    // Returns true is a potential module end is found
+    skipToNextStatement(searchModuleEnd = false): boolean {
         if (this.peek().type === TokenType.statementSeparator) {
+            // Do not check for `end` here (even if searchModuleEnd == true).
+            // If the current token is `end` then it should be properly handled before this function.
+            // Moreover we cannot check if the `end` token is immediately after a new line.
             this.next();
-            return;
+            return false;
         }
         this.curToken = undefined;
-        const re = /\(\*|["`]|;;+/g;
+        // If searchModuleEnd is true then search for patterns in the form {newline}end{word boundary}.
+        // Some modules do not contain `;;` and even `end` is not always followed by `;;`.
+        // The current approach is not always correct but it works for all core HOL Light files.
+        const re = searchModuleEnd ? /\(\*|["`]|;;+|\n\r?end\b/g : /\(\*|["`]|;;+/g;
         re.lastIndex = this.pos;
         let m: RegExpExecArray | null;
         while (m = re.exec(this.text)) {
@@ -279,13 +286,17 @@ class Parser {
                     this.parseTerm(m.index);
                     re.lastIndex = this.pos;
                     break;
-                default: {
+                case '\nend':
+                case '\n\rend':
                     this.pos = re.lastIndex;
-                    return;
-                }
+                    return true;
+                default:
+                    this.pos = re.lastIndex;
+                    return false;
             }
         }
         this.pos = this.text.length;
+        return false;
     }
 
     skipComments() {
@@ -528,11 +539,42 @@ class Parser {
         return result;
     }
 
+    // Parses module definitions in the form 
+    // module ModuleName [: ModuleType] = struct
+    // Returns the module name token or undefined for other module definitions.
+    private parseModule(): Token | undefined {
+        if (this.peekSkipComments().value !== 'module') {
+            return;
+        }
+        this.next();
+        const nameToken = this.nextSkipComments();
+        if (nameToken.type !== TokenType.identifier) {
+            return;
+        }
+        let token = this.nextSkipComments();
+        if (token.value === ':') {
+            if (this.nextSkipComments().type !== TokenType.identifier) {
+                return;
+            }
+            token = this.nextSkipComments();
+        }
+        if (token.value !== '=') {
+            return;
+        }
+        if (this.nextSkipComments().value !== 'struct') {
+            return;
+        }
+        return nameToken;
+    }
+
     parse(uri?: vscode.Uri): ParseResult {
         this.resetState({ pos: 0 });
 
         const definitions: Definition[] = [];
         const dependencies: Dependency[] = [];
+
+        const modules: string[] = [];
+        const moduleStack: Token[] = [];
 
         while (this.peek().type !== TokenType.eof) {
             // Save the parser state and restore it at the end of this loop.
@@ -542,8 +584,26 @@ class Parser {
             // `let x;;`
             const state = this.saveState();
 
+            const moduleNameToken = this.parseModule();
             let m: (Token | null)[] | null;
-            if (m = this.match(this.importRe, TokenType.string)) {
+
+            if (moduleNameToken) {
+                moduleStack.push(moduleNameToken);
+                modules.push(moduleNameToken.getValue(this.text));
+                // this.report(`Module: ${moduleName}`, token, uri);
+                // Immediately continue after parsing a module definition:
+                // `module Module = struct` is not followed by `;;`
+                continue;
+            } else if (m = this.match('end')) {
+                if (moduleStack.length) {
+                    const moduleName = moduleStack.pop();
+                    this.report(`Module end: ${moduleName?.value}`, m[0]!, uri);
+                } else {
+                    this.report(`Unexpected end`, m[0]!, uri);
+                }
+                // Continue after `end`: do not call skipToNextStatement (some `end` tokens are not followed by `;;`)
+                continue;
+            } else if (m = this.match(this.importRe, TokenType.string)) {
                 const token = m[1]!;
                 // Skip very long strings. They are most definitely invalid (probably, they are not properly closed yet)
                 if (token.endPos - token.startPos <= 2000) {
@@ -584,17 +644,27 @@ class Parser {
                     } while (false);
                 } catch (err) {
                     if (err instanceof ParserError) {
-                        const pos = err.token?.getStartPosition(this.lineStarts);
-                        const line = (pos?.line ?? -1) + 1;
-                        const col = (pos?.character ?? -1) + 1;
-                        console.warn(`Error: ${err.message} at ${[line, col]} in ${uri?.fsPath}:${line}:${col}`);
+                        this.report(`Error: ${err.message}`, err.token, uri);
                     }
                 }
             }
 
             this.resetState(state);
-            this.skipToNextStatement();
+            if (moduleStack.length) {
+                const endFound = this.skipToNextStatement(true);
+                if (endFound) {
+                    const moduleName = moduleStack.pop();
+                    this.report(`Module end: ${moduleName?.value}`, this.peek(), uri);
+                }
+            } else {
+                this.skipToNextStatement();
+            }
         }
+
+        if (moduleStack.length) {
+            moduleStack.forEach(t => this.report(`Unclosed module: ${t.value}`, t, uri));
+        }
+
         return { definitions, dependencies };
     }
 
@@ -638,5 +708,13 @@ class Parser {
         const end = this.text.indexOf('`', pos + 1);
         this.pos = end < 0 ? this.text.length : end + 1;
         return new Token(TokenType.term, pos, this.pos);
+    }
+
+    // For testing and debugging
+    private report(message: string, token?: Token, uri?: vscode.Uri) {
+        const pos = token?.getStartPosition(this.lineStarts);
+        const line = (pos?.line ?? -1) + 1;
+        const col = (pos?.character ?? -1) + 1;
+        console.warn(`${message} ${uri?.fsPath}:${line}:${col}`);
     }
 }
