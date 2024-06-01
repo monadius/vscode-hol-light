@@ -256,6 +256,48 @@ class Parser {
         return this.eofToken;
     }
 
+    private parseComment(pos: number): Token {
+        const re = /\(\*|\*\)/g;
+        re.lastIndex = pos + 2;
+        let level = 1;
+        let m: RegExpExecArray | null;
+        while (m = re.exec(this.text)) {
+            switch (m[0]) {
+                case '(*': 
+                    level++; 
+                    break;
+                case '*)':
+                    if (--level <= 0) {
+                        this.pos = re.lastIndex;
+                        return new Token(TokenType.comment, pos, this.pos);
+                    }
+                    break;
+            }
+        }
+        this.pos = this.text.length;
+        return new Token(TokenType.comment, pos, this.pos);
+    }
+
+    private parseString(pos: number): Token {
+        const re = /"|\\./g;
+        let m: RegExpExecArray | null;
+        re.lastIndex = pos + 1;
+        while (m = re.exec(this.text)) {
+            if (m[0] === '"') {
+                this.pos = re.lastIndex;
+                return new Token(TokenType.string, pos, this.pos);
+            }
+        }
+        this.pos = this.text.length;
+        return new Token(TokenType.string, pos, this.pos);
+    }
+
+    private parseTerm(pos: number): Token {
+        const end = this.text.indexOf('`', pos + 1);
+        this.pos = end < 0 ? this.text.length : end + 1;
+        return new Token(TokenType.term, pos, this.pos);
+    }
+
     // Returns true is a potential module end is found
     skipToNextStatement(searchModuleEnd = false): boolean {
         if (this.peek().type === TokenType.statementSeparator) {
@@ -666,48 +708,6 @@ class Parser {
         }
 
         return { definitions, dependencies };
-    }
-
-    private parseComment(pos: number): Token {
-        const re = /\(\*|\*\)/g;
-        re.lastIndex = pos + 2;
-        let level = 1;
-        let m: RegExpExecArray | null;
-        while (m = re.exec(this.text)) {
-            switch (m[0]) {
-                case '(*': 
-                    level++; 
-                    break;
-                case '*)':
-                    if (--level <= 0) {
-                        this.pos = re.lastIndex;
-                        return new Token(TokenType.comment, pos, this.pos);
-                    }
-                    break;
-            }
-        }
-        this.pos = this.text.length;
-        return new Token(TokenType.comment, pos, this.pos);
-    }
-
-    private parseString(pos: number): Token {
-        const re = /"|\\./g;
-        let m: RegExpExecArray | null;
-        re.lastIndex = pos + 1;
-        while (m = re.exec(this.text)) {
-            if (m[0] === '"') {
-                this.pos = re.lastIndex;
-                return new Token(TokenType.string, pos, this.pos);
-            }
-        }
-        this.pos = this.text.length;
-        return new Token(TokenType.string, pos, this.pos);
-    }
-
-    private parseTerm(pos: number): Token {
-        const end = this.text.indexOf('`', pos + 1);
-        this.pos = end < 0 ? this.text.length : end + 1;
-        return new Token(TokenType.term, pos, this.pos);
     }
 
     // For testing and debugging
