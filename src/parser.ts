@@ -298,21 +298,32 @@ class Parser {
         return new Token(TokenType.term, pos, this.pos);
     }
 
-    // Returns true is a potential module end is found
-    skipToNextStatement(searchModuleEnd = false): boolean {
-        if (this.peek().type === TokenType.statementSeparator) {
-            // Do not check for `end` here (even if searchModuleEnd == true).
-            // If the current token is `end` then it should be properly handled before this function.
-            // Moreover we cannot check if the `end` token is immediately after a new line.
-            this.next();
-            return false;
+    /**
+     * Skips to the next statement following ;; or to the next `module` token (which is not cosumed).
+     * Also skips to the next `end` token (which is not consumed) if searchModuleEnd is true.
+     * This function always consumes at least one token: It always skips the current token.
+     * If the current token is `;;` then the function returns immediately after consuming it.
+     * @param searchModuleEnd
+     */
+    skipToNextStatement(searchModuleEnd = false) {
+        // Call next() here to skip the current token
+        // Do not check for `module` and `end` here.
+        // If the current token is `module` or `end` then it should be properly handled 
+        // before calling this function.
+        if (this.next().type === TokenType.statementSeparator) {
+            return;
         }
+        // Not strictly necessary since next() resets curToken
         this.curToken = undefined;
-        // If searchModuleEnd is true then search for patterns in the form {newline}end{word boundary}.
+
+        // If searchModuleEnd is true then search for `end` tokens which close a module expression.
         // Some modules do not contain `;;` and even `end` is not always followed by `;;`.
-        // The current approach is not always correct but it works for all core HOL Light files.
-        const re = searchModuleEnd ? /\(\*|["`]|;;+|\n\r?end\b/g : /\(\*|["`]|;;+/g;
+        // We only consider `begin` `end` special cases. Other cases for `end` include `sig`, `struct`,
+        // and `object` tokens. But we do not handle them right now because they may contain `;;`.
+        const re = searchModuleEnd ? /\(\*|["`]|;;+|\b(?:module|begin|end)\b/g : /\(\*|["`]|;;+|\bmodule\b/g;
         re.lastIndex = this.pos;
+
+        let beginLevel = 0;
         let m: RegExpExecArray | null;
         while (m = re.exec(this.text)) {
             switch (m[0]) {
@@ -328,17 +339,26 @@ class Parser {
                     this.parseTerm(m.index);
                     re.lastIndex = this.pos;
                     break;
-                case '\nend':
-                case '\n\rend':
-                    this.pos = re.lastIndex;
-                    return true;
+                case 'begin':
+                    beginLevel += 1;
+                    break;
+                case 'end':
+                    if (beginLevel) {
+                        beginLevel -= 1;
+                        break;
+                    }
+                    // fallthrough
+                case 'module':
+                    // The position is before the matched token
+                    this.pos = m.index;
+                    return;
                 default:
+                    // The position is after the matched token
                     this.pos = re.lastIndex;
-                    return false;
+                    return;
             }
         }
         this.pos = this.text.length;
-        return false;
     }
 
     skipComments() {
@@ -621,34 +641,6 @@ class Parser {
         }
     }
 
-    // Parses module definitions in the form 
-    // module ModuleName [: ModuleType] = struct
-    // Returns the module name token or undefined for other module definitions.
-    // private parseModule(): Token | undefined {
-    //     if (this.peekSkipComments().value !== 'module') {
-    //         return;
-    //     }
-    //     this.next();
-    //     const nameToken = this.nextSkipComments();
-    //     if (nameToken.type !== TokenType.identifier) {
-    //         return;
-    //     }
-    //     let token = this.nextSkipComments();
-    //     if (token.value === ':') {
-    //         if (this.nextSkipComments().type !== TokenType.identifier) {
-    //             return;
-    //         }
-    //         token = this.nextSkipComments();
-    //     }
-    //     if (token.value !== '=') {
-    //         return;
-    //     }
-    //     if (this.nextSkipComments().value !== 'struct') {
-    //         return;
-    //     }
-    //     return nameToken;
-    // }
-
     // Parses a module expr.
     // Only the start of `struct` is consumed.
     // Returns true for `struct`.
@@ -673,8 +665,9 @@ class Parser {
     // `module` should be already consumed.
     // Either returns a token corresponding to the module name or nothing for module types.
     private parseModuleDefinition(): Token | undefined {
-        let token = this.nextSkipComments();
+        let token = this.peekSkipComments();
         if (token.value === 'type') {
+            this.next();
             this.expect(TokenType.identifier);
             this.expect('=');
             this.parseModuleType();
@@ -714,15 +707,14 @@ class Parser {
             // but we don't want to skip it.
             // An example when the statement separator is consumed:
             // `let x;;`
-            let state = this.saveState();
+            const state = this.saveState();
 
-            let m: (Token | null)[] | null;
+            // We can safely consume the next token because the position is restored from `state`
+            const statementToken = this.nextSkipComments();
+            const statementValue = statementToken.value || '';
 
             try {
-                if (m = this.match('module')) {
-                    // State should be saved after consuming `module`: 
-                    // skipToNextStatement(true) stops after `module` tokens.
-                    state = this.saveState();
+                if (statementValue === 'module') {
                     const moduleNameToken = this.parseModuleDefinition();
                     if (moduleNameToken) {
                         moduleStack.push(moduleNameToken);
@@ -732,34 +724,38 @@ class Parser {
                     // Immediately continue after parsing a module definition:
                     // `module Module = struct` is not followed by `;;`
                     continue;
-                } else if (m = this.match('end')) {
+                } else if (statementValue === 'end') {
                     if (moduleStack.length) {
                         const moduleName = moduleStack.pop();
-                        // this.report(`Module end: ${moduleName?.value}`, m[0]!, uri);
+                        // this.report(`Module end: ${moduleName?.value}`, token, uri);
                     } else {
-                        this.report(`Unexpected end`, m[0]!, uri);
+                        this.report(`Unexpected end`, statementToken, uri);
                     }
                     // Continue after `end`: do not call skipToNextStatement (some `end` tokens are not followed by `;;`)
                     continue;
-                } else if (m = this.match(this.importRe, TokenType.string)) {
-                    const token = m[1]!;
+                } else if (this.importRe.test(statementValue)) {
+                    const nameToken = this.next();
                     // Skip very long strings. They are most definitely invalid (probably, they are not properly closed yet)
-                    if (token.endPos - token.startPos <= 2000) {
-                        const text = token.getValue(this.text).slice(1, -1);
+                    if (nameToken.type === TokenType.string && nameToken.endPos - nameToken.startPos <= 2000) {
+                        const text = nameToken.getValue(this.text).slice(1, -1);
                         // Ignore multiline strings
                         if (!text.includes('\n')) {
-                            const range = new vscode.Range(m[0]!.getStartPosition(this.lineStarts), m[1]!.getEndPosition(this.lineStarts));
-                            const dep = new Dependency(text, range, m[0]!.getValue(this.text) === 'loads');
+                            const range = new vscode.Range(statementToken.getStartPosition(this.lineStarts), nameToken.getEndPosition(this.lineStarts));
+                            const dep = new Dependency(text, range, statementToken.getValue(this.text) === 'loads');
                             dependencies.push(dep);
                         }
                     }
-                } else if (this.match('let', ['rec'])) {
+                } else if (statementValue === 'let') {
+                    if (this.peekSkipComments().value === 'rec') {
+                        this.next();
+                    }
                     const lhs = this.parseLetBindingLhs();
                     // `do { } while (false)` in order to be able to use `break`
                     do {
                         if (lhs.length === 1 && this.match('=')) {
                             const name = lhs[0].nameToken.getValue(this.text);
                             const pos = lhs[0].nameToken.getStartPosition(this.lineStarts);
+                            let m: (Token | null)[] | null;
                             if (m = this.match(this.theoremRe, ['('], TokenType.term)) {
                                 definitions.push(new Definition(name, DefinitionType.theorem, m[2]!.getValue(this.text).slice(1, -1), pos, uri));
                                 break;
@@ -787,15 +783,7 @@ class Parser {
             }
 
             this.resetState(state);
-            if (moduleStack.length) {
-                const endFound = this.skipToNextStatement(true);
-                if (endFound) {
-                    const moduleName = moduleStack.pop();
-                    // this.report(`Module end: ${moduleName?.value}`, this.peek(), uri);
-                }
-            } else {
-                this.skipToNextStatement();
-            }
+            this.skipToNextStatement(moduleStack.length > 0);
         }
 
         if (moduleStack.length) {
