@@ -357,11 +357,12 @@ class Parser {
         return this.next();
     }
 
-    expect(value: string | TokenType): void {
+    expect(value: string | TokenType): Token {
         const token = this.nextSkipComments();
         if (typeof value === 'string' ? token.value !== value : token.type !== value) {
             throw new ParserError(`${value} expected`, token);
         }
+        return token;
     }
 
     // [string] represents an optional string value
@@ -411,10 +412,7 @@ class Parser {
                 result = token.value!;
             } else if (token.value === "'") {
                 // 'identifier
-                token = this.nextSkipComments();
-                if (token.type !== TokenType.identifier) {
-                    throw new ParserError("identifier expected after '", token);
-                }
+                token = this.expect(TokenType.identifier);
                 result = "'" + token.value;
             }
             token = this.peekSkipComments();
@@ -581,32 +579,124 @@ class Parser {
         return result;
     }
 
+    private parseExtendedModulePath(): string {
+        let result: string = '';
+        while (true) {
+            let token = this.expect(TokenType.identifier);
+            result += token.getValue(this.text);
+            token = this.peekSkipComments();
+            if (token.value === '(') {
+                this.next();
+                const inner = this.parseExtendedModulePath();
+                this.expect(')');
+                result += `(${inner})`;
+            } else if (token.value === '.') {
+                result += '.';
+            } else {
+                break;
+            }
+        }
+        return result;
+    }
+
+    // Parses module types. Currently, does not return anything.
+    private parseModuleType() {
+        let token = this.peekSkipComments();
+        if (token.value === '(') {
+            this.next();
+            this.parseModuleType();
+            this.expect(')');
+        } else if (token.value === 'sig') {
+            this.next();
+            // Skip until `end`
+            do {
+                token = this.nextSkipComments();
+            } while (token.type !== TokenType.eof && token.value !== 'end');
+        } else if (token.value === 'functor') {
+            throw new ParserError('Functors are not supported', token);
+        } else if (token.type === TokenType.identifier) {
+            this.parseExtendedModulePath();
+        } else {
+            throw new ParserError('Module type expected', token);
+        }
+    }
+
     // Parses module definitions in the form 
     // module ModuleName [: ModuleType] = struct
     // Returns the module name token or undefined for other module definitions.
-    private parseModule(): Token | undefined {
-        if (this.peekSkipComments().value !== 'module') {
-            return;
-        }
-        this.next();
-        const nameToken = this.nextSkipComments();
-        if (nameToken.type !== TokenType.identifier) {
-            return;
-        }
+    // private parseModule(): Token | undefined {
+    //     if (this.peekSkipComments().value !== 'module') {
+    //         return;
+    //     }
+    //     this.next();
+    //     const nameToken = this.nextSkipComments();
+    //     if (nameToken.type !== TokenType.identifier) {
+    //         return;
+    //     }
+    //     let token = this.nextSkipComments();
+    //     if (token.value === ':') {
+    //         if (this.nextSkipComments().type !== TokenType.identifier) {
+    //             return;
+    //         }
+    //         token = this.nextSkipComments();
+    //     }
+    //     if (token.value !== '=') {
+    //         return;
+    //     }
+    //     if (this.nextSkipComments().value !== 'struct') {
+    //         return;
+    //     }
+    //     return nameToken;
+    // }
+
+    // Parses a module expr.
+    // Only the start of `struct` is consumed.
+    // Returns true for `struct`.
+    private parseModuleExpr(): boolean {
         let token = this.nextSkipComments();
-        if (token.value === ':') {
-            if (this.nextSkipComments().type !== TokenType.identifier) {
-                return;
+        if (token.value === 'struct') {
+            return true;
+        } else if (token.value === '(') {
+            const inner = this.parseModuleExpr();
+            if (inner) {
+                // Closing ')' is not consumed (it will be silently ignored after the module end)
+                return inner;
             }
+            this.expect(')');
+        } else {
+            throw new ParserError('Unsupported module expression', token);
+        }
+        return false;
+    }
+
+    // Parses module-related definitions. 
+    // `module` should be already consumed.
+    // Either returns a token corresponding to the module name or nothing for module types.
+    private parseModuleDefinition(): Token | undefined {
+        let token = this.nextSkipComments();
+        if (token.value === 'type') {
+            this.expect(TokenType.identifier);
+            this.expect('=');
+            this.parseModuleType();
+            return;
+        }
+        const nameToken = this.expect(TokenType.identifier);
+        token = this.nextSkipComments();
+        if (token.value === '(') {
+            this.expect(TokenType.identifier);
+            this.expect(':');
+            this.parseModuleType();
+            this.expect(')');
+            token = this.nextSkipComments();
+        }
+        if (token.value === ':') {
+            this.parseModuleType();
             token = this.nextSkipComments();
         }
         if (token.value !== '=') {
-            return;
+            throw new ParserError('= expected after a module declaration', token);
         }
-        if (this.nextSkipComments().value !== 'struct') {
-            return;
-        }
-        return nameToken;
+        return this.parseModuleExpr() ? nameToken : undefined;
     }
 
     parse(uri?: vscode.Uri): ParseResult {
@@ -624,41 +714,46 @@ class Parser {
             // but we don't want to skip it.
             // An example when the statement separator is consumed:
             // `let x;;`
-            const state = this.saveState();
+            let state = this.saveState();
 
-            const moduleNameToken = this.parseModule();
             let m: (Token | null)[] | null;
 
-            if (moduleNameToken) {
-                moduleStack.push(moduleNameToken);
-                modules.push(moduleNameToken.getValue(this.text));
-                // this.report(`Module: ${moduleName}`, token, uri);
-                // Immediately continue after parsing a module definition:
-                // `module Module = struct` is not followed by `;;`
-                continue;
-            } else if (m = this.match('end')) {
-                if (moduleStack.length) {
-                    const moduleName = moduleStack.pop();
-                    this.report(`Module end: ${moduleName?.value}`, m[0]!, uri);
-                } else {
-                    this.report(`Unexpected end`, m[0]!, uri);
-                }
-                // Continue after `end`: do not call skipToNextStatement (some `end` tokens are not followed by `;;`)
-                continue;
-            } else if (m = this.match(this.importRe, TokenType.string)) {
-                const token = m[1]!;
-                // Skip very long strings. They are most definitely invalid (probably, they are not properly closed yet)
-                if (token.endPos - token.startPos <= 2000) {
-                    const text = token.getValue(this.text).slice(1, -1);
-                    // Ignore multiline strings
-                    if (!text.includes('\n')) {
-                        const range = new vscode.Range(m[0]!.getStartPosition(this.lineStarts), m[1]!.getEndPosition(this.lineStarts));
-                        const dep = new Dependency(text, range, m[0]!.getValue(this.text) === 'loads');
-                        dependencies.push(dep);
+            try {
+                if (m = this.match('module')) {
+                    // State should be saved after consuming `module`: 
+                    // skipToNextStatement(true) stops after `module` tokens.
+                    state = this.saveState();
+                    const moduleNameToken = this.parseModuleDefinition();
+                    if (moduleNameToken) {
+                        moduleStack.push(moduleNameToken);
+                        modules.push(moduleNameToken.getValue(this.text));
+                        // this.report(`Module: ${moduleName}`, token, uri);
                     }
-                }
-            } else if (this.match('let', ['rec'])) {
-                try {
+                    // Immediately continue after parsing a module definition:
+                    // `module Module = struct` is not followed by `;;`
+                    continue;
+                } else if (m = this.match('end')) {
+                    if (moduleStack.length) {
+                        const moduleName = moduleStack.pop();
+                        // this.report(`Module end: ${moduleName?.value}`, m[0]!, uri);
+                    } else {
+                        this.report(`Unexpected end`, m[0]!, uri);
+                    }
+                    // Continue after `end`: do not call skipToNextStatement (some `end` tokens are not followed by `;;`)
+                    continue;
+                } else if (m = this.match(this.importRe, TokenType.string)) {
+                    const token = m[1]!;
+                    // Skip very long strings. They are most definitely invalid (probably, they are not properly closed yet)
+                    if (token.endPos - token.startPos <= 2000) {
+                        const text = token.getValue(this.text).slice(1, -1);
+                        // Ignore multiline strings
+                        if (!text.includes('\n')) {
+                            const range = new vscode.Range(m[0]!.getStartPosition(this.lineStarts), m[1]!.getEndPosition(this.lineStarts));
+                            const dep = new Dependency(text, range, m[0]!.getValue(this.text) === 'loads');
+                            dependencies.push(dep);
+                        }
+                    }
+                } else if (this.match('let', ['rec'])) {
                     const lhs = this.parseLetBindingLhs();
                     // `do { } while (false)` in order to be able to use `break`
                     do {
@@ -684,10 +779,10 @@ class Parser {
                             definitions.push(new Definition(name, DefinitionType.other, type, pos, uri));
                         }
                     } while (false);
-                } catch (err) {
-                    if (err instanceof ParserError) {
-                        this.report(`Error: ${err.message}`, err.token, uri);
-                    }
+                }
+            } catch (err) {
+                if (err instanceof ParserError) {
+                    this.report(`Error: ${err.message}`, err.token, uri);
                 }
             }
 
@@ -696,7 +791,7 @@ class Parser {
                 const endFound = this.skipToNextStatement(true);
                 if (endFound) {
                     const moduleName = moduleStack.pop();
-                    this.report(`Module end: ${moduleName?.value}`, this.peek(), uri);
+                    // this.report(`Module end: ${moduleName?.value}`, this.peek(), uri);
                 }
             } else {
                 this.skipToNextStatement();
