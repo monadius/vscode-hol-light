@@ -599,6 +599,30 @@ class Parser {
         return result;
     }
 
+    private parseTypeParams() {
+        const typeParam = () => {
+            let token = this.nextSkipComments();
+            if (['+', '-', '+!', '-!', '!-', '!+'].includes(token.value || '')) {
+                token = this.next();
+            }
+            if (token.value !== "'") {
+                throw new ParserError("' expected", token);
+            }
+            this.expect(TokenType.identifier);
+        };
+
+        let token = this.peekSkipComments();
+        if (token.value === '(') {
+            do {
+                this.next();
+                typeParam();
+            } while (this.peekSkipComments().value === ',');
+            this.expect(')');
+        } else {
+            typeParam();
+        }
+    }
+
     private parseExtendedModulePath(): string {
         let result: string = '';
         while (true) {
@@ -617,6 +641,32 @@ class Parser {
             }
         }
         return result;
+    }
+
+    private parseModConstraint() {
+        let token = this.nextSkipComments();
+        if (token.value === 'type') {
+            token = this.peekSkipComments();
+            if (['+', '-', '+!', '-!', '!-', '!+', "'", '('].includes(token.value || '')) {
+                this.parseTypeParams();
+            }
+            // should be [extended-module-path.]typeconst-name
+            this.parseExtendedModulePath();
+            this.expect('=');
+            this.parseType();
+            if (this.peekSkipComments().value === 'constraint') {
+                this.next();
+                this.parseType();
+                this.expect('=');
+                this.parseType();
+            }
+        } else if (token.value === 'module') {
+            this.expect(TokenType.identifier);
+            this.expect('=');
+            this.parseExtendedModulePath();
+        } else {
+            throw new ParserError('type or module expected', token);
+        }
     }
 
     // Parses module types. Currently, does not return anything.
@@ -638,6 +688,14 @@ class Parser {
             this.parseExtendedModulePath();
         } else {
             throw new ParserError('Module type expected', token);
+        }
+
+        token = this.peekSkipComments();
+        if (token.value === 'with') {
+            do {
+                this.next();
+                this.parseModConstraint();
+            } while (this.peekSkipComments().value === 'and');
         }
     }
 
