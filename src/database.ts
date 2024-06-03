@@ -309,7 +309,9 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
     }
 
     indexBaseHolLightFiles = util.runWhenFirstArgChanges(async function(this: Database, token: vscode.CancellationToken, holPath: string, progress?: vscode.Progress<{ increment: number, message: string }>): Promise<boolean> {
-        console.log(`Indexing Base HOL Light files: ${holPath}`);
+        if (config.DEBUG) {
+            console.log(`Indexing Base HOL Light files: ${holPath}`);
+        }
         if (!holPath) {
             return false;
         }
@@ -326,7 +328,9 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             customDefinitions: [],
             customTheorems: [],
         };
+
         progress?.report({increment: 0, message: `Indexing HOL Light files: ${holPath}`});
+
         try {
             if (!await util.isFileExists(holPath, true)) {
                 console.error(`Not a directory: ${holPath}`);
@@ -353,7 +357,8 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
                         // Add the file path to this set before indexing the file.
                         // If the ope
                         this.baseHolLightFiles.add(filePath);
-                        if ((await this.indexFile(filePath, holPath, null, emptyCustomNames, token)).indexed) {
+                        const { indexed } = await this.indexFile(filePath, holPath, null, emptyCustomNames, token);
+                        if (indexed && config.DEBUG) {
                             console.log(`Indexed: ${filePath}`);
                         }
                         // For debugging:
@@ -367,7 +372,10 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             console.error(`indexBaseHolLightFiles("${holPath}") error: ${err}`);
             return false;
         }
-        console.log(`Done indexing HOL Light base files`);
+
+        if (config.DEBUG) {
+            console.log(`Done indexing HOL Light base files`);
+        }
         return true;
     });
 
@@ -403,7 +411,9 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         const docPath = document.uri.fsPath;
         progress?.report({ increment: 0, message: `Indexing: ${docPath}` });
 
-        console.log(`Indexing: ${docPath}`);
+        if (config.DEBUG) {
+            console.log(`Indexing: ${docPath}`);
+        }
 
         const docText = document.getText();
         const { definitions: docDefinitions, dependencies } = 
@@ -423,7 +433,9 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             return;
         }
 
-        console.log(`Indexing ${fullIndex ? 'all' : 'new'} dependencies of ${docPath}`);
+        if (config.DEBUG) {
+            console.log(`Indexing ${fullIndex ? 'all' : 'new'} dependencies of ${docPath}`);
+        }
 
         const oldPaths = util.filterMap(this.fileIndex.get(docPath)?.dependencies ?? [], dep => dep.path);
         const docDeps = await resolveDependencies(dependencies, { basePath: path.dirname(docPath), holPath, rootPaths });
@@ -451,7 +463,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
                 // oldPaths should be computed before this.indexFile is called
                 const oldPaths = util.filterMap(this.fileIndex.get(depPath)?.dependencies ?? [], dep => dep.path);
                 const { indexed, deps } = await this.indexFile(depPath, holPath, rootPaths, this.customCommandNames);
-                if (indexed) {
+                if (indexed && config.DEBUG) {
                     console.log(`Indexed: ${depPath}`);
                 }
                 const unresolved = deps.filter(dep => !dep.isResolved);
