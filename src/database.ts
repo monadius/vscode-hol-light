@@ -292,16 +292,69 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
     }
 
     /**
+     * Returns all modules corresponding to the given module name.
+     * Usually, it is a mistake to shadow names so shadowed modules are also returned.
+     * @param moduleName 
+     * @param deps 
+     * @param openModules 
+     */
+    resolveModuleName(moduleName: string, openModules: Set<Module>, deps: Set<string>): Set<Module> {
+        if (!moduleName) {
+            return new Set(openModules);
+        }
+        const names = moduleName.split('.');
+        let modules = (this.moduleIndex.get(names[0]) ?? [])
+            .filter(mod => mod.parent ? openModules.has(mod.parent) : deps.has(mod.getFilePath() ?? ''));
+        for (let i = 1; i < names.length && modules.length; i++) {
+            modules = modules.flatMap(mod => mod.modules.filter(submod => submod.name === names[i]));
+        }
+        return new Set(modules);
+    }
+
+    /**
+     * Returns all open modules at the given position in a file.
+     * Globally open modules are not included (it is required to resolve
+     * module names of globally open modules which is not currently supported).
+     */
+    allOpenModules(filePath: string, pos: vscode.Position, deps: Set<string>): Set<Module> {
+        const result = new Set<Module>();
+        const file = this.fileIndex.get(filePath);
+        if (!file) {
+            return result;
+        }
+        // Add globally open modules from the current file
+        for (const decl of file.globalModule.openDecls) {
+            if (decl.position.isBefore(pos)) {
+                this.resolveModuleName(decl.name, result, deps).forEach(mod => result.add(mod));
+            }
+        }
+        // Scan all modules defined in the file.
+        // It is important that modules are sorted by their start position:
+        // previously open modules may affect visibility of submodules.
+        for (const module of file.modules) {
+            if (module.position.isBeforeOrEqual(pos) && (!module.endPosition || module.endPosition.isAfter(pos))) {
+                result.add(module);
+                for (const decl of module.openDecls) {
+                    if (decl.position.isBefore(pos)) {
+                        this.resolveModuleName(decl.name, result, deps).forEach(mod => result.add(mod));
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
      * Returns all definitions corresponding to the given word and which belong
      * to the dependencies of the given file (including the file itself)
-     * @param filePath
      * @param word 
+     * @param deps
      */
-    findDefinitions(filePath: string, word: string): Definition[] {
+    findDefinitions(word: string, deps: Set<string>): Definition[] {
         const defs = this.definitionIndex.get(word) || [];
         return defs.filter(def => {
             const dep = def.getFilePath();
-            return dep ? this.isDependency(filePath, dep) : false;
+            return dep ? deps.has(dep) : false;
         });
     }
 
@@ -312,13 +365,11 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
     /**
      * Returns all definitions which have the given prefix and which belong
      * to the dependencies of the given file (including the file itself)
-     * @param filePath 
      * @param prefix 
+     * @param deps
      */
-    findDefinitionsWithPrefix(filePath: string, prefix: string): Definition[] {
+    findDefinitionsWithPrefix(prefix: string, deps: Set<string>): Definition[] {
         const res: Definition[] = [];
-        const deps = this.allDependencies(filePath);
-
         for (const name of this.trieIndex.findPrefix(prefix)) {
             for (const def of this.definitionIndex.get(name) || []) {
                 if (deps.has(def.getFilePath() || '')) {
@@ -326,7 +377,6 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
                 }
             }
         }
-
         return res;
     }
 
@@ -527,6 +577,13 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         }
     }
 
+    /**
+     * Implements DefitionProvider
+     * @param document
+     * @param position 
+     * @param _token 
+     * @returns 
+     */
     provideDefinition(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken) {
         const line = document.lineAt(position.line);
         if (!this.importRe) {
@@ -548,26 +605,49 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         if (!word) {
             return null;
         }
-        const defs = this.findDefinitions(document.uri.fsPath, word);
-        const locs = <vscode.Location[]>defs.map(def => def.getLocation()).filter(loc => loc);
-        return locs.length ? locs : null;
+        const deps = this.allDependencies(document.uri.fsPath);
+        const openModules = this.allOpenModules(document.uri.fsPath, position, deps);
+
+        const defs = this.findDefinitions(word, deps);
+        const mods = this.resolveModuleName(word, openModules, deps);
+
+        const defLocs = <vscode.Location[]>defs.map(def => def.getLocation()).filter(loc => loc);
+        const modLocs = <vscode.Location[]>[...mods].map(mod => mod.getLocation()).filter(loc => loc);
+        return defLocs.length || modLocs.length ? [...defLocs, ...modLocs] : null;
     }
 
+    /**
+     * Implements HoverProvider
+     * @param document
+     * @param position 
+     * @param _token 
+     * @returns 
+     */
     provideHover(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken) {
         const word = util.getWordAtPosition(document, position);
         if (!word) {
             return null;
         }
-        const defs = this.findDefinitions(document.uri.fsPath, word);
+        const deps = this.allDependencies(document.uri.fsPath);
+        const defs = this.findDefinitions(word, deps);
         return defs[0]?.toHoverItem();
     }
 
+    /**
+     * Implements CompletionItemProvider
+     * @param document
+     * @param position 
+     * @param _token 
+     * @param _context 
+     * @returns 
+     */
     provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken, _context: vscode.CompletionContext) {
         const word = util.getWordAtPosition(document, position);
         if (!word /*|| word.length < 2*/) {
             return null;
         }
-        const defs = this.findDefinitionsWithPrefix(document.uri.fsPath, word);
+        const deps = this.allDependencies(document.uri.fsPath);
+        const defs = this.findDefinitionsWithPrefix(word, deps);
         return defs.filter(def => !this.helpProvider?.isHelpItem(def.name) || !this.baseHolLightFiles.has(def.getFilePath() || ''))
                    .map(def => def.toCompletionItem());
     }

@@ -144,6 +144,7 @@ interface ParserOptions {
 
 export interface ParseResult {
     definitions: Definition[];
+    // NOTE: Modules should be sorted by their start position
     modules: Module[];
     dependencies: Dependency[];
     // The global module tracks all open and include statements. It does not contain definitions.
