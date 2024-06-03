@@ -89,6 +89,30 @@ export class Definition {
     }
 }
 
+export class Module {
+    readonly name: string;
+    readonly position: vscode.Position;
+    private uri?: vscode.Uri;
+
+    private definitions: Definition[] = [];
+
+    constructor(name: string, position: vscode.Position, uri?: vscode.Uri) {
+        this.name = name;
+        this.position = position;
+        this.uri = uri;
+    }
+
+    getLocation() : vscode.Location | null {
+        return this.uri ? new vscode.Location(this.uri, this.position) : null;
+    }
+
+    toHoverItem(): vscode.Hover {
+        const text = `module ${this.name}`;
+        return new vscode.Hover(new vscode.MarkdownString(text));
+    }
+}
+
+
 interface ParserOptions {
     customNames?: CustomCommandNames;
     debug: boolean;
@@ -96,6 +120,7 @@ interface ParserOptions {
 
 interface ParseResult {
     definitions: Definition[];
+    modules: Module[];
     dependencies: Dependency[];
 }
 
@@ -785,8 +810,8 @@ class Parser {
         const definitions: Definition[] = [];
         const dependencies: Dependency[] = [];
 
-        const modules: string[] = [];
-        const moduleStack: Token[] = [];
+        const modules: Module[] = [];
+        const moduleStack: Module[] = [];
 
         while (this.peek().type !== TokenType.eof) {
             // Save the parser state and restore it at the end of this loop.
@@ -834,17 +859,20 @@ class Parser {
                 } else if (statementValue === 'module') {
                     const moduleNameToken = this.parseModuleDefinition();
                     if (moduleNameToken) {
-                        moduleStack.push(moduleNameToken);
-                        modules.push(moduleNameToken.getValue(this.text));
-                        // this.report(`Module: ${moduleName}`, token, uri);
+                        const pos = moduleNameToken.getStartPosition(this.lineStarts);
+                        const name = moduleNameToken.getValue(this.text);
+                        const module = new Module(name, pos, uri);
+                        moduleStack.push(module);
+                        modules.push(module);
+                        this.report(`Module: ${name}`, pos, uri);
                     }
                     // Immediately continue after parsing a module definition:
                     // `module Module = struct` is not followed by `;;`
                     continue;
                 } else if (statementValue === 'end') {
                     if (moduleStack.length) {
-                        const moduleName = moduleStack.pop();
-                        // this.report(`Module end: ${moduleName?.value}`, token, uri);
+                        const module = moduleStack.pop()!;
+                        this.report(`Module end: ${module.name}`, statementToken, uri);
                     } else if (this.debugFlag) {
                         this.report(`Unexpected end`, statementToken, uri);
                     }
@@ -874,15 +902,15 @@ class Parser {
         }
 
         if (moduleStack.length && this.debugFlag) {
-            moduleStack.forEach(t => this.report(`Unclosed module: ${t.value}`, t, uri));
+            moduleStack.forEach(mod => this.report(`Unclosed module: ${mod.name}`, mod.position, uri));
         }
 
-        return { definitions, dependencies };
+        return { definitions, modules, dependencies };
     }
 
     // For testing and debugging
-    private report(message: string, token?: Token, uri?: vscode.Uri) {
-        const pos = token?.getStartPosition(this.lineStarts);
+    private report(message: string, tokenOrPos?: Token | vscode.Position, uri?: vscode.Uri) {
+        const pos = tokenOrPos instanceof vscode.Position ? tokenOrPos : tokenOrPos?.getStartPosition(this.lineStarts);
         const line = (pos?.line ?? -1) + 1;
         const col = (pos?.character ?? -1) + 1;
         console.warn(`${message} ${uri?.fsPath}:${line}:${col}`);
