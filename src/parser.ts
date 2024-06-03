@@ -94,6 +94,8 @@ export class Definition {
 interface OpenDecl {
     readonly position: vscode.Position;
     readonly name: string;
+    // For diagnostic
+    readonly range: vscode.Range;
 }
 
 export class Module {
@@ -915,8 +917,9 @@ class Parser {
                 } else if (statementValue === 'open' || statementValue === 'include') {
                     const nameToken = this.expect(TokenType.identifier);
                     const module = moduleStack.at(-1) ?? globalModule;
-                    const position = nameToken.getStartPosition(this.lineStarts);
-                    const decl: OpenDecl = { name: nameToken.getValue(this.text), position };
+                    const startPos = statementToken.getStartPosition(this.lineStarts);
+                    const endPos = nameToken.getEndPosition(this.lineStarts);
+                    const decl: OpenDecl = { name: nameToken.getValue(this.text), position: startPos, range: new vscode.Range(startPos, endPos) };
                     module[statementValue === 'include' ? 'includeDecls' : 'openDecls'].push(decl);
                 } else if (this.importRe.test(statementValue)) {
                     const nameToken = this.next();

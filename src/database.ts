@@ -328,12 +328,17 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         return res;
     }
 
-    updateUnresolvedDependenciesDiagnostic(uri: vscode.Uri, deps: Dependency[]) {
-        const diagnostic = deps.filter(dep => !dep.isResolved).map(dep => {
+    updateDiagnostic(uri: vscode.Uri, deps: Dependency[], globalModule: Module | undefined) {
+        const unresolvedDeps = deps.filter(dep => !dep.isResolved).map(dep => {
             const diagnostic = new vscode.Diagnostic(dep.range, 'Unresolved dependency', vscode.DiagnosticSeverity.Warning);
             // TODO: add code for code actions
             return diagnostic;
         });
+        const globalOpen = globalModule?.openDecls.map(decl => {
+            const diagnostic = new vscode.Diagnostic(decl.range, 'Global open', vscode.DiagnosticSeverity.Warning);
+            return diagnostic;
+        });
+        const diagnostic = unresolvedDeps.concat(globalOpen || []);
         this.diagnosticCollection.set(uri, diagnostic.length ? diagnostic : undefined);
     }
 
@@ -455,7 +460,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             const deps = file?.dependencies
                               .filter(dep => docDepNames.has(dep.name))
                               .map(dep => new Dependency(docDepNames.get(dep.name)!, dep.path)) ?? [];
-            this.updateUnresolvedDependenciesDiagnostic(document.uri, deps);
+            this.updateDiagnostic(document.uri, deps, result.globalModule);
             this.addToIndex(docPath, result, deps, null);
             return;
         }
@@ -464,11 +469,12 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             console.log(`Indexing ${fullIndex ? 'all' : 'new'} dependencies of ${docPath}`);
         }
 
-        const oldPaths = util.filterMap(this.fileIndex.get(docPath)?.dependencies ?? [], dep => dep.path);
+        const docFile = this.fileIndex.get(docPath);
+        const oldPaths = util.filterMap(docFile?.dependencies ?? [], dep => dep.path);
         const docDeps = await resolveDependencies(result.dependencies, { basePath: path.dirname(docPath), holPath, rootPaths });
 
         const unresolvedDeps: Dependency[] = docDeps.filter(dep => !dep.isResolved);
-        this.updateUnresolvedDependenciesDiagnostic(document.uri, unresolvedDeps);
+        this.updateDiagnostic(document.uri, unresolvedDeps, result.globalModule);
        
         // TODO: do we need to update modifiedTimes?
         // If there is a cyclic dependency on this document then it will be indexed twice.
@@ -489,12 +495,12 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             try {
                 // oldPaths should be computed before this.indexFile is called
                 const oldPaths = util.filterMap(this.fileIndex.get(depPath)?.dependencies ?? [], dep => dep.path);
-                const { indexed, deps } = await this.indexFile(depPath, holPath, rootPaths, this.customCommandNames);
+                const { indexed, globalModule, deps } = await this.indexFile(depPath, holPath, rootPaths, this.customCommandNames);
                 if (indexed && config.DEBUG) {
                     console.log(`Indexed: ${depPath}`);
                 }
                 const unresolved = deps.filter(dep => !dep.isResolved);
-                this.updateUnresolvedDependenciesDiagnostic(vscode.Uri.file(depPath), unresolved);
+                this.updateDiagnostic(vscode.Uri.file(depPath), unresolved, globalModule);
                 unresolvedDeps.push(...unresolved);
                 // For fullIndex == true we do not check if the dependencies has already been indexed or not.
                 const newPaths = util.filterMap(deps, dep => dep.path);
@@ -504,10 +510,13 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             }
         }
 
+        progress?.report({ increment: 100, message: 'Done' });
+
         // Show a warning message only when a progress indicator is shown
         if (progress && unresolvedDeps.length > 0) {
             const unresolvedMessage = `Unresolved dependencies:\n ${unresolvedDeps.map(dep => dep.name).join('\n')}`;
             const editPaths = 'Edit rootPaths...';
+            // TODO: this await keeps the progress open
             const result = await vscode.window.showWarningMessage(unresolvedMessage, editPaths);
             if (result === editPaths) {
                 const arg = { revealSetting: { key: config.getFullConfigName(config.ROOT_PATHS), edit: false } };
