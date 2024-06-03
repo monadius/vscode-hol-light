@@ -29,14 +29,16 @@ export class Definition {
     readonly name: string;
     readonly type: DefinitionType;
     readonly content: string;
+    readonly module?: Module;
     readonly position: vscode.Position;
     private uri?: vscode.Uri;
     private completionItem?: vscode.CompletionItem;
 
-    constructor(name: string, type: DefinitionType, content: string, position: vscode.Position, uri?: vscode.Uri) {
+    constructor(name: string, type: DefinitionType, content: string, module: Module | undefined, position: vscode.Position, uri?: vscode.Uri) {
         this.name = name;
         this.type = type;
         this.content = content;
+        this.module = module;
         this.position = position;
         this.uri = uri;
     }
@@ -89,17 +91,37 @@ export class Definition {
     }
 }
 
-export class Module {
-    readonly name: string;
+interface OpenDecl {
     readonly position: vscode.Position;
+    readonly name: string;
+}
+
+export class Module {
+    readonly parent?: Module;
+
+    readonly name: string;
+    readonly fullName: string;
+
+    readonly position: vscode.Position;
+    endPosition?: vscode.Position;
     private uri?: vscode.Uri;
 
-    private definitions: Definition[] = [];
+    readonly definitions: Definition[] = [];
+    readonly modules: Module[] = [];
 
-    constructor(name: string, position: vscode.Position, uri?: vscode.Uri) {
+    readonly openDecls: OpenDecl[] = [];
+    readonly includeDecls: OpenDecl[] = [];
+
+    constructor(name: string, parent: Module | undefined, position: vscode.Position, uri?: vscode.Uri) {
         this.name = name;
+        this.fullName = parent ? parent.fullName + '.' + name : name;
+        this.parent = parent;
         this.position = position;
         this.uri = uri;
+    }
+
+    getFilePath(): string | undefined {
+        return this.uri?.fsPath;
     }
 
     getLocation() : vscode.Location | null {
@@ -122,6 +144,8 @@ interface ParseResult {
     definitions: Definition[];
     modules: Module[];
     dependencies: Dependency[];
+    // The global module tracks all open and include statements. It does not contain definitions.
+    globalModule: Module;
 }
 
 export function parseText(text: string, uri: vscode.Uri, options: ParserOptions): ParseResult {
@@ -807,11 +831,19 @@ class Parser {
     parse(uri?: vscode.Uri): ParseResult {
         this.resetState({ pos: 0 });
 
+        const globalModule = new Module('', undefined, new vscode.Position(0, 0), uri);
         const definitions: Definition[] = [];
         const dependencies: Dependency[] = [];
 
         const modules: Module[] = [];
         const moduleStack: Module[] = [];
+
+        const addDefinition = (name: string, type: DefinitionType, content: string, pos: vscode.Position) => {
+            const module = modules.at(-1);
+            const def = new Definition(name, type, content, module, pos, uri);
+            definitions.push(def);
+            module?.definitions.push(def);
+        };
 
         while (this.peek().type !== TokenType.eof) {
             // Save the parser state and restore it at the end of this loop.
@@ -838,13 +870,13 @@ class Parser {
                             const pos = lhs[0].nameToken.getStartPosition(this.lineStarts);
                             let m: (Token | null)[] | null;
                             if (m = this.match(this.theoremRe, ['('], TokenType.term)) {
-                                definitions.push(new Definition(name, DefinitionType.theorem, m[2]!.getValue(this.text).slice(1, -1), pos, uri));
+                                addDefinition(name, DefinitionType.theorem, m[2]!.getValue(this.text).slice(1, -1), pos);
                                 break;
                             } else if (m = this.match(this.definitionRe, TokenType.term)) {
-                                definitions.push(new Definition(name, DefinitionType.definition, m[1]!.getValue(this.text).slice(1, -1), pos, uri));
+                                addDefinition(name, DefinitionType.definition, m[1]!.getValue(this.text).slice(1, -1), pos);
                                 break;
                             } else if (m = this.match(this.defOtherRe, null, TokenType.term)) {
-                                definitions.push(new Definition(name, DefinitionType.definition, m[2]!.getValue(this.text).slice(1, -1), pos, uri));
+                                addDefinition(name, DefinitionType.definition, m[2]!.getValue(this.text).slice(1, -1), pos);
                                 break;
                             }
                         }
@@ -853,7 +885,7 @@ class Parser {
                             const name = binding.nameToken.getValue(this.text);
                             const pos = binding.nameToken.getStartPosition(this.lineStarts);
                             const type = binding.type ?? '';
-                            definitions.push(new Definition(name, DefinitionType.other, type, pos, uri));
+                            addDefinition(name, DefinitionType.other, type, pos);
                         }
                     } while (false);
                 } else if (statementValue === 'module') {
@@ -861,10 +893,11 @@ class Parser {
                     if (moduleNameToken) {
                         const pos = moduleNameToken.getStartPosition(this.lineStarts);
                         const name = moduleNameToken.getValue(this.text);
-                        const module = new Module(name, pos, uri);
+                        const module = new Module(name, modules.at(-1), pos, uri);
+                        modules.at(-1)?.modules.push(module);
                         moduleStack.push(module);
                         modules.push(module);
-                        this.report(`Module: ${name}`, pos, uri);
+                        // this.report(`Module: ${name}`, pos, uri);
                     }
                     // Immediately continue after parsing a module definition:
                     // `module Module = struct` is not followed by `;;`
@@ -872,12 +905,19 @@ class Parser {
                 } else if (statementValue === 'end') {
                     if (moduleStack.length) {
                         const module = moduleStack.pop()!;
-                        this.report(`Module end: ${module.name}`, statementToken, uri);
+                        module.endPosition = statementToken.getStartPosition(this.lineStarts);
+                        // this.report(`Module end: ${module.name}`, statementToken, uri);
                     } else if (this.debugFlag) {
                         this.report(`Unexpected end`, statementToken, uri);
                     }
                     // Continue after `end`: do not call skipToNextStatement (some `end` tokens are not followed by `;;`)
                     continue;
+                } else if (statementValue === 'open' || statementValue === 'include') {
+                    const nameToken = this.expect(TokenType.identifier);
+                    const module = moduleStack.at(-1) ?? globalModule;
+                    const position = nameToken.getStartPosition(this.lineStarts);
+                    const decl: OpenDecl = { name: nameToken.getValue(this.text), position };
+                    module[statementValue === 'include' ? 'includeDecls' : 'openDecls'].push(decl);
                 } else if (this.importRe.test(statementValue)) {
                     const nameToken = this.next();
                     // Skip very long strings. They are most definitely invalid (probably, they are not properly closed yet)
@@ -905,7 +945,7 @@ class Parser {
             moduleStack.forEach(mod => this.report(`Unclosed module: ${mod.name}`, mod.position, uri));
         }
 
-        return { definitions, modules, dependencies };
+        return { definitions, modules, dependencies, globalModule };
     }
 
     // For testing and debugging
