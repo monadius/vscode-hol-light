@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
 
+export const DEBUG: boolean = true;
+
 export const SECTION = 'hol-light';
 
 export const HIGHLIGHT_COLOR = 'highlightColor';

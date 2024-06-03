@@ -198,7 +198,8 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         const mtime = (await fs.stat(filePath)).mtimeMs;
         if (mtime > (file?.mtime ?? -1)) {
             const text = await fs.readFile(filePath, 'utf-8');
-            const { definitions, dependencies: parserDeps } = parseText(text, customNames, vscode.Uri.file(filePath));
+            const { definitions, dependencies: parserDeps } = 
+                parseText(text, vscode.Uri.file(filePath), { customNames, debug: config.DEBUG });
             const deps = rootPaths ? await resolveDependencies(parserDeps, { basePath: path.dirname(filePath), holPath, rootPaths }) : [];
             // Check the cancellation token before modifying any global state
             if (token?.isCancellationRequested) {
@@ -373,7 +374,8 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
     async indexDocument(document: vscode.TextDocument, holPath: string, rootPaths: string[]) {
         const docText = document.getText();
         const docPath = document.uri.fsPath;
-        const { definitions, dependencies } = parseText(docText, this.customCommandNames, document.uri);
+        const { definitions, dependencies } = 
+            parseText(docText, document.uri, { customNames: this.customCommandNames, debug: config.DEBUG });
         const deps = await resolveDependencies(dependencies, { basePath: path.dirname(docPath), holPath, rootPaths });
         this.addToIndex(docPath, deps, definitions, null);
     }
@@ -404,7 +406,8 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         console.log(`Indexing: ${docPath}`);
 
         const docText = document.getText();
-        const { definitions: docDefinitions, dependencies } = parseText(docText, this.customCommandNames, document.uri);
+        const { definitions: docDefinitions, dependencies } = 
+            parseText(docText, document.uri, { customNames: this.customCommandNames, debug: config.DEBUG });
         const docDepNames = new Map(dependencies.map(dep => [dep.name, dep]));
 
         if (!fullIndex && util.difference(docDepNames.keys(), this.fileIndex.get(docPath)?.dependencies.map(dep => dep.name) ?? []).length === 0) {

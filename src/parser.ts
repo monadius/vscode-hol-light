@@ -89,14 +89,19 @@ export class Definition {
     }
 }
 
+interface ParserOptions {
+    customNames?: CustomCommandNames;
+    debug: boolean;
+}
+
 interface ParseResult {
     definitions: Definition[];
     dependencies: Dependency[];
 }
 
-export function parseText(text: string, customNames: CustomCommandNames, uri: vscode.Uri): ParseResult {
+export function parseText(text: string, uri: vscode.Uri, options: ParserOptions): ParseResult {
     // console.log(`Parsing: ${uri}\nText length: ${text.length}`);
-    return new Parser(text, customNames).parse(uri);
+    return new Parser(text, options).parse(uri);
 }
 
 enum TokenType {
@@ -177,6 +182,8 @@ interface Binding {
 }
 
 class Parser {
+    private readonly debugFlag: boolean;
+
     private readonly text: string;
     private readonly eofToken: Token;
     private readonly lineStarts: number[];
@@ -189,7 +196,8 @@ class Parser {
     private pos: number;
     private curToken?: Token;
 
-    constructor(text: string, customNames: CustomCommandNames) {
+    constructor(text: string, options: ParserOptions) {
+        this.debugFlag = options.debug;
         this.text = text;
         this.eofToken = new Token(TokenType.eof, this.text.length, this.text.length, '');
         this.lineStarts = [];
@@ -200,9 +208,9 @@ class Parser {
         } while (i > 0);
 
         const mkRegExp = (words: string[]) => new RegExp(`^(?:${words.join('|')})$`);
-        this.importRe = mkRegExp(['needs', 'loads', 'loadt', ...customNames.customImports]);
-        this.theoremRe = mkRegExp(['prove', 'VECTOR_ARITH', 'ARITH_RULE', 'REAL_ARITH', ...customNames.customTheorems]);
-        this.definitionRe = mkRegExp(['new_definition', 'new_basic_definition', 'define', ...customNames.customDefinitions]);
+        this.importRe = mkRegExp(['needs', 'loads', 'loadt', ...options.customNames?.customImports || []]);
+        this.theoremRe = mkRegExp(['prove', 'VECTOR_ARITH', 'ARITH_RULE', 'REAL_ARITH', ...options.customNames?.customTheorems || []]);
+        this.definitionRe = mkRegExp(['new_definition', 'new_basic_definition', 'define', ...options.customNames?.customDefinitions || []]);
         this.defOtherRe = mkRegExp(['new_recursive_definition']);
 
         this.pos = 0;
@@ -837,7 +845,7 @@ class Parser {
                     if (moduleStack.length) {
                         const moduleName = moduleStack.pop();
                         // this.report(`Module end: ${moduleName?.value}`, token, uri);
-                    } else {
+                    } else if (this.debugFlag) {
                         this.report(`Unexpected end`, statementToken, uri);
                     }
                     // Continue after `end`: do not call skipToNextStatement (some `end` tokens are not followed by `;;`)
@@ -856,7 +864,7 @@ class Parser {
                     }
                 }
             } catch (err) {
-                if (err instanceof ParserError) {
+                if (err instanceof ParserError && this.debugFlag) {
                     this.report(`Error: ${err.message}`, err.token, uri);
                 }
             }
@@ -865,7 +873,7 @@ class Parser {
             this.skipToNextStatement(moduleStack.length > 0);
         }
 
-        if (moduleStack.length) {
+        if (moduleStack.length && this.debugFlag) {
             moduleStack.forEach(t => this.report(`Unclosed module: ${t.value}`, t, uri));
         }
 
