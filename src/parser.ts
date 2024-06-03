@@ -712,10 +712,31 @@ class Parser {
                 // Closing ')' is not consumed (it will be silently ignored after the module end)
                 return inner;
             }
+            if (this.peekSkipComments().value === ':') {
+                this.parseModuleType();
+            }
             this.expect(')');
-        } else {
+        } else if (token.value === 'functor') {
+            this.expect('(');
+            this.expect(TokenType.identifier);
+            this.expect(':');
+            this.parseModuleType();
+            this.expect(')');
+            this.expect('->');
+            return this.parseModuleExpr();
+        } else if (token.type !== TokenType.identifier) {
             throw new ParserError('Unsupported module expression', token);
         }
+
+        if (this.peekSkipComments().value === '(') {
+            this.next();
+            const inner = this.parseModuleExpr();
+            if (inner) {
+                return inner;
+            }
+            this.expect(')');
+        }
+
         return false;
     }
 
