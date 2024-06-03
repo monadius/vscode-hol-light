@@ -140,7 +140,7 @@ interface ParserOptions {
     debug: boolean;
 }
 
-interface ParseResult {
+export interface ParseResult {
     definitions: Definition[];
     modules: Module[];
     dependencies: Dependency[];

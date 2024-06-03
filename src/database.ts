@@ -5,7 +5,7 @@ import * as path from 'path';
 import { CustomCommandNames } from './config';
 import * as config from './config';
 import * as help from './help';
-import { Definition, parseText, Dependency as ParserDependency } from './parser';
+import { Definition, Module, ParseResult, parseText, Dependency as ParserDependency } from './parser';
 import { Trie } from './trie';
 import * as util from './util';
 
@@ -85,6 +85,16 @@ interface FileIndex {
      * All definitions associated with this file
      */
     definitions: Definition[];
+
+    /**
+     * All modules associated with this file (including nested modules)
+     */
+    modules: Module[];
+
+    /**
+     * A global module for this file which tracks open/include statements
+     */
+    globalModule: Module;
 }
 
 export class Database implements vscode.DefinitionProvider, vscode.HoverProvider, vscode.CompletionItemProvider {
@@ -102,6 +112,11 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
      * The index of definitions. Definitions with the same name (key) could be defined in different files.
      */
     private definitionIndex: Map<string, Definition[]> = new Map();
+
+    /**
+     * The index of modules. Modules with the same name could be defined in different files or could be nested.
+     */
+    private moduleIndex: Map<string, Module[]> = new Map();
 
     /**
      * The trie index which stores definition names
@@ -143,22 +158,32 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
      * @param deps 
      * @param defs 
      */
-    private addToIndex(filePath: string, deps: Dependency[], defs: Definition[], mtime: number | null) {
+    private addToIndex(filePath: string, result: ParseResult, deps: Dependency[], mtime: number | null) {
         this.removeFromIndex(filePath);
 
         this.fileIndex.set(filePath, {
             filePath,
             mtime: mtime ?? -1,
             dependencies: [...deps],
-            definitions: [...defs],
+            definitions: [...result.definitions],
+            modules: [...result.modules],
+            globalModule: result.globalModule
         });
 
-        for (const def of defs) {
+        for (const def of result.definitions) {
             if (!this.definitionIndex.has(def.name)) {
                 this.definitionIndex.set(def.name, []);
             }
             this.definitionIndex.get(def.name)!.push(def);
             this.trieIndex.add(def.name, def.name);
+        }
+
+        for (const module of result.modules) {
+            if (!this.moduleIndex.has(module.name)) {
+                this.moduleIndex.set(module.name, []);
+            }
+            this.moduleIndex.get(module.name)!.push(module);
+            this.trieIndex.add(module.name, module.name);
         }
     }
 
@@ -193,23 +218,27 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
      *                    There should be no custom names for base HOL Light files.
      * @returns an object where the `indexed` field indicates whether the file has been indexed
      */
-    async indexFile(filePath: string, holPath: string, rootPaths: string[] | null, customNames: CustomCommandNames, token?: vscode.CancellationToken): Promise<{ indexed: boolean, deps: Dependency[] }> {
+    async indexFile(
+            filePath: string, 
+            holPath: string, 
+            rootPaths: string[] | null, 
+            customNames: CustomCommandNames, 
+            token?: vscode.CancellationToken): Promise<{ indexed: boolean, globalModule?: Module, deps: Dependency[] }> {
         const file = this.fileIndex.get(filePath);
         const mtime = (await fs.stat(filePath)).mtimeMs;
         if (mtime > (file?.mtime ?? -1)) {
             const text = await fs.readFile(filePath, 'utf-8');
-            const { definitions, dependencies: parserDeps } = 
-                parseText(text, vscode.Uri.file(filePath), { customNames, debug: config.DEBUG });
-            const deps = rootPaths ? await resolveDependencies(parserDeps, { basePath: path.dirname(filePath), holPath, rootPaths }) : [];
+            const result = parseText(text, vscode.Uri.file(filePath), { customNames, debug: config.DEBUG });
+            const deps = rootPaths ? await resolveDependencies(result.dependencies, { basePath: path.dirname(filePath), holPath, rootPaths }) : [];
             // Check the cancellation token before modifying any global state
             if (token?.isCancellationRequested) {
                 return { indexed: false, deps };
             }
-            this.addToIndex(filePath, deps, definitions, mtime);
-            return { indexed: true, deps };
+            this.addToIndex(filePath, result, deps, mtime);
+            return { indexed: true, globalModule: result.globalModule, deps };
         }
-        // Return existing dependencies for a file which has already been indexed
-        return { indexed: false, deps: file?.dependencies || [] };
+        // Return existing entries for a file which has already been indexed
+        return { indexed: false, globalModule: file?.globalModule, deps: file?.dependencies || [] };
     }
 
     /**
@@ -382,10 +411,9 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
     async indexDocument(document: vscode.TextDocument, holPath: string, rootPaths: string[]) {
         const docText = document.getText();
         const docPath = document.uri.fsPath;
-        const { definitions, dependencies } = 
-            parseText(docText, document.uri, { customNames: this.customCommandNames, debug: config.DEBUG });
-        const deps = await resolveDependencies(dependencies, { basePath: path.dirname(docPath), holPath, rootPaths });
-        this.addToIndex(docPath, deps, definitions, null);
+        const result = parseText(docText, document.uri, { customNames: this.customCommandNames, debug: config.DEBUG });
+        const deps = await resolveDependencies(result.dependencies, { basePath: path.dirname(docPath), holPath, rootPaths });
+        this.addToIndex(docPath, result, deps, null);
     }
 
     /**
@@ -416,9 +444,8 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         }
 
         const docText = document.getText();
-        const { definitions: docDefinitions, dependencies } = 
-            parseText(docText, document.uri, { customNames: this.customCommandNames, debug: config.DEBUG });
-        const docDepNames = new Map(dependencies.map(dep => [dep.name, dep]));
+        const result = parseText(docText, document.uri, { customNames: this.customCommandNames, debug: config.DEBUG });
+        const docDepNames = new Map(result.dependencies.map(dep => [dep.name, dep]));
 
         if (!fullIndex && util.difference(docDepNames.keys(), this.fileIndex.get(docPath)?.dependencies.map(dep => dep.name) ?? []).length === 0) {
             // Full indexing is not requested and there are no new dependency names.
@@ -429,7 +456,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
                               .filter(dep => docDepNames.has(dep.name))
                               .map(dep => new Dependency(docDepNames.get(dep.name)!, dep.path)) ?? [];
             this.updateUnresolvedDependenciesDiagnostic(document.uri, deps);
-            this.addToIndex(docPath, deps, docDefinitions, null);
+            this.addToIndex(docPath, result, deps, null);
             return;
         }
 
@@ -438,7 +465,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         }
 
         const oldPaths = util.filterMap(this.fileIndex.get(docPath)?.dependencies ?? [], dep => dep.path);
-        const docDeps = await resolveDependencies(dependencies, { basePath: path.dirname(docPath), holPath, rootPaths });
+        const docDeps = await resolveDependencies(result.dependencies, { basePath: path.dirname(docPath), holPath, rootPaths });
 
         const unresolvedDeps: Dependency[] = docDeps.filter(dep => !dep.isResolved);
         this.updateUnresolvedDependenciesDiagnostic(document.uri, unresolvedDeps);
@@ -446,7 +473,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         // TODO: do we need to update modifiedTimes?
         // If there is a cyclic dependency on this document then it will be indexed twice.
         // On the other hand, cyclic dependencies should be removed.
-        this.addToIndex(docPath, docDeps, docDefinitions, null);
+        this.addToIndex(docPath, result, docDeps, null);
 
         const visited = new Set<string>([document.uri.fsPath]);
         const newPaths = util.filterMap(docDeps, dep => dep.path);
