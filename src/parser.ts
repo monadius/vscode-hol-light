@@ -793,7 +793,37 @@ class Parser {
             const statementValue = statementToken.value || '';
 
             try {
-                if (statementValue === 'module') {
+                if (statementValue === 'let') {
+                    if (this.peekSkipComments().value === 'rec') {
+                        this.next();
+                    }
+                    const lhs = this.parseLetBindingLhs();
+                    // `do { } while (false)` in order to be able to use `break`
+                    do {
+                        if (lhs.length === 1 && this.match('=')) {
+                            const name = lhs[0].nameToken.getValue(this.text);
+                            const pos = lhs[0].nameToken.getStartPosition(this.lineStarts);
+                            let m: (Token | null)[] | null;
+                            if (m = this.match(this.theoremRe, ['('], TokenType.term)) {
+                                definitions.push(new Definition(name, DefinitionType.theorem, m[2]!.getValue(this.text).slice(1, -1), pos, uri));
+                                break;
+                            } else if (m = this.match(this.definitionRe, TokenType.term)) {
+                                definitions.push(new Definition(name, DefinitionType.definition, m[1]!.getValue(this.text).slice(1, -1), pos, uri));
+                                break;
+                            } else if (m = this.match(this.defOtherRe, null, TokenType.term)) {
+                                definitions.push(new Definition(name, DefinitionType.definition, m[2]!.getValue(this.text).slice(1, -1), pos, uri));
+                                break;
+                            }
+                        }
+                        // Default case
+                        for (const binding of lhs) {
+                            const name = binding.nameToken.getValue(this.text);
+                            const pos = binding.nameToken.getStartPosition(this.lineStarts);
+                            const type = binding.type ?? '';
+                            definitions.push(new Definition(name, DefinitionType.other, type, pos, uri));
+                        }
+                    } while (false);
+                } else if (statementValue === 'module') {
                     const moduleNameToken = this.parseModuleDefinition();
                     if (moduleNameToken) {
                         moduleStack.push(moduleNameToken);
@@ -824,36 +854,6 @@ class Parser {
                             dependencies.push(dep);
                         }
                     }
-                } else if (statementValue === 'let') {
-                    if (this.peekSkipComments().value === 'rec') {
-                        this.next();
-                    }
-                    const lhs = this.parseLetBindingLhs();
-                    // `do { } while (false)` in order to be able to use `break`
-                    do {
-                        if (lhs.length === 1 && this.match('=')) {
-                            const name = lhs[0].nameToken.getValue(this.text);
-                            const pos = lhs[0].nameToken.getStartPosition(this.lineStarts);
-                            let m: (Token | null)[] | null;
-                            if (m = this.match(this.theoremRe, ['('], TokenType.term)) {
-                                definitions.push(new Definition(name, DefinitionType.theorem, m[2]!.getValue(this.text).slice(1, -1), pos, uri));
-                                break;
-                            } else if (m = this.match(this.definitionRe, TokenType.term)) {
-                                definitions.push(new Definition(name, DefinitionType.definition, m[1]!.getValue(this.text).slice(1, -1), pos, uri));
-                                break;
-                            } else if (m = this.match(this.defOtherRe, null, TokenType.term)) {
-                                definitions.push(new Definition(name, DefinitionType.definition, m[2]!.getValue(this.text).slice(1, -1), pos, uri));
-                                break;
-                            }
-                        }
-                        // Default case
-                        for (const binding of lhs) {
-                            const name = binding.nameToken.getValue(this.text);
-                            const pos = binding.nameToken.getStartPosition(this.lineStarts);
-                            const type = binding.type ?? '';
-                            definitions.push(new Definition(name, DefinitionType.other, type, pos, uri));
-                        }
-                    } while (false);
                 }
             } catch (err) {
                 if (err instanceof ParserError) {
