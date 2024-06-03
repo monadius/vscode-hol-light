@@ -9,6 +9,8 @@ import { Definition, Module, ParseResult, parseText, Dependency as ParserDepende
 import { Trie } from './trie';
 import * as util from './util';
 
+const HOL_LIGHT_BASE_SKIP = /^(?:bignum_num|database|make|pa_j|update_database)/;
+
 class Dependency {
     constructor(private readonly dep: ParserDependency, readonly path?: string) {}
 
@@ -384,7 +386,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
                     return true;
                 }
                 const name = file.name;
-                if (file.isFile() && name.endsWith('.ml') && !name.startsWith('pa_j') && !name.startsWith('update_database')) {
+                if (file.isFile() && name.endsWith('.ml') && !HOL_LIGHT_BASE_SKIP.test(name)) {
                     try {
                         const filePath = path.join(holPath, file.name);
                         progress?.report({increment: 0, message: `Indexing: ${filePath}`});

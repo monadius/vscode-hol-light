@@ -907,7 +907,7 @@ class Parser {
                 } else if (statementValue === 'end') {
                     if (moduleStack.length) {
                         const module = moduleStack.pop()!;
-                        module.endPosition = statementToken.getStartPosition(this.lineStarts);
+                        module.endPosition = statementToken.getEndPosition(this.lineStarts);
                         // this.report(`Module end: ${module.name}`, statementToken, uri);
                     } else if (this.debugFlag) {
                         this.report(`Unexpected end`, statementToken, uri);
@@ -921,6 +921,9 @@ class Parser {
                     const endPos = nameToken.getEndPosition(this.lineStarts);
                     const decl: OpenDecl = { name: nameToken.getValue(this.text), position: startPos, range: new vscode.Range(startPos, endPos) };
                     module[statementValue === 'include' ? 'includeDecls' : 'openDecls'].push(decl);
+                    // if (this.debugFlag && module === globalModule) {
+                    //     this.report(`Global open/include: ${nameToken.value}`, startPos, uri);
+                    // }
                 } else if (this.importRe.test(statementValue)) {
                     const nameToken = this.next();
                     // Skip very long strings. They are most definitely invalid (probably, they are not properly closed yet)
