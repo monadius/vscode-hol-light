@@ -845,7 +845,7 @@ class Parser {
         const moduleStack: Module[] = [];
 
         const addDefinition = (name: string, type: DefinitionType, content: string, pos: vscode.Position) => {
-            const module = modules.at(-1);
+            const module = moduleStack.at(-1);
             const def = new Definition(name, type, content, module, pos, uri);
             definitions.push(def);
             module?.definitions.push(def);
@@ -899,8 +899,8 @@ class Parser {
                     if (moduleNameToken) {
                         const pos = moduleNameToken.getStartPosition(this.lineStarts);
                         const name = moduleNameToken.getValue(this.text);
-                        const module = new Module(name, modules.at(-1), pos, uri);
-                        modules.at(-1)?.modules.push(module);
+                        const module = new Module(name, moduleStack.at(-1), pos, uri);
+                        moduleStack.at(-1)?.modules.push(module);
                         moduleStack.push(module);
                         modules.push(module);
                         // this.report(`Module: ${name}`, pos, uri);
