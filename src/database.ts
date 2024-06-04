@@ -353,16 +353,18 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
     }
 
     /**
-     * Returns all definitions corresponding to the given word and which belong
+     * Returns all definitions corresponding to the given name and which belong
      * to the dependencies of the given file (including the file itself)
-     * @param word 
+     * and are defined in either the global module or in one of provided modules.
+     * @param name
      * @param deps
+     * @param modules If undefined then modules are not tested
      */
-    findDefinitions(word: string, deps: Set<string>): Definition[] {
-        const defs = this.definitionIndex.get(word) || [];
+    findDefinitions(name: string, deps: Set<string>, modules?: Set<Module>): Definition[] {
+        const defs = this.definitionIndex.get(name) || [];
         return defs.filter(def => {
             const dep = def.getFilePath();
-            return dep ? deps.has(dep) : false;
+            return dep ? deps.has(dep) && (!modules || !def.module || modules.has(def.module)) : false;
         });
     }
 
@@ -386,6 +388,20 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             }
         }
         return res;
+    }
+
+    findDefinitionsAndModules(word: string, filePath: string, position: vscode.Position): { defs: Definition[], mods: Set<Module> } {
+        const deps = this.allDependencies(filePath);
+        const openModules = this.allOpenModules(filePath, position, deps);
+
+        const names = word.split('.');
+        const name = names.length > 1 ? names.at(-1)! : word;
+        const nameModules = names.length > 1 ? this.resolveModuleName(names.slice(0, -1).join('.'), openModules, deps) : openModules;
+
+        const defs = this.findDefinitions(name, deps, nameModules);
+        const mods = this.resolveModuleName(word, openModules, deps);
+
+        return { defs, mods };
     }
 
     updateDiagnostic(uri: vscode.Uri, deps: Dependency[], globalModule: Module | undefined) {
@@ -613,12 +629,8 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         if (!word) {
             return null;
         }
-        const deps = this.allDependencies(document.uri.fsPath);
-        const openModules = this.allOpenModules(document.uri.fsPath, position, deps);
 
-        const defs = this.findDefinitions(word, deps);
-        const mods = this.resolveModuleName(word, openModules, deps);
-
+        const { defs, mods } = this.findDefinitionsAndModules(word, document.uri.fsPath, position);
         const defLocs = <vscode.Location[]>defs.map(def => def.getLocation()).filter(loc => loc);
         const modLocs = <vscode.Location[]>[...mods].map(mod => mod.getLocation()).filter(loc => loc);
         return defLocs.length || modLocs.length ? [...defLocs, ...modLocs] : null;
@@ -636,9 +648,9 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         if (!word) {
             return null;
         }
-        const deps = this.allDependencies(document.uri.fsPath);
-        const defs = this.findDefinitions(word, deps);
-        return defs[0]?.toHoverItem();
+
+        let { defs, mods } = this.findDefinitionsAndModules(word, document.uri.fsPath, position);
+        return defs[0]?.toHoverItem() || mods[Symbol.iterator]().next().value?.toHoverItem();
     }
 
     /**
