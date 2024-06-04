@@ -310,6 +310,9 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         if (!moduleName) {
             return new Set(openModules);
         }
+        if (moduleName.endsWith('.')) {
+            moduleName = moduleName.slice(0, -1);
+        }
         const names = moduleName.split('.');
         let modules = (this.moduleIndex.get(names[0]) ?? [])
             .filter(mod => mod.parent ? openModules.has(mod.parent) : deps.has(mod.getFilePath() ?? ''));
@@ -378,16 +381,22 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
      * @param prefix 
      * @param deps
      */
-    findDefinitionsWithPrefix(prefix: string, deps: Set<string>): Definition[] {
-        const res: Definition[] = [];
+    findDefinitionsAndModulesWithPrefix(prefix: string, deps: Set<string>): { defs: Definition[], mods: Module[] } {
+        const defs: Definition[] = [];
+        const mods: Module[] = [];
         for (const name of this.trieIndex.findPrefix(prefix)) {
             for (const def of this.definitionIndex.get(name) || []) {
                 if (deps.has(def.getFilePath() || '')) {
-                    res.push(def);
+                    defs.push(def);
+                }
+            }
+            for (const mod of this.moduleIndex.get(name) || []) {
+                if (deps.has(mod.getFilePath() || '')) {
+                    mods.push(mod);
                 }
             }
         }
-        return res;
+        return { defs, mods };
     }
 
     findDefinitionsAndModules(word: string, filePath: string, position: vscode.Position): { defs: Definition[], mods: Set<Module> } {
@@ -666,10 +675,45 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         if (!word /*|| word.length < 2*/) {
             return null;
         }
+        
         const deps = this.allDependencies(document.uri.fsPath);
-        const defs = this.findDefinitionsWithPrefix(word, deps);
-        return defs.filter(def => !this.helpProvider?.isHelpItem(def.name) || !this.baseHolLightFiles.has(def.getFilePath() || ''))
-                   .map(def => def.toCompletionItem());
+        const openModules = this.allOpenModules(document.uri.fsPath, position, deps);
+
+        if (word.includes('.')) {
+            const names = word.split('.');
+            const prefix = names.at(-1)!;
+            const modules = this.resolveModuleName(names.slice(0, -1).join('.'), openModules, deps);
+
+            const items: vscode.CompletionItem[] = [];
+
+            modules.forEach(mod => {
+                items.push(...mod.definitions.filter(def => def.name.startsWith(prefix)).map(def => def.toCompletionItem(false)));
+                items.push(...mod.modules.filter(mod => mod.name.startsWith(prefix)).map(mod => mod.toCompletionItem(false)));
+            });
+
+            const range = new vscode.Range(position.translate(0, -prefix.length), position);
+            return items.map(item => {
+                item.range = range;
+                return item;
+            });
+        } else {
+            const { defs, mods } = this.findDefinitionsAndModulesWithPrefix(word, deps);
+
+            const items: vscode.CompletionItem[] = [];
+            mods.forEach(mod => {
+                items.push(mod.toCompletionItem(mod.parent ? !openModules.has(mod.parent) : false));
+            });
+            defs.forEach(def => {
+                if (!this.helpProvider?.isHelpItem(def.name) || !this.baseHolLightFiles.has(def.getFilePath() || '')) {
+                    items.push(def.toCompletionItem(def.module ? !openModules.has(def.module) : false));
+                }
+            });
+
+            // return defs.filter(def => !this.helpProvider?.isHelpItem(def.name) || !this.baseHolLightFiles.has(def.getFilePath() || ''))
+            //            .map(def => def.toCompletionItem());
+            // return mods.map(mod => mod.toCompletionItem(true));
+            return items;
+        }
     }
 
 }

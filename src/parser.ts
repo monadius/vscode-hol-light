@@ -79,17 +79,21 @@ export class Definition {
         return new vscode.Hover(new vscode.MarkdownString(text));
     }
 
-    toCompletionItem(): vscode.CompletionItem {
+    toCompletionItem(useFullName: boolean): vscode.CompletionItem {
+        const name = useFullName && this.module ? this.module.fullName + '.' + this.name : this.name;
         if (this.completionItem) {
+            // range and filterText may be modified in Database.provideCompletionItems
+            this.completionItem.range = undefined;
+            this.completionItem.filterText = undefined;
+            this.completionItem.label = name;
             return this.completionItem;
         }
-        const item = this.completionItem = new vscode.CompletionItem(this.name, vscode.CompletionItemKind.Value);
+        const item = this.completionItem = new vscode.CompletionItem(name, vscode.CompletionItemKind.Value);
         if (this.type !== DefinitionType.other) {
             item.documentation = new vscode.MarkdownString(this.toString());
         } else {
             item.kind = vscode.CompletionItemKind.Function;
         }
-        item.commitCharacters = ['.'];
         return item;
     }
 }
@@ -117,6 +121,8 @@ export class Module {
     readonly openDecls: OpenDecl[] = [];
     readonly includeDecls: OpenDecl[] = [];
 
+    private completionItem?: vscode.CompletionItem;
+
     constructor(name: string, parent: Module | undefined, position: vscode.Position, uri?: vscode.Uri) {
         this.name = name;
         this.fullName = parent ? parent.fullName + '.' + name : name;
@@ -134,8 +140,23 @@ export class Module {
     }
 
     toHoverItem(): vscode.Hover {
-        const text = `module ${this.name}`;
+        const text = `Module \`${this.fullName}\``;
         return new vscode.Hover(new vscode.MarkdownString(text));
+    }
+
+    toCompletionItem(useFullName: boolean): vscode.CompletionItem {
+        const name = useFullName ? this.fullName : this.name;
+        if (this.completionItem) {
+            // range and filterText may be modified in Database.provideCompletionItems
+            this.completionItem.range = undefined;
+            this.completionItem.filterText = undefined;
+            this.completionItem.label = name;
+            return this.completionItem;
+        }
+        const item = this.completionItem = new vscode.CompletionItem(name, vscode.CompletionItemKind.Module);
+        item.documentation = new vscode.MarkdownString(`Module \`${this.fullName}\``);
+        item.commitCharacters = ['.'];
+        return item;
     }
 }
 
