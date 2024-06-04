@@ -650,7 +650,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         }
 
         let { defs, mods } = this.findDefinitionsAndModules(word, document.uri.fsPath, position);
-        return defs[0]?.toHoverItem() || mods[Symbol.iterator]().next().value?.toHoverItem();
+        return defs[0]?.toHoverItem() || (mods.values().next().value as Module | undefined)?.toHoverItem();
     }
 
     /**

@@ -83,10 +83,13 @@ export class Definition {
         if (this.completionItem) {
             return this.completionItem;
         }
-        const item = this.completionItem = new vscode.CompletionItem(this.name);
+        const item = this.completionItem = new vscode.CompletionItem(this.name, vscode.CompletionItemKind.Value);
         if (this.type !== DefinitionType.other) {
             item.documentation = new vscode.MarkdownString(this.toString());
+        } else {
+            item.kind = vscode.CompletionItemKind.Function;
         }
+        item.commitCharacters = ['.'];
         return item;
     }
 }
