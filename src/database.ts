@@ -172,21 +172,19 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             globalModule: result.globalModule
         });
 
-        for (const def of result.definitions) {
-            if (!this.definitionIndex.has(def.name)) {
-                this.definitionIndex.set(def.name, []);
+        const add = <V extends { name: string }>(index: Map<string, V[]>, xs: V[]) => {
+            for (const x of xs) {
+                if (!index.has(x.name)) {
+                    index.set(x.name, [x]);
+                } else {
+                    index.get(x.name)!.push(x);
+                }
+                this.trieIndex.add(x.name, x.name);
             }
-            this.definitionIndex.get(def.name)!.push(def);
-            this.trieIndex.add(def.name, def.name);
-        }
+        };
 
-        for (const module of result.modules) {
-            if (!this.moduleIndex.has(module.name)) {
-                this.moduleIndex.set(module.name, []);
-            }
-            this.moduleIndex.get(module.name)!.push(module);
-            this.trieIndex.add(module.name, module.name);
-        }
+        add(this.definitionIndex, result.definitions);
+        add(this.moduleIndex, result.modules);
     }
 
     /**
@@ -198,16 +196,26 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         if (!file) {
             return;
         }
-        for (const def of file.definitions) {
-            const xs = this.definitionIndex.get(def.name);
-            if (xs) {
-                const i = xs.indexOf(def);
-                xs.splice(i, 1);
-                if (xs.length === 0) {
-                    this.definitionIndex.delete(def.name);
+
+        const remove = <V extends { name: string }>(index: Map<string, V[]>, xs: V[]) => {
+            for (const x of xs) {
+                const els = index.get(x.name);
+                if (els) {
+                    const i = els.indexOf(x);
+                    if (i >= 0) {
+                        if (els.length === 1) {
+                            index.delete(x.name);
+                        } else {
+                            els.splice(i, 1);
+                        }
+                    }
                 }
             }
-        }
+        };
+
+        remove(this.definitionIndex, file.definitions);
+        remove(this.moduleIndex, file.modules);
+
         this.fileIndex.delete(filePath);
         // TODO: remove from trieIndex (probably, not necessary since trieIndex stores names only)
     }
@@ -335,7 +343,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             if (module.position.isBeforeOrEqual(pos) && (!module.endPosition || module.endPosition.isAfter(pos))) {
                 result.add(module);
                 for (const decl of module.openDecls) {
-                    if (decl.position.isBefore(pos)) {
+                    if (decl.range.end.isBefore(pos)) {
                         this.resolveModuleName(decl.name, result, deps).forEach(mod => result.add(mod));
                     }
                 }
