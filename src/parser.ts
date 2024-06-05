@@ -582,8 +582,7 @@ class Parser {
                 result = this.parsePattern(true);
                 while (this.peekSkipComments().value === ';') {
                     this.next();
-                    token = this.peekSkipComments();
-                    if (token.value === endValue) {
+                    if (this.peekSkipComments().value === endValue) {
                         break;
                     }
                     result.push(...this.parsePattern(true));
@@ -594,6 +593,17 @@ class Parser {
                 result = recordField();
                 while (this.peekSkipComments().value === ';') {
                     this.next();
+                    token = this.peekSkipComments();
+                    if (token.value === '_') {
+                        this.next();
+                        if (this.peekSkipComments().value === ';') {
+                            this.next();
+                        }
+                        break;
+                    }
+                    if (token.value === '}') {
+                        break;
+                    }
                     result.push(...recordField());
                 }
                 this.expect('}');
