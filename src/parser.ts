@@ -600,8 +600,7 @@ class Parser {
                             this.next();
                         }
                         break;
-                    }
-                    if (token.value === '}') {
+                    } else if (token.value === '}') {
                         break;
                     }
                     result.push(...recordField());
@@ -679,7 +678,58 @@ class Parser {
     }
 
     private parseParameter(): Binding[] {
-        // TODO: parse labels
+        let token = this.peekSkipComments();
+        if (token.value === '~') {
+            // Labeled parameters
+            let nameToken: Token;
+            let type: string | undefined = '';
+            this.next();
+            if (this.peekSkipComments().value === '(') {
+                this.next();
+                nameToken = this.expect(TokenType.identifier);
+                if (this.peekSkipComments().value === ':') {
+                    this.next();
+                    type = this.parseType();
+                }
+                this.expect(')');
+            } else {
+                nameToken = this.expect(TokenType.identifier);
+                if (this.peekSkipComments().value === ':') {
+                    this.next();
+                    return this.parsePattern(false);
+                }
+            }
+            return [{ nameToken, type }];
+        } else if (token.value === '?') {
+            // Optional parameters
+            let nameToken: Token;
+            let type: string | undefined = '';
+            this.next();
+            if (this.peekSkipComments().value === '(') {
+                this.next();
+                nameToken = this.expect(TokenType.identifier);
+                if (this.peekSkipComments().value === ':') {
+                    this.next();
+                    type = this.parseType();
+                }
+                // [= expr] is not supported
+                this.expect(')');
+            } else {
+                nameToken = this.expect(TokenType.identifier);
+                if (this.peekSkipComments().value === ':') {
+                    this.next();
+                    if (this.peekSkipComments().value === '(') {
+                        this.next();
+                        // [:typexpr][= expr] is not supported
+                        const result = this.parsePattern(true);
+                        this.expect(')');
+                        return result;
+                    }
+                    return this.parsePattern(false);
+                }
+            }
+            return [{ nameToken, type }];
+        }
         return this.parsePattern(false);
     }
 
