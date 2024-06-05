@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-export const DEBUG: boolean = true;
+export const DEBUG: boolean = false;
 
 export const SECTION = 'hol-light';
 

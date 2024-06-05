@@ -95,6 +95,10 @@ All commands can be invoked from the command palette or by pressing the correspo
 
     Moves the cursor to the end of a highlighted text in the active text editor.
 
+1) **HOL Light: Index File and its Dependencies**
+
+    Parses the active file and its dependencies and adds top level definitions to a global index. This command should be invoked when `hol-light.autoIndex` is `false` or after updating `hol-light.rootPaths`.
+
 1) **HOL Light: Set HOL Light Path**
 
     Opens a dialog where a path to HOL Light should be selected. This path is required for enabling autocompletion for items defined in the HOL Light `Help` directory.
@@ -115,7 +119,35 @@ The extension adds the `HOL Light configuration` group to settings.
 
 1) `hol-light.path`: string.
 
-    Path to a HOL Light directory. This path is required to enable autocompletion features of this extension.
+    Path to a HOL Light directory. This path is required to enable autocompletion and related features for core HOL Light files.
+
+1) `hol-light.rootPaths`: array of strings. Default: `[".", "{hol}", "{workspace}"]`
+
+    An array of paths to locations containing HOL Light source files of a project. These paths are used by the extension to find dependencies of a file. The path value `"."` indicates that dependencies should be searched in the same directory as the current file. Paths may contain the following special tokens: `{hol}` is the path to a HOL Light installation, `{workspace}` is the current workspace root path.
+
+    For example, if a project contains HOL Light files in the `src` directory then the following path should be added to `rootPaths`: `"{workspace}/src"`.
+
+1) `hol-light.autoIndex`: boolean. Default `true`.
+
+    If this option is `true` then all open files and their dependencies are automatically parsed and all top level definitions are added to a global index. If this option is `false` then it is still possible to index a file by invoking the `HOL Light: Index File and its Dependencies` command.
+
+1) `hol-light.customImports`: string. Default `""`.
+
+    By default, the extension parser recongnizes `need`, `loads`, and `loadt` as import statements. Some projects may have other import statements. They can be specified in this option as statement names separated by commas or spaces.
+
+    Note: custom import statements should take only one string argument.
+
+1) `hol-light.customDefinitions`: string. Default `""`.
+
+    The extension parser recognizes several HOL Light functions for creating definitions (e.g., `definition`, `new_definition`). Some projects may have custom functions for creating definitions. They can be specified in this option as function names separated by commas or spaces.
+
+    Note: the first argument of custom definition functions should be a HOL Light term or a string.
+
+1) `hol-light.customTheorems`: string. Default `""`.
+
+    By default, the extension parser recognizes `prove` as a function for creating theorems. Some projects may have custom functions for creating theorems. They can be specified in this option as function names separated by commas or spaces.
+
+    Note: the first argument of custom theorem functions should be a HOL Light term or a string.
 
 1) `hol-light.tacticMaxLines`: number. Default: `30`.
 
@@ -134,3 +166,5 @@ The extension adds the `HOL Light configuration` group to settings.
 - Commands which select tactics may not work correctly for all possible tactics. Workaround: It is always possible to select tactic text manually and send it to HOL Light.
 
 - Type annotations inside HOL terms which occupy several lines are not correctly highlighted. The only recognized type constructors for highlighting are `list`, `group`, `finite_sum`, `word`.
+
+- The extension parser is not perfect and it may miss or incorrectly parse some top level definitions. In general, all top level definitions should be separated by `;;`.
