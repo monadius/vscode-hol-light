@@ -637,10 +637,22 @@ class Parser {
             return result;
         };
 
+        const cons = (): Binding[] => {
+            const result: Binding[] = [];
+            while (true) {
+                result.push(...atom());
+                if (this.peekSkipComments().value !== '::') {
+                    break;
+                }
+                this.next();
+            }
+            return result;
+        };
+
         const tuple = (): Binding[] => {
             const result = [];
             while (true) {
-                result.push(...atom());
+                result.push(...cons());
                 if (this.peekSkipComments().value === 'as') {
                     this.next();
                     this.expect(TokenType.identifier);
