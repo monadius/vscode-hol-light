@@ -949,6 +949,12 @@ class Parser {
             module?.definitions.push(def);
         };
 
+        const skipWhileEq = (value: string) => {
+            while (this.peekSkipComments().value === value) {
+                this.next();
+            }
+        };
+
         while (this.peek().type !== TokenType.eof) {
             // Save the parser state and restore it at the end of this loop.
             // It is possible that some parser methods consume a statement separator
@@ -972,16 +978,39 @@ class Parser {
                         if (lhs.length === 1 && this.match('=')) {
                             const name = lhs[0].nameToken.getValue(this.text);
                             const pos = lhs[0].nameToken.getStartPosition(this.lineStarts);
-                            let m: (Token | null)[] | null;
-                            if (m = this.match(this.theoremRe, ['('], TokenType.term)) {
-                                addDefinition(name, DefinitionType.theorem, m[2]!.getValue(this.text).slice(1, -1), pos);
-                                break;
-                            } else if (m = this.match(this.definitionRe, TokenType.term)) {
-                                addDefinition(name, DefinitionType.definition, m[1]!.getValue(this.text).slice(1, -1), pos);
-                                break;
-                            } else if (m = this.match(this.defOtherRe, null, TokenType.term)) {
-                                addDefinition(name, DefinitionType.definition, m[2]!.getValue(this.text).slice(1, -1), pos);
-                                break;
+                            if (this.match(this.theoremRe)) {
+                                skipWhileEq('(');
+                                // Accept both terms and strings (also allow identifiers)
+                                const token = this.nextSkipComments();
+                                if (token.type === TokenType.term || token.type === TokenType.string || token.type === TokenType.identifier) {
+                                    const text = token.type === TokenType.identifier ? token.getValue(this.text) : token.getValue(this.text).slice(1, -1);
+                                    addDefinition(name, DefinitionType.theorem, text, pos);
+                                    break;
+                                } else if (this.debugFlag) {
+                                    this.report(`Unparsed theorem: ${name}`, pos, uri);
+                                }
+                            } else if (this.match(this.definitionRe)) {
+                                skipWhileEq('(');
+                                // Accept both terms and strings (also allow identifiers)
+                                const token = this.nextSkipComments();
+                                if (token.type === TokenType.term || token.type === TokenType.string || token.type === TokenType.identifier) {
+                                    const text = token.type === TokenType.identifier ? token.getValue(this.text) : token.getValue(this.text).slice(1, -1);
+                                    addDefinition(name, DefinitionType.definition, text, pos);
+                                    break;
+                                } else if (this.debugFlag) {
+                                    this.report(`Unparsed definition: ${name}`, pos, uri);
+                                }
+                            } else if (this.match(this.defOtherRe, null)) {
+                                skipWhileEq('(');
+                                // Accept both terms and strings (also allow identifiers)
+                                const token = this.nextSkipComments();
+                                if (token.type === TokenType.term || token.type === TokenType.string || token.type === TokenType.identifier) {
+                                    const text = token.type === TokenType.identifier ? token.getValue(this.text) : token.getValue(this.text).slice(1, -1);
+                                    addDefinition(name, DefinitionType.definition, text, pos);
+                                    break;
+                                } else if (this.debugFlag) {
+                                    this.report(`Unparsed definition(2): ${name}`, pos, uri);
+                                }
                             }
                         }
                         // Default case
