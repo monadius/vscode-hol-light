@@ -311,7 +311,7 @@ class Parser {
             this.curToken = undefined;
             return res;
         }
-        const re = /\(\*|["`'()\[\],{}]|[-+*/#><=!?~%&$^@:.|]+|;+|[_a-zA-Z][\w'.]*/g;
+        const re = /\(\*|["`'()\],{}]|\[\|?|\|\]|[-+*/#><=!?~%&$^@:.|]+|;+|[_a-zA-Z][\w'.]*/g;
         re.lastIndex = this.pos;
         let m: RegExpExecArray | null;
         while (m = re.exec(this.text)) {
@@ -329,7 +329,7 @@ class Parser {
                         type = TokenType.statementSeparator;
                     } else if (/[_a-zA-Z]/.test(m[0][0])) {
                         type = TokenType.identifier;
-                    } else if (/[-+*/#><=!?~%&$^@:.|]/.test(m[0][0])) {
+                    } else if (m[0] !== '|]' && /[-+*/#><=!?~%&$^@:.|]/.test(m[0][0])) {
                         type = TokenType.operator;
                     }
                     return new Token(type, m.index, this.pos, m[0]);
@@ -576,14 +576,19 @@ class Parser {
                     }
                     this.expect(')');
                 }
-            } else if (token.value === '[') {
-                // list of patterns
+            } else if (token.value === '[' || token.value === '[|') {
+                // list or array of patterns
+                const endValue = token.value === '[|' ? '|]' : ']';
                 result = this.parsePattern(true);
                 while (this.peekSkipComments().value === ';') {
                     this.next();
+                    token = this.peekSkipComments();
+                    if (token.value === endValue) {
+                        break;
+                    }
                     result.push(...this.parsePattern(true));
                 }
-                this.expect(']');
+                this.expect(endValue);
             } else if (token.value === '{') {
                 // record pattern
                 result = recordField();

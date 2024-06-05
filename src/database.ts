@@ -680,6 +680,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         const openModules = this.allOpenModules(document.uri.fsPath, position, deps);
 
         if (word.includes('.')) {
+            // Return definitions from the provided module only
             const names = word.split('.');
             const prefix = names.at(-1)!;
             const modules = this.resolveModuleName(names.slice(0, -1).join('.'), openModules, deps);
@@ -691,12 +692,16 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
                 items.push(...mod.modules.filter(mod => mod.name.startsWith(prefix)).map(mod => mod.toCompletionItem(false)));
             });
 
+            // Adjust the range because VS Code automatically filters out completion items
+            // which do not match the prefix at the range
             const range = new vscode.Range(position.translate(0, -prefix.length), position);
             return items.map(item => {
                 item.range = range;
                 return item;
             });
         } else {
+            // Return definitions from currently open modules 
+            // and also all matching definitions using their fully qualified names.
             const { defs, mods } = this.findDefinitionsAndModulesWithPrefix(word, deps);
 
             const items: vscode.CompletionItem[] = [];
