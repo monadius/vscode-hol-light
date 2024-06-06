@@ -1,0 +1,64 @@
+(* Examples from metis.ml, firstorder.ml, thecops.ml *)
+
+module Utils = struct
+let const x _ = x
+
+module Pair =
+struct
+    
+let mapn f (x, y) = (f x, f y)
+    
+end
+
+open Pair
+
+module List =
+struct
+    
+    include List
+        
+    let cons x l = begin 
+        x :: l 
+    end
+
+end
+
+module Subst = Substoff (Substarray)
+
+module Substlist : Substitution with type t = (int * iterm) list =
+    struct
+
+    exception Unify
+    open Utils.Pair
+
+    type t = (int * iterm) list
+
+    end
+
+end
+
+let test_expr = 1;;
+let expr =;;
+
+open Utils;;
+
+module Mmap = struct
+
+    exception Error = Useful.Error;;
+    
+    module type Ordered =
+    sig
+        type t
+        val compare1 : t -> t -> int
+    end
+
+    module Make (Ord : Ordered) =
+    struct
+        module Ma = Map.Make (Ord)
+
+        type +'a map = 'a Ma.t
+
+        let newMap1 () = Ma.empty;;
+        let exists1 f = Ma.exists (fun k m -> f (k,m));;
+    end
+end

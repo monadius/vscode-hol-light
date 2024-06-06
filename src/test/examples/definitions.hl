@@ -1,0 +1,75 @@
+let [a; b] = [1; 2];;
+let [|a; b; c;|] = ;;
+let x :: _ = ;;
+let x, y :: z :: [u;], v = ;;
+let f ~x ?(y: int) z: int = 2;;
+
+(* Examples from core HOL Light files *)
+let compare (Set m1, Set m2) = Pmap.compare compareValue (m1,m2);;
+
+(* Nested (* comments 
+*) *)
+
+needs "modules.hl";;
+
+let idSetAddMax max ((_,len) as id_len, set) : idSet =
+  if len <= max then Pset.add set id_len else set;;
+
+let augment(Prover(_,aug)) thms = aug thms;;
+
+let scrub_const (Rws htbl) c =
+  let name, _ = dest_const c in
+  Hashtbl.remove htbl name;;
+
+let set_skip_name (Rws htbl as rws) p sk =
+  let { contents = db, _ } as rl = assoc_clause rws p in
+  rl := db, sk;;
+
+let inst_rw (th, monitoring, {rule = Rw {thm = thm; rhs = rhs;}; inst = (bds, tysub)}) =
+  let tirhs = inst_type_dterm (tysub, rhs);;
+
+let nodeSize ({size = x}) = x;;
+
+let key_of (Rw {cst = cst; lhs = lhs}) =
+  let name, _ = dest_const cst in
+  (name, length lhs, cst);;
+
+let freshVars (Clause {parameters=parameters;id=id;thm=thm;_;}) =
+    Clause {parameters = parameters; id = id; thm = Rule.freshVars thm};;
+
+let (THEN1),(THENL1) =
+  let propagate_empty i [] = [];;
+
+let ((THEN_TCL1): thm_tactical -> thm_tactical -> thm_tactical) =
+  fun ttcl1 ttcl2 ttac -> ttcl1 (ttcl2 ttac);;
+  
+let (STRIP_TAC1: tactic) =
+    fun g ->
+      try STRIP_GOAL_THEN STRIP_ASSUME_TAC g
+      with Failure _ -> failwith "STRIP_TAC";;
+
+let (UNDISCH_THEN1:term->thm_tactic->tactic) =
+  fun tm ttac (asl,w) ->
+    let thp,asl' = remove (fun (_,th) -> aconv (concl th) tm) asl in
+    ttac (snd thp) (asl',w);;
+
+let FIRST_X_ASSUM1 ttac =;;
+
+let (CHEAT_TAC1:tactic) =
+  fun (asl,w) -> ACCEPT_TAC(mk_thm([],w)) (asl,w);;
+
+let equals_goal1 ((a,w):goal) ((a',w'):goal) =
+  forall2 (fun (s,th) (s',th') -> s = s' && equals_thm th th') a a' && w = w';;
+
+let equals_goal2 ((*first arg *)(a,w):goal) ((*second (*arg*)*)(a',(*between*)w'):goal): (* return type *) bool =
+  forall2 (fun (s,th) (s',th') -> s = s' && equals_thm th th') a a' && w = w';;
+
+
+let PART_MATCH,GEN_PART_MATCH =
+    let rec match_bvs t1 t2 acc =;;
+
+(* Other examples *)
+let TEST_TAC (x: int) : tactic = x;;
+    
+let in_ball_annulus = prove(`!v. v IN ball_annulus <=> &2 <= norm v /\ norm v <= &2 * h0 /\ ~(v = vec 0)`,ALL_TAC);;
+

@@ -18,7 +18,7 @@ export class Dependency {
     }
 }
 
-enum DefinitionType {
+export enum DefinitionType {
     theorem,
     definition,
     term,
@@ -98,7 +98,7 @@ export class Definition {
     }
 }
 
-interface OpenDecl {
+export interface OpenDecl {
     readonly position: vscode.Position;
     readonly name: string;
     // For diagnostic
@@ -171,7 +171,7 @@ export interface ParseResult {
     // NOTE: Modules should be sorted by their start position
     modules: Module[];
     dependencies: Dependency[];
-    // The global module tracks all open and include statements. It does not contain definitions.
+    // The global module tracks all open and include statements. It does not contain definitions or other modules.
     globalModule: Module;
 }
 
