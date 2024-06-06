@@ -399,6 +399,16 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         return { defs, mods };
     }
 
+    /**
+     * Returns all definitions and modules with the corresponding name (word) and which exist
+     * in the given file (filePath) or its dependencies. Additionally, only definitions and modules which
+     * are defined in the global module or in one of open modules are returned (open modules are determined
+     * by the given position).
+     * @param word
+     * @param filePath 
+     * @param position 
+     * @returns 
+     */
     findDefinitionsAndModules(word: string, filePath: string, position: vscode.Position): { defs: Definition[], mods: Set<Module> } {
         const deps = this.allDependencies(filePath);
         const openModules = this.allOpenModules(filePath, position, deps);
