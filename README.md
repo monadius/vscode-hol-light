@@ -1,12 +1,13 @@
 # HOL Light Extension for VS Code
 
-A simple HOL Light extension for Visual Studio Code. It supports basic syntax highlighting and interaction with a HOL Light REPL in a terminal window.
+A simple HOL Light extension for Visual Studio Code. It supports basic syntax highlighting and interaction with a HOL Light REPL in a terminal window. Autocompletion, hover messages, and Go to Definition features are also partially supported.
 
 ## Requirements
 
-HOL Light should be installed separately. See [HOL Light repository](https://github.com/jrh13/hol-light/) for installation instructions.
+HOL Light should be installed separately. See [HOL Light repository](https://github.com/jrh13/hol-light/) for installation instructions. The path to a HOL Light installation should be manually set by modifying the `hol-light.path` option (it could be done by invoking the command `HOL Light: Set HOL Light Path` from the command palette).
 
-The extension is automatically activated for `.hl` files. If a HOL Light file has a different file type (e.g., `.ml`) then it is required to activate the HOL Light extension manually by selecting `HOL Light` language mode.
+The extension is automatically activated for `.hl` files. If a HOL Light file has a different file type (e.g., `.ml`) then it is required to activate the HOL Light extension manually by selecting `HOL Light` language mode. 
+
 It is also possible to associate `.ml` files with the HOL Light extension by executing the command `HOL Light: Associate .ml Files with HOL Light`. This command adds the following lines to the workspace settings file:
 ```
     "files.associations": {
@@ -17,9 +18,13 @@ Other file types can be associated with HOL Light by adding the corresponding li
 
 The extension does not start a HOL Light REPL automatically. Whenever any command which interacts with HOL Light is invoked, a dialog will appear where a script for starting a HOL Light session should be selected. One possible choice is to select `hol.sh` from the HOL Light directory. Any other script can also be selected (e.g., `dmtcp_restart_script.sh` if DMTCP checkpointing is used).
 
-## IntelliSense Support
+## Code Completion, Hover Info Messages, and Go to Definition
 
-This extension provides autocompletion for items defined in the HOL Light `Help` directory. In order to enable this feature, it is necessary to set the path to a HOL Light directory. This path can be set by either editing the configuration option `hol-light.path` or by using the `HOL Light: Set HOL Light Path` command.
+This extension provides autocompletion, hover info messages, and Go to Definition features for all  definitions and modules. These feature use a global index of definitions of all open HOL Light files and their dependencies. This index is automatically created and updated if the option `hol-light.autoIndex` is enabled (it is enabled by default). Alternatively, the index may be created (or updated) by invoking the command `HOL Light: Index File and its Dependencies`. Note that the exetension parsing algorithm is not perfect and it works for files where definitions are separated by `;;`.
+
+Only explicitly imported dependencies are recongnized. That is, dependencies should be imported with `needs`, `loads`, or `loadt` commands followed by a string literal with a dependency path. Dependency files are searched relative to paths specified in `hol-light.rootPaths`. For example, if HOL Light of a project are located in the `src/proofs` directory then the following path should be added to `hol-light.rootPaths`: `{workspace}/src/proofs`.
+
+If a project uses special commands for importing dependencies or for proving theorems, then it is possible to inform the parser about these commands by editing `hol-light.customImports`, `hol-light.customDefinitions`, or `hol-light.customTheorems` options.
 
 ## Commands
 
@@ -97,7 +102,7 @@ All commands can be invoked from the command palette or by pressing the correspo
 
 1) **HOL Light: Index File and its Dependencies**
 
-    Parses the active file and its dependencies and adds top level definitions to a global index. This command should be invoked when `hol-light.autoIndex` is `false` or after updating `hol-light.rootPaths`.
+    Parses the active file and its dependencies and adds definitions to a global index. This command should be invoked when `hol-light.autoIndex` is `false` or after updating `hol-light.rootPaths`.
 
 1) **HOL Light: Set HOL Light Path**
 
@@ -129,11 +134,11 @@ The extension adds the `HOL Light configuration` group to settings.
 
 1) `hol-light.autoIndex`: boolean. Default `true`.
 
-    If this option is `true` then all open files and their dependencies are automatically parsed and all top level definitions are added to a global index. If this option is `false` then it is still possible to index a file by invoking the `HOL Light: Index File and its Dependencies` command.
+    If this option is `true` then all open files and their dependencies are automatically parsed and all definitions are added to a global index. If this option is `false` then it is still possible to index a file by invoking the `HOL Light: Index File and its Dependencies` command.
 
 1) `hol-light.customImports`: string. Default `""`.
 
-    By default, the extension parser recongnizes `need`, `loads`, and `loadt` as import statements. Some projects may have other import statements. They can be specified in this option as statement names separated by commas or spaces.
+    By default, the extension parser recongnizes `needs`, `loads`, and `loadt` as import statements. Some projects may have other import statements. They can be specified in this option as statement names separated by commas or spaces.
 
     Note: custom import statements should take only one string argument.
 
@@ -167,4 +172,4 @@ The extension adds the `HOL Light configuration` group to settings.
 
 - Type annotations inside HOL terms which occupy several lines are not correctly highlighted. The only recognized type constructors for highlighting are `list`, `group`, `finite_sum`, `word`.
 
-- The extension parser is not perfect and it may miss or incorrectly parse some top level definitions. In general, all top level definitions should be separated by `;;`.
+- The extension parser is not perfect and it may miss or incorrectly parse some definitions. In general, all definitions should be separated by `;;`.
