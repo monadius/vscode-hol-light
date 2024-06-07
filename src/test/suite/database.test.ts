@@ -23,15 +23,16 @@ suite('Database Test Suite', () => {
         const allDeps = database.allDependencies(document.uri.path);
         assert.deepEqual([...allDeps], [document.uri.fsPath, depPath], 'Dependencies');
 
-        assert.strictEqual(database.findDefinitions('x', allDeps, new Set()).length, 2, 'Definitions for "x"');
-        assert.strictEqual(database.findDefinitions('const', allDeps, new Set()).length, 0, 'Definitions for "const" (with open modules)');
-        assert.strictEqual(database.findDefinitions('const', allDeps).length, 1, 'Definitions for "const" (without open modules)');
-
-        assert.strictEqual(database.findDefinitionsAndModulesWithPrefix('e', allDeps).defs.length, 4, 'Definitions with prefix "e"');
-
         // Currently, positions of import statements (needs) are not considered for finding definitions and modules so (0, 0) works here
         const utilsMod = [...database.findDefinitionsAndModules('Utils', document.uri.path, new vscode.Position(0, 0)).mods][0];
         assert.ok(utilsMod, 'Utils module');
+
+        assert.strictEqual(database.findDefinitions('x', allDeps, true, new Set()).length, 2, 'Definitions for "x"');
+        assert.strictEqual(database.findDefinitions('const', allDeps, true, new Set()).length, 0, 'Definitions for "const" (without open modules)');
+        assert.strictEqual(database.findDefinitions('const', allDeps, true, new Set([utilsMod])).length, 1, 'Definitions for "const" (with open Utils)');
+
+        assert.strictEqual(database.findDefinitionsAndModulesWithPrefix('e', allDeps).defs.length, 4, 'Definitions with prefix "e"');
+
         assert.deepEqual(database.findDefinitionsAndModules('Pair', depPath, new vscode.Position(40, 0)), { defs: [], mods: new Set() }, 'Definitions and modules for "Pair" in modules.hl:41:1');
         assert.deepEqual(database.findDefinitionsAndModules('Pair', depPath, new vscode.Position(43, 0)), { defs: [], mods: new Set([utilsMod.modules[0]]) }, 'Definitions and modules for "Pair" in modules.hl:44:1');
 

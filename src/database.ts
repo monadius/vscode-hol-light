@@ -361,13 +361,17 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
      * and are defined in either the global module or in one of provided modules.
      * @param name
      * @param deps
-     * @param modules If undefined then modules are not tested
+     * @param allowGlobal Indicates if global definitions are allowed or not
+     * @param modules
      */
-    findDefinitions(name: string, deps: Set<string>, modules?: Set<Module>): Definition[] {
+    findDefinitions(name: string, deps: Set<string>, allowGlobal: boolean, modules: Set<Module>): Definition[] {
         const defs = this.definitionIndex.get(name) || [];
         return defs.filter(def => {
             const dep = def.getFilePath();
-            return dep ? deps.has(dep) && (!modules || !def.module || modules.has(def.module)) : false;
+            if (!dep || !deps.has(dep)) {
+                return false;
+            }
+            return def.module ? modules.has(def.module) : allowGlobal;
         });
     }
 
@@ -417,7 +421,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         const name = names.length > 1 ? names.at(-1)! : word;
         const nameModules = names.length > 1 ? this.resolveModuleName(names.slice(0, -1).join('.'), openModules, deps) : openModules;
 
-        const defs = this.findDefinitions(name, deps, nameModules);
+        const defs = this.findDefinitions(name, deps, names.length === 1, nameModules);
         const mods = this.resolveModuleName(word, openModules, deps);
 
         return { defs, mods };
