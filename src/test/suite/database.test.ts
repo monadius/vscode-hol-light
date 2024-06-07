@@ -6,7 +6,7 @@ import * as vscode from 'vscode';
 import * as config from '../../config';
 import * as db from '../../database';
 
-suite('Extension Test Suite', () => {
+suite('Database Test Suite', () => {
     // vscode.window.showInformationMessage('Start all tests.');
 
     test('Database test', async () => {

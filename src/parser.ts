@@ -975,10 +975,19 @@ class Parser {
                     const lhs = this.parseLetBindingLhs();
                     // `do { } while (false)` in order to be able to use `break`
                     do {
-                        if (lhs.length === 1 && this.match('=')) {
+                        if (lhs.length === 1 && this.nextSkipComments().value === '=') {
                             const name = lhs[0].nameToken.getValue(this.text);
                             const pos = lhs[0].nameToken.getStartPosition(this.lineStarts);
-                            if (this.match(this.theoremRe)) {
+                            skipWhileEq('(');
+
+                            const token = this.nextSkipComments();
+                            if (token.type === TokenType.term) {
+                                addDefinition(name, DefinitionType.term, token.getValue(this.text).slice(1, -1), pos);
+                                break;
+                            }
+
+                            const value = token.value ?? '';
+                            if (this.theoremRe.test(value)) {
                                 skipWhileEq('(');
                                 // Accept both terms and strings (also allow identifiers)
                                 const token = this.nextSkipComments();
@@ -989,7 +998,7 @@ class Parser {
                                 } else if (this.debugFlag) {
                                     this.report(`Unparsed theorem: ${name}`, pos, uri);
                                 }
-                            } else if (this.match(this.definitionRe)) {
+                            } else if (this.definitionRe.test(value)) {
                                 skipWhileEq('(');
                                 // Accept both terms and strings (also allow identifiers)
                                 const token = this.nextSkipComments();
@@ -1000,7 +1009,9 @@ class Parser {
                                 } else if (this.debugFlag) {
                                     this.report(`Unparsed definition: ${name}`, pos, uri);
                                 }
-                            } else if (this.match(this.defOtherRe, null)) {
+                            } else if (this.defOtherRe.test(value)) {
+                                // Skip the next token
+                                this.next();
                                 skipWhileEq('(');
                                 // Accept both terms and strings (also allow identifiers)
                                 const token = this.nextSkipComments();

@@ -13,7 +13,7 @@ suite('Parser Test Suite', () => {
         customTheorems: []
     };
 
-    test('definition.hl tests', async () => {
+    test('definitions.hl tests', async () => {
         const docPath = path.join(__dirname, '../../../src/test/examples', 'definitions.hl');
         const docUri = vscode.Uri.file(docPath);
         const document = await vscode.workspace.openTextDocument(docPath);
