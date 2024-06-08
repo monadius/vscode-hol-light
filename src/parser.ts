@@ -995,7 +995,8 @@ class Parser {
                                     const text = token.type === TokenType.identifier ? token.getValue(this.text) : token.getValue(this.text).slice(1, -1);
                                     addDefinition(name, DefinitionType.theorem, text, pos);
                                     break;
-                                } else if (this.debugFlag) {
+                                } else if (token.type !== TokenType.statementSeparator && this.debugFlag) {
+                                    // If token is ';;' then it is just an alias for a theorem-producing function
                                     this.report(`Unparsed theorem: ${name}`, pos, uri);
                                 }
                             } else if (this.definitionRe.test(value)) {
@@ -1006,7 +1007,8 @@ class Parser {
                                     const text = token.type === TokenType.identifier ? token.getValue(this.text) : token.getValue(this.text).slice(1, -1);
                                     addDefinition(name, DefinitionType.definition, text, pos);
                                     break;
-                                } else if (this.debugFlag) {
+                                } else if (token.type !== TokenType.statementSeparator && this.debugFlag) {
+                                    // If token is ';;' then it is just an alias for a definition-producing function
                                     this.report(`Unparsed definition: ${name}`, pos, uri);
                                 }
                             } else if (this.defOtherRe.test(value)) {
