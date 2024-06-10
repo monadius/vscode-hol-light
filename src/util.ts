@@ -1,3 +1,4 @@
+import { Dirent } from 'fs';
 import * as fs from 'fs/promises';
 import * as vscode from 'vscode';
 
@@ -32,6 +33,17 @@ export async function isFileExists(filePath: string, checkDir: boolean): Promise
     } catch {
         return false;
     }
+}
+
+export async function readDir(filePath: string, throwErrors = false): Promise<Dirent[]> {
+    try {
+        return await fs.readdir(filePath, { withFileTypes: true });
+    } catch (err) {
+        if (throwErrors) {
+            throw err;
+        }
+    }
+    return [];
 }
 
 /**

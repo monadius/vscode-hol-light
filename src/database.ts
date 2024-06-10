@@ -143,6 +143,11 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
      */
     private importRe?: RegExp;
 
+    /**
+     * A regexp for recongnizing imports for providing completion items
+     */
+    private importPrefixRe?: RegExp;
+
     constructor(diagnosticCollection: vscode.DiagnosticCollection, helpProvider?: help.HelpProvider, customCommandNames?: CustomCommandNames) {
         this.diagnosticCollection = diagnosticCollection;
         this.helpProvider = helpProvider;
@@ -152,6 +157,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
     setCustomCommandNames(customCommandNames: CustomCommandNames) {
         this.customCommandNames = customCommandNames;
         this.importRe = undefined;
+        this.importPrefixRe = undefined;
     }
 
     /**
@@ -474,7 +480,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
                 console.error(`hol.ml does not exists: ${holPath}`);
                 return false;
             }
-            for (const file of await fs.readdir(holPath, {withFileTypes: true})) {
+            for (const file of await util.readDir(holPath, true)) {
                 if (token.isCancellationRequested) {
                     // We do not remove already indexed files here.
                     // The general rule is to not modify any global state after cancellation is requested.
@@ -624,6 +630,33 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         }
     }
 
+    async getCompletionFileNames(docPath: string, prefix: string, token: vscode.CancellationToken): Promise<vscode.CompletionItem[]> {
+        const parts = prefix.split('/');
+        const dirname = parts.slice(0, -1).join('/');
+        const namePrefix = parts.at(-1) || '';
+        const results = 
+            (await Promise.all(config.getRootPaths().map(async root => {
+                if (root === '.') {
+                    root = docPath;
+                }
+                const files = await util.readDir(path.join(root, dirname));
+                const res = files.filter(file => !file.name.startsWith('.') && (file.isDirectory() || /(?:\.ml|\.hl)$/.test(file.name)) && path.basename(file.name).startsWith(namePrefix)).map(file => ({
+                    label: path.join(dirname, file.name),
+                    isDir: file.isDirectory()
+                }));
+                return res;
+            }))).flat();
+
+        const items: vscode.CompletionItem[] = results.map(res => {
+            const item = new vscode.CompletionItem(res.label, res.isDir ? vscode.CompletionItemKind.Folder : vscode.CompletionItemKind.File);
+            if (res.isDir) {
+                item.commitCharacters = ['/'];
+            }
+            return item;
+        });
+        return items;
+    }
+
     /**
      * Implements DefitionProvider
      * @param document
@@ -684,7 +717,20 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
      * @param _context 
      * @returns 
      */
-    provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken, _context: vscode.CompletionContext) {
+    provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, _context: vscode.CompletionContext) {
+        const line = document.lineAt(position.line);
+        if (!this.importPrefixRe) {
+            const customImports = this.customCommandNames.customImports.join('|');
+            this.importPrefixRe = new RegExp(`^\\s*(?:needs|loads|loadt|${customImports})\\s*"`);
+        }
+        const m = line.text.match(this.importPrefixRe);
+        if (m && position.character >= m[0].length) {
+            const prefix = line.text.slice(m[0].length, position.character);
+            if (!prefix.includes('"')) {
+                return this.getCompletionFileNames(document.uri.fsPath, prefix, token);
+            }
+        }
+
         const word = util.getWordAtPosition(document, position);
         if (!word /*|| word.length < 2*/) {
             return null;
