@@ -1,5 +1,8 @@
 # Change Log
 
+## 2.1.0
+- Completion suggestions for imports (e.g., after `needs`).
+
 ## 2.0.0
 - All open HOL Light files and their dependencies are parsed and an index of definitions and modules is
   created. This index is used for autocompletion, hover info messages, and Go to Definition features.

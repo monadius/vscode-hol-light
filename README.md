@@ -26,6 +26,8 @@ Only explicitly imported dependencies are recongnized. That is, dependencies sho
 
 If a project uses special commands for importing dependencies or for proving theorems, then it is possible to inform the parser about these commands by editing `hol-light.customImports`, `hol-light.customDefinitions`, or `hol-light.customTheorems` options.
 
+Completion suggestions are also provided for imports after `needs`, `loads`, `loadt` and custom import commands. By default, suggestions do not appear automatically inside strings. One needs to trigger completion suggestions with `Ctrl + Space` after typing `needs "` (or other import commands). It is also possible to enable completion suggestions for all strings by changing the configuration option `Editor: Quick Suggestions` (`"editor.quickSuggestions": { "strings": "on" }`).
+
 ## Commands
 
 All commands can be invoked from the command palette or by pressing the corresponding keyboard shortcuts.

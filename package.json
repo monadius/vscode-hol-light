@@ -2,7 +2,7 @@
     "name": "hol-light-simple",
     "displayName": "HOL Light",
     "description": "An extension for VS Code which provides support for HOL Light",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "license": "SEE LICENSE IN LICENSE",
     "publisher": "monadius",
     "engines": {
