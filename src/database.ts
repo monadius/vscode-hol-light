@@ -630,18 +630,18 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         }
     }
 
-    async getCompletionFileNames(docPath: string, prefix: string, token: vscode.CancellationToken): Promise<vscode.CompletionItem[]> {
+    async getCompletionFileNames(docPath: string, prefix: string, _token: vscode.CancellationToken): Promise<vscode.CompletionItem[]> {
         const parts = prefix.split('/');
         const dirname = parts.slice(0, -1).join('/');
         const namePrefix = parts.at(-1) || '';
         const results = 
             (await Promise.all(config.getRootPaths().map(async root => {
                 if (root === '.') {
-                    root = docPath;
+                    root = path.dirname(docPath);
                 }
                 const files = await util.readDir(path.join(root, dirname));
                 const res = files.filter(file => !file.name.startsWith('.') && (file.isDirectory() || /(?:\.ml|\.hl)$/.test(file.name)) && path.basename(file.name).startsWith(namePrefix)).map(file => ({
-                    label: path.join(dirname, file.name),
+                    label: file.name,
                     isDir: file.isDirectory()
                 }));
                 return res;
@@ -651,7 +651,10 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             const item = new vscode.CompletionItem(res.label, res.isDir ? vscode.CompletionItemKind.Folder : vscode.CompletionItemKind.File);
             if (res.isDir) {
                 item.commitCharacters = ['/'];
+                // item.command = { command: 'editor.action.triggerSuggest', title: 'Re-trigger completions...' };
             }
+            // Make sure that file suggestions appear at the top of the completion list
+            item.sortText = ' ' + res.label;
             return item;
         });
         return items;

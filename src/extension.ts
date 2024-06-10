@@ -83,7 +83,8 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.languages.registerCompletionItemProvider(LANG_ID, database)
+        // Register the completion character '/' for import (needs) completions.
+        vscode.languages.registerCompletionItemProvider(LANG_ID, database, '/')
     );
 
     // Register a configuration change event handler
