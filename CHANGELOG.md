@@ -1,9 +1,8 @@
 # Change Log
 
 ## 2.0.0
-- All open HOL Light files and their dependencies are parsed and an index of top level definitions
-  and modules is created. Top level definitions are used for implementing autocompletion, hover messages, 
-  and Go to Definition features.
+- All open HOL Light files and their dependencies are parsed and an index of definitions and modules is
+  created. This index is used for autocompletion, hover info messages, and Go to Definition features.
 - New command `HOL Light: Index File and its Dependencies`: parses the current HOL Light file
   and its dependencies.
 - New command `HOL Light: Associate .ml Files with HOL Light`: associates .ml files with HOL Light
