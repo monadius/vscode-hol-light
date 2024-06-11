@@ -679,9 +679,8 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             if (position.character >= i1 && position.character <= i2) {
                 const dep = this.findDependency(document.uri.fsPath, m[1]);
                 const loc = dep?.getLocation();
-                // TODO: originalSelectionRange does not work and only a word at the position is underlined
-                const originalSelectionRange = new vscode.Range(position.line, i1, position.line, i2);
-                return loc ? [<vscode.LocationLink>{ targetUri: loc.uri, targetRange: loc.range, originalSelectionRange }] : null;
+                const originSelectionRange = new vscode.Range(position.line, i1 + 1, position.line, i2);
+                return loc ? [<vscode.LocationLink>{ targetUri: loc.uri, targetRange: loc.range, originSelectionRange }] : null;
             }
         }
         const word = util.getWordAtPosition(document, position);
