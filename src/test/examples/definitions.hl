@@ -2,7 +2,7 @@ let [a; b] = [1; 2];;
 let [|a; b; c;|] = ;;
 let x :: _ = ;;
 let x, y :: z :: [u;], v = ;;
-let f ~x ?(y: int) z: int = 2;;
+let f ~x ?(y: int) z ~(zz) ~(zz: float): int = 2;;
 
 (* Examples from core HOL Light files *)
 let compare (Set m1, Set m2) = Pmap.compare compareValue (m1,m2);;

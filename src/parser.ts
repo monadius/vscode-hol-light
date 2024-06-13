@@ -469,6 +469,19 @@ class Parser {
         return token;
     }
 
+    /**
+     * Tries to match the next non-comment token with the given string or token type.
+     * If the match is successful the token is consumed and returned.
+     * @param value
+     */
+    match1(value: string | TokenType): Token | null {
+        const token = this.peekSkipComments();
+        if (typeof value === 'string' ? token.value === value : token.type === value) {
+            return this.next();
+        }
+        return null;
+    }
+
     // [string] represents an optional string value
     // null represents any token (except eof)
     match(...patterns: (TokenType | string | RegExp | [string] | null)[]): (Token | null)[] | null {
@@ -505,7 +518,7 @@ class Parser {
     private parseType(allowComma: boolean = false): string {
         const atom = (): string => {
             let result = '';
-            let token = this.nextSkipComments();
+            let token: Token | null = this.nextSkipComments();
             if (token.value === '(') {
                 // ( type )
                 const inner = this.parseType(true);
@@ -519,10 +532,8 @@ class Parser {
                 token = this.expect(TokenType.identifier);
                 result = "'" + token.value;
             }
-            token = this.peekSkipComments();
-            if (token.type === TokenType.identifier) {
+            if (token = this.match1(TokenType.identifier)) {
                 // type constructor
-                this.next();
                 result = result + ' ' + token.value;
             }
             return result;
@@ -565,9 +576,7 @@ class Parser {
                     this.expect(')');
                 } else {
                     result = this.parsePattern(true);
-                    token = this.peekSkipComments();
-                    if (token.value === ':') {
-                        this.next();
+                    if (this.match1(':')) {
                         const type = this.parseType();
                         if (result.length === 1 && !result[0].type) {
                             // Assume that a pattern with a single name is just a simple pattern
@@ -580,8 +589,7 @@ class Parser {
                 // list or array of patterns
                 const endValue = token.value === '[|' ? '|]' : ']';
                 result = this.parsePattern(true);
-                while (this.peekSkipComments().value === ';') {
-                    this.next();
+                while (this.match1(';')) {
                     if (this.peekSkipComments().value === endValue) {
                         break;
                     }
@@ -591,14 +599,11 @@ class Parser {
             } else if (token.value === '{') {
                 // record pattern
                 result = recordField();
-                while (this.peekSkipComments().value === ';') {
-                    this.next();
+                while (this.match1(';')) {
                     token = this.peekSkipComments();
                     if (token.value === '_') {
                         this.next();
-                        if (this.peekSkipComments().value === ';') {
-                            this.next();
-                        }
+                        this.match1(';');
                         break;
                     } else if (token.value === '}') {
                         break;
@@ -616,7 +621,7 @@ class Parser {
                         // constructor with one argument
                         this.next();
                         result = token.value === '_' ? [] : [{ nameToken: token }];
-                    } else if (['(', '[', '{'].includes(token.value || 'x')) {
+                    } else if (['(', '[', '{'].includes(token.value || '')) {
                         // constructor with a pattern
                         result = this.parsePattern(false);
                     }
@@ -634,13 +639,11 @@ class Parser {
                 throw new ParserError('field name: identifier expected', field);
             }
             const result: Binding[] = [{ nameToken: field }];
-            if (this.peekSkipComments().value === ':') {
-                this.next();
+            if (this.match1(':')) {
                 const type = this.parseType();
                 result[0].type = type;
             }
-            if (this.peekSkipComments().value === '=') {
-                this.next();
+            if (this.match1('=')) {
                 return this.parsePattern(true);
             }
             return result;
@@ -662,8 +665,7 @@ class Parser {
             const result = [];
             while (true) {
                 result.push(...cons());
-                if (this.peekSkipComments().value === 'as') {
-                    this.next();
+                if (this.match1('as')) {
                     this.expect(TokenType.identifier);
                 }
                 if (this.peekSkipComments().value !== ',') {
@@ -684,18 +686,15 @@ class Parser {
             let nameToken: Token;
             let type: string | undefined = '';
             this.next();
-            if (this.peekSkipComments().value === '(') {
-                this.next();
+            if (this.match1('(')) {
                 nameToken = this.expect(TokenType.identifier);
-                if (this.peekSkipComments().value === ':') {
-                    this.next();
+                if (this.match1(':')) {
                     type = this.parseType();
                 }
                 this.expect(')');
             } else {
                 nameToken = this.expect(TokenType.identifier);
-                if (this.peekSkipComments().value === ':') {
-                    this.next();
+                if (this.match1(':')) {
                     return this.parsePattern(false);
                 }
             }
@@ -705,21 +704,17 @@ class Parser {
             let nameToken: Token;
             let type: string | undefined = '';
             this.next();
-            if (this.peekSkipComments().value === '(') {
-                this.next();
+            if (this.match1('(')) {
                 nameToken = this.expect(TokenType.identifier);
-                if (this.peekSkipComments().value === ':') {
-                    this.next();
+                if (this.match1(':')) {
                     type = this.parseType();
                 }
                 // [= expr] is not supported
                 this.expect(')');
             } else {
                 nameToken = this.expect(TokenType.identifier);
-                if (this.peekSkipComments().value === ':') {
-                    this.next();
-                    if (this.peekSkipComments().value === '(') {
-                        this.next();
+                if (this.match1(':')) {
+                    if (this.match1('(')) {
                         // [:typexpr][= expr] is not supported
                         const result = this.parsePattern(true);
                         this.expect(')');
@@ -772,12 +767,10 @@ class Parser {
             this.expect(TokenType.identifier);
         };
 
-        let token = this.peekSkipComments();
-        if (token.value === '(') {
+        if (this.match1('(')) {
             do {
-                this.next();
                 typeParam();
-            } while (this.peekSkipComments().value === ',');
+            } while (this.match1(','));
             this.expect(')');
         } else {
             typeParam();
@@ -815,8 +808,7 @@ class Parser {
             this.parseExtendedModulePath();
             this.expect('=');
             this.parseType();
-            if (this.peekSkipComments().value === 'constraint') {
-                this.next();
+            if (this.match1('constraint')) {
                 this.parseType();
                 this.expect('=');
                 this.parseType();
@@ -851,12 +843,10 @@ class Parser {
             throw new ParserError('Module type expected', token);
         }
 
-        token = this.peekSkipComments();
-        if (token.value === 'with') {
+        if (this.match1('with')) {
             do {
-                this.next();
                 this.parseModConstraint();
-            } while (this.peekSkipComments().value === 'and');
+            } while (this.match1('and'));
         }
     }
 
@@ -873,7 +863,7 @@ class Parser {
                 // Closing ')' is not consumed (it will be silently ignored after the module end)
                 return inner;
             }
-            if (this.peekSkipComments().value === ':') {
+            if (this.match1(':')) {
                 this.parseModuleType();
             }
             this.expect(')');
@@ -889,8 +879,7 @@ class Parser {
             throw new ParserError('Unsupported module expression', token);
         }
 
-        if (this.peekSkipComments().value === '(') {
-            this.next();
+        if (this.match1('(')) {
             const inner = this.parseModuleExpr();
             if (inner) {
                 return inner;
@@ -905,16 +894,14 @@ class Parser {
     // `module` should be already consumed.
     // Either returns a token corresponding to the module name or nothing for module types.
     private parseModuleDefinition(): Token | undefined {
-        let token = this.peekSkipComments();
-        if (token.value === 'type') {
-            this.next();
+        if (this.match1('type')) {
             this.expect(TokenType.identifier);
             this.expect('=');
             this.parseModuleType();
             return;
         }
         const nameToken = this.expect(TokenType.identifier);
-        token = this.nextSkipComments();
+        let token = this.nextSkipComments();
         if (token.value === '(') {
             this.expect(TokenType.identifier);
             this.expect(':');
