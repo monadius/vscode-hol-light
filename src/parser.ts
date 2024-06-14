@@ -205,6 +205,19 @@ function findLineNumber(lineStarts: number[], pos: number): number {
     return a - 1;
 }
 
+const OCAML_KEYWORDS = new Set([
+    "and",         "as",          "assert",      "asr",         "begin",       "class",
+    "constraint",  "do",          "done",        "downto",      "else",        "end",
+    "exception",   "external",    "false",       "for",         "fun",         "function",
+    "functor",     "if",          "in",          "include",     "inherit",     "initializer",
+    "land",        "lazy",        "let",         "lor",         "lsl",         "lsr",
+    "lxor",        "match",       "method",      "mod",         "module",      "mutable",
+    "new",         "nonrec",      "object",      "of",          "open",        "or",
+    "private",     "rec",         "sig",         "struct",      "then",        "to",
+    "true",        "try",         "type",        "val",         "virtual",     "when",
+    "while",       "with",
+]);
+
 class Token {
     readonly type: TokenType;
     readonly value?: string;
@@ -218,6 +231,10 @@ class Token {
         this.startPos = start;
         this.endPos = end;
         this.value = value;
+    }
+
+    isKeyword(): boolean {
+        return this.type === TokenType.identifier && OCAML_KEYWORDS.has(this.value || '');
     }
 
     getValue(text: string): string {
@@ -257,7 +274,7 @@ interface Binding {
     type?: string;
 }
 
-class Parser {
+export class Parser {
     private readonly debugFlag: boolean;
 
     private readonly text: string;
