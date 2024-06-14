@@ -115,6 +115,16 @@
             },
             {
                 "category": "HOL Light",
+                "command": "hol-light.analyze_identifiers",
+                "title": "Analyze Identifiers"
+            },
+            {
+                "category": "HOL Light",
+                "command": "hol-light.clear_analysis",
+                "title": "Clear Analysis Problems"
+            },
+            {
+                "category": "HOL Light",
                 "command": "hol-light.associate_ml_files",
                 "title": "Associate .ml Files with HOL Light"
             }

@@ -180,7 +180,7 @@ export function parseText(text: string, uri: vscode.Uri, options: ParserOptions)
     return new Parser(text, options).parse(uri);
 }
 
-enum TokenType {
+export enum TokenType {
     eof,
     comment,
     string,
@@ -218,7 +218,7 @@ const OCAML_KEYWORDS = new Set([
     "while",       "with",
 ]);
 
-class Token {
+export class Token {
     readonly type: TokenType;
     readonly value?: string;
     readonly startPos: number;

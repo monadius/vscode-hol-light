@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 
+import * as analysis from './analysis';
 import * as config from './config';
 import * as data from './database';
 import * as decoration from './decoration';
@@ -17,6 +18,7 @@ export function activate(context: vscode.ExtensionContext) {
     let replTerm: vscode.Terminal | null = null;
 
     const diagnosticCollection = vscode.languages.createDiagnosticCollection('hol-imports');
+    const analysisDiagnostic = vscode.languages.createDiagnosticCollection('hol-analysis');
 
     // A completion and hover provider for documentation items defined in {hol-path}/Help
     const helpProvider = new help.HelpProvider();
@@ -265,6 +267,17 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
+    context.subscriptions.push(
+        vscode.commands.registerTextEditorCommand('hol-light.analyze_identifiers', editor => {
+            analysis.analyzeIdentifiers(editor.document, database, analysisDiagnostic);
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('hol-light.clear_analysis', () => {
+            analysisDiagnostic.clear();
+        })
+    );
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.repl_send_statement', async (editor) => {
