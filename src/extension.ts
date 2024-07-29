@@ -7,6 +7,7 @@ import * as decoration from './decoration';
 import * as help from './help';
 import * as selection from './selection';
 import * as tactic from './tactic';
+import * as terminal from './terminal';
 import * as util from './util';
 
 const LANG_ID = 'hol-light-ocaml';
@@ -152,8 +153,10 @@ export function activate(context: vscode.ExtensionContext) {
                 return null;
             }
             // replTerm = vscode.window.createTerminal('HOL Light', path);
-            replTerm = vscode.window.createTerminal('HOL Light');
-            replTerm.sendText(path);
+            // replTerm = vscode.window.createTerminal('HOL Light');
+            // replTerm.sendText(path);
+
+            replTerm = vscode.window.createTerminal({ name: 'HOL Light', pty: new terminal.Terminal() });
         }
         return replTerm;
     }
