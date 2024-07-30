@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as pathLib from 'path';
 
 import * as analysis from './analysis';
 import * as config from './config';
@@ -119,7 +120,7 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
-    async function getREPL(): Promise<vscode.Terminal | null> {
+    async function getREPL(workDir: string = ''): Promise<vscode.Terminal | null> {
         if (!replTerm) {
             const paths = config.getConfigOption<string[]>(config.EXE_PATHS, []);
             const items: vscode.QuickPickItem[] = paths.map(path => ({ label: path }));
@@ -157,9 +158,11 @@ export function activate(context: vscode.ExtensionContext) {
             // replTerm = vscode.window.createTerminal('HOL Light');
             // replTerm.sendText(path);
 
-            holTerminal = new terminal.Terminal();
+            holTerminal = new terminal.Terminal(path, workDir);
+            // holTerminal = new terminal.Terminal('ocaml');
             replTerm = vscode.window.createTerminal({ name: 'HOL Light', pty: holTerminal });
         }
+
         return replTerm;
     }
 
@@ -302,7 +305,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.repl_send_statement', async (editor) => {
-            const repl = await getREPL();
+            const repl = await getREPL(pathLib.dirname(editor.document.uri.fsPath));
             if (!repl) {
                 return;
             }
@@ -310,7 +313,8 @@ export function activate(context: vscode.ExtensionContext) {
 
             if (!editor.selection.isEmpty) {
                 const statement = editor.document.getText(editor.selection).trim();
-                repl.sendText(statement + (statement.endsWith(';;') ? '\n' : ';;\n'));
+                // repl.sendText(statement + (statement.endsWith(';;') ? '\n' : ';;\n'));
+                holTerminal?.execute(statement);
                 decorations.highlightRange(editor.document, editor.selection);
                 return;
             }
@@ -321,7 +325,8 @@ export function activate(context: vscode.ExtensionContext) {
                     selection.selectStatementSimple(editor.document, pos) :
                     selection.selectStatement(editor.document, pos);
 
-            repl.sendText(statement + ';;\n');
+            // repl.sendText(statement + ';;\n');
+            holTerminal?.execute(statement);
             highlightStartEnd(editor.document, textStart, textEnd + 2);
             
             if (newPos) {
@@ -357,7 +362,7 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.window.showWarningMessage('Not inside a term');
                 return;
             }
-            repl.sendText(`g(${term.text});;`);
+            holTerminal?.execute(`g(${term.text});;`);
             highlightStartEnd(editor.document, term.start, term.end);
         })
     );
@@ -374,7 +379,7 @@ export function activate(context: vscode.ExtensionContext) {
             // If the selection is not empty then use it
             let text = editor.document.getText(editor.selection);
             text = text.replace(tacticRe, '').trim();
-            repl.sendText(`e(${text});;\n`);
+            holTerminal?.execute(`e(${text});;\n`);
             decorations.highlightRange(editor.document, editor.selection);
             return;
         }
@@ -383,7 +388,7 @@ export function activate(context: vscode.ExtensionContext) {
         const pos = editor.selection.active;
         let newPos: vscode.Position;
         if (selection && !selection.range.isEmpty) {
-            repl.sendText(`e(${editor.document.getText(selection.range)});;\n`);
+            holTerminal?.execute(`e(${editor.document.getText(selection.range)});;\n`);
             newPos = selection.newline ? 
                 new vscode.Position(selection.range.end.line + 1, pos.character) :
                 new vscode.Position(selection.range.end.line, selection.range.end.character + 1);
@@ -426,7 +431,7 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.window.showErrorMessage('No HOL Light REPL');
                 return;
             }
-            replTerm.sendText('b();;');
+            holTerminal?.execute('b();;');
             const editor = vscode.window.activeTextEditor;
             if (editor) {
                 decorations.highlightRange(editor.document, null);
@@ -440,7 +445,7 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.window.showErrorMessage('No HOL Light REPL');
                 return;
             }
-            replTerm.sendText('p();;');
+            holTerminal?.execute('p();;');
         })
     );
 
@@ -450,7 +455,7 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.window.showErrorMessage('No HOL Light REPL');
                 return;
             }
-            replTerm.sendText('r(1);;');
+            holTerminal?.execute('r(1);;');
         })
     );
 
@@ -480,7 +485,7 @@ export function activate(context: vscode.ExtensionContext) {
                 }
                 return s;
             });
-            repl.sendText(`search([${terms.join('; ')}]);;`);
+            holTerminal?.execute(`search([${terms.join('; ')}]);;`);
         })
     );
 

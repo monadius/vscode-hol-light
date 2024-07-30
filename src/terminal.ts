@@ -1,12 +1,14 @@
 import * as vscode from 'vscode';
 import * as child_process from 'child_process';
 
+const LINE_END = '\r\n';
+
 function fixLineBreak(data: string) {
-    return data
-        .replace(/\r\n/gi,'\r')
-        .replace(/\r/gi, '\n')
-        .replace(/\n/gi, '\r\n')
-        .replace(/\x7f/gi,'\b \b');
+    return data.replace(/\r\n|\r|\n/g, '\r\n');
+        // .replace(/\r\n/gi,'\r')
+        // .replace(/\r/gi, '\n')
+        // .replace(/\n/gi, '\r\n')
+        // .replace(/\x7f/gi,'\b \b');
 }
 
 class Command {
@@ -16,23 +18,41 @@ class Command {
 }
 
 export class Terminal implements vscode.Pseudoterminal {
+    private holCmd: string;
+    private workDir: string;
+
     private writeEmitter = new vscode.EventEmitter<string>();
-    private closeEmitter = new vscode.EventEmitter<void>();
+    private closeEmitter = new vscode.EventEmitter<void | number>();
 
     private child?: child_process.ChildProcess;
 
     onDidWrite: vscode.Event<string> = this.writeEmitter.event;
 
-    onDidClose?: vscode.Event<void> = this.closeEmitter.event;
+    onDidClose?: vscode.Event<void | number> = this.closeEmitter.event;
+
+    constructor(holCmd: string, workDir: string) {
+        this.holCmd = holCmd;
+        this.workDir = workDir;
+    }
 
     open(_initialDimensions: vscode.TerminalDimensions | undefined): void {
         if (this.child) {
             this.close();
         }
 
-        this.child = child_process.spawn('ocaml', {
+        // console.log(process.env);
+
+        this.child = child_process.spawn(this.holCmd, {
             env: process.env,
+            // shell: true,
             detached: true,
+            cwd: this.workDir ? this.workDir : undefined,
+            // cwd: '/home/monad/work/git/forks/hol-light'
+        });
+
+        this.child.on('close', (code: number) => this.closeEmitter.fire(code));
+        this.child.on('error', (err) => {
+            console.log(`process spawn error: ${err}`);
         });
 
         let output: string[] = [];
@@ -67,13 +87,12 @@ export class Terminal implements vscode.Pseudoterminal {
         });
 
         this.child.stderr?.on('data', (data: Buffer) => {
-            console.log('err');
+            console.log('err: ' + data.toString());
             this.writeEmitter.fire('\x1b[91m' + fixLineBreak(data.toString()) + '\x1b[0m');
         });
     }
 
     close(): void {
-        console.log('Terminal: close()');
         if (this.child?.pid) {
             // Negative pid: send the signal to all processes in the process group
             process.kill(-this.child.pid, 'SIGTERM');
@@ -89,15 +108,31 @@ export class Terminal implements vscode.Pseudoterminal {
 
     private command?: Command;
 
-    execute(cmd: string): Promise<string> {
+    private cmdCounter: number = 0;
+
+    execute(cmd: string): void {
+        cmd = cmd.trim();
+        if (!cmd.endsWith(';;')) {
+            cmd += ';;';
+        }
+        const cmdId = this.cmdCounter++;
+        this.child?.stdin?.write(`Printf.printf ">>>begin<<<${cmdId}<<<";;`);
+        this.child?.stdin?.write(LINE_END);
+        this.child?.stdin?.write(cmd);
+        this.child?.stdin?.write(LINE_END);
+        this.child?.stdin?.write(`Printf.printf "\\n>>>end<<<${cmdId}<<<%!";;`);
+        this.child?.stdin?.write(LINE_END);
+    }
+
+    executeForResult(cmd: string): Promise<string> {
         return new Promise((resolve, reject) => {
             this.command = new Command(resolve, reject);
-            this.handleInput(cmd + ';;\r\n');
+            this.execute(cmd);
         });
     }
 
     async getGlobalValue(value: string) {
-        const res = await this.execute(value);
+        const res = await this.executeForResult(value);
         return res;
     }
 
@@ -110,20 +145,30 @@ export class Terminal implements vscode.Pseudoterminal {
             console.log('special: ' + data.slice(1));
             return;
         }
-        this.writeEmitter.fire(fixLineBreak(data));
         if (data === '\b' || data === '\x7f') {
-            this.buffer.pop();
+            const n = this.buffer.length;
+            if (n) {
+                this.writeEmitter.fire('\x1b[D\x1b[P');
+            }
+            if (this.buffer[n - 1].length > 1) {
+                this.buffer[n - 1] = this.buffer[n - 1].slice(0, -1);
+            } else {
+                this.buffer.pop();
+            }
             return;
         }
-        if (data.endsWith('\r') || data.endsWith('\r\n')) {
-            this.buffer.push(data);
-            this.child?.stdin?.write('Printf.printf ">>>begin<<<";;\r\n');
-            this.child?.stdin?.write(this.buffer.join(''));
-            this.child?.stdin?.write('\r\n');
-            this.child?.stdin?.write('Printf.printf "\n>>>end<<<%!";;\r\n');
-            this.buffer = [];
-        } else if (data.charCodeAt(0) === 3) {
+        this.writeEmitter.fire(fixLineBreak(data));
+        if (data.charCodeAt(0) === 3) {
             this.interrupt();
+            this.buffer = [];
+        } else if (data.endsWith('\r') || data.endsWith('\r\n')) {
+            this.buffer.push(data);
+            this.execute(this.buffer.join(''));
+            // this.child?.stdin?.write('Printf.printf ">>>begin<<<";;\r\n');
+            // this.child?.stdin?.write(this.buffer.join(''));
+            // this.child?.stdin?.write('\r\n');
+            // this.child?.stdin?.write('Printf.printf "\\n>>>end<<<%!";;\r\n');
+            this.buffer = [];
         } else {
             this.buffer.push(data);
         }
