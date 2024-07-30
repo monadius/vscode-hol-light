@@ -17,6 +17,7 @@ export function activate(context: vscode.ExtensionContext) {
     console.log('HOL Light extension is activated');
 
     let replTerm: vscode.Terminal | null = null;
+    let holTerminal: terminal.Terminal | null = null;
 
     const diagnosticCollection = vscode.languages.createDiagnosticCollection('hol-imports');
     const analysisDiagnostic = vscode.languages.createDiagnosticCollection('hol-analysis');
@@ -156,15 +157,32 @@ export function activate(context: vscode.ExtensionContext) {
             // replTerm = vscode.window.createTerminal('HOL Light');
             // replTerm.sendText(path);
 
-            replTerm = vscode.window.createTerminal({ name: 'HOL Light', pty: new terminal.Terminal() });
+            holTerminal = new terminal.Terminal();
+            replTerm = vscode.window.createTerminal({ name: 'HOL Light', pty: holTerminal });
         }
         return replTerm;
     }
 
     context.subscriptions.push(
+        vscode.languages.registerHoverProvider(LANG_ID, {
+            provideHover: async function (document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken): Promise<null | vscode.Hover>  {
+                    const word = util.getWordAtPosition(document, position);
+                    if (!holTerminal || !word) {
+                        return null;
+                    }
+                    const res = await holTerminal.getGlobalValue(word);
+                    return new vscode.Hover(new vscode.MarkdownString(res));
+                }
+        })
+    );
+
+
+
+    context.subscriptions.push(
         vscode.window.onDidCloseTerminal((term) => {
             if (term === replTerm) {
                 replTerm = null;
+                holTerminal = null;
             }
         })
     );
