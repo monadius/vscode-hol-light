@@ -168,12 +168,12 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.languages.registerHoverProvider(LANG_ID, {
-            provideHover: async function (document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken): Promise<null | vscode.Hover>  {
+            provideHover: async function (document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<null | vscode.Hover>  {
                     const word = util.getWordAtPosition(document, position);
                     if (!holTerminal || !word) {
                         return null;
                     }
-                    const res = await holTerminal.getGlobalValue(word);
+                    const res = await holTerminal.getGlobalValue(word, token);
                     return new vscode.Hover(new vscode.MarkdownString(res));
                 }
         })
