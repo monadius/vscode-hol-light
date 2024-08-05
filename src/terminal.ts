@@ -21,26 +21,31 @@ class Command {
     // Location for providing feedback
     private location?: vscode.Location;
 
-    // Promise functions
-    resolve?: (value: string) => void;
-    reject?: (reason: string) => void;
-
-    cancellationToken?: vscode.CancellationToken;
-
     constructor(cmd: string, location?: vscode.Location) {
         this.cmdId = Command.counter++;
         this.cmd = cmd;
         this.location = location;
     }
+}
 
-    static asyncCommand(cmd: string, location?: vscode.Location, token?: vscode.CancellationToken): [Command, Promise<string>] {
-        const command = new Command(cmd, location);
-        command.cancellationToken = token;
-        const result = new Promise<string>((resolve, reject) => {
-            command.resolve = resolve;
-            command.reject = reject;
+class CommandWithResult extends Command {
+    readonly result: Promise<string>;
+    readonly resolve: (value: string) => void;
+    readonly reject: (reason: string) => void;
+
+    readonly cancellationToken?: vscode.CancellationToken;
+
+    constructor(cmd: string, location?: vscode.Location, token?: vscode.CancellationToken) {
+        super(cmd, location);
+        this.cancellationToken = token;
+        let resolveVar: (v: string) => void;
+        let rejectVar: (v: string) => void;
+        this.result = new Promise<string>((resolve, reject) => {
+            resolveVar = resolve;
+            rejectVar = reject;
         });
-        return [command, result];
+        this.resolve = resolveVar!;
+        this.reject = rejectVar!;
     }
 }
 
@@ -66,7 +71,12 @@ export class Terminal implements vscode.Pseudoterminal {
         this.workDir = workDir;
     }
 
-    private clearCommands() {
+    private clearCommands(rejectReason: string) {
+        [...this.commandQueue, ...Object.values(this.commands)].forEach(command => {
+            if (command instanceof CommandWithResult) {
+                command.reject(rejectReason);
+            }
+        });
         this.commandQueue.length = 0;
         this.commands = {};
         this.executingCommands = 0;
@@ -117,13 +127,16 @@ export class Terminal implements vscode.Pseudoterminal {
                     delete this.commands[id];
                     if (command) {
                         this.executingCommands--;
-                        if (cmdStart + 1 <= pos && command.resolve && !command.cancellationToken?.isCancellationRequested) {
-                            console.log(command.cancellationToken?.isCancellationRequested);
-                            const result = output.slice(cmdStart + 1, pos).join('\n');
-                            console.log('command output:');
-                            console.log(result);
-                            console.log('end output');
-                            command.resolve(result);
+                        if (cmdStart + 1 <= pos && command instanceof CommandWithResult) {
+                            if (command.cancellationToken?.isCancellationRequested) {
+                                command.reject("Cancelled");
+                            } else {
+                                const result = output.slice(cmdStart + 1, pos).join('\n');
+                                console.log('command output:');
+                                console.log(result);
+                                console.log('end output');
+                                command.resolve(result);
+                            }
                         }
                     }
                     cmdStart = Infinity;
@@ -147,7 +160,7 @@ export class Terminal implements vscode.Pseudoterminal {
         }
         this.child = undefined;
         // Clear all commands
-        this.clearCommands();
+        this.clearCommands("Process closed");
     }
 
     interrupt(): void {
@@ -155,7 +168,7 @@ export class Terminal implements vscode.Pseudoterminal {
             process.kill(-this.child.pid, 'SIGINT');
         }
         // Clear all commands
-        this.clearCommands();
+        this.clearCommands("Interrupted");
     }
 
     // private command?: Command;
@@ -175,7 +188,11 @@ export class Terminal implements vscode.Pseudoterminal {
     private executeNextCommand() {
         while (this.child && this.commandQueue.length && !this.executingCommands) {
             const command = this.commandQueue.shift();
-            if (!command || command.cancellationToken?.isCancellationRequested) {
+            if (!command) {
+                continue;
+            }
+            if (command instanceof CommandWithResult && command.cancellationToken?.isCancellationRequested) {
+                command.reject('Cancelled');
                 continue;
             }
             this.executeCommand(command);
@@ -209,9 +226,9 @@ export class Terminal implements vscode.Pseudoterminal {
         if (!cmd.endsWith(';;')) {
             cmd += ';;';
         }
-        const [command, result] = Command.asyncCommand(cmd, undefined, token);
+        const command = new CommandWithResult(cmd, undefined, token);
         this.enqueueCommand(command);
-        return result;
+        return command.result;
     }
 
     private buffer: string[] = [];
