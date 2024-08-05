@@ -66,6 +66,12 @@ export class Terminal implements vscode.Pseudoterminal {
         this.workDir = workDir;
     }
 
+    private clearCommands() {
+        this.commandQueue.length = 0;
+        this.commands = {};
+        this.executingCommands = 0;
+    }
+
     open(_initialDimensions: vscode.TerminalDimensions | undefined): void {
         if (this.child) {
             this.close();
@@ -140,12 +146,16 @@ export class Terminal implements vscode.Pseudoterminal {
             process.kill(-this.child.pid, 'SIGTERM');
         }
         this.child = undefined;
+        // Clear all commands
+        this.clearCommands();
     }
 
     interrupt(): void {
         if (this.child?.pid) {
             process.kill(-this.child.pid, 'SIGINT');
         }
+        // Clear all commands
+        this.clearCommands();
     }
 
     // private command?: Command;
@@ -202,11 +212,6 @@ export class Terminal implements vscode.Pseudoterminal {
         const [command, result] = Command.asyncCommand(cmd, undefined, token);
         this.enqueueCommand(command);
         return result;
-    }
-
-    async getGlobalValue(value: string, token?: vscode.CancellationToken) {
-        const res = await this.executeForResult(value, token);
-        return res;
     }
 
     private buffer: string[] = [];

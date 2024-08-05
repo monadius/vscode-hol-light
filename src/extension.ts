@@ -173,7 +173,7 @@ export function activate(context: vscode.ExtensionContext) {
                     if (!holTerminal || !word) {
                         return null;
                     }
-                    const res = await holTerminal.getGlobalValue(word, token);
+                    const res = await holTerminal.executeForResult(word, token);
                     return new vscode.Hover(new vscode.MarkdownString(res));
                 }
         })
