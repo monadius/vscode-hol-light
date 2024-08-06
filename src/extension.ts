@@ -70,7 +70,7 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     function highlightStartEnd(document: vscode.TextDocument, start: number, end: number) {
-        decorations.highlightRange(document, new vscode.Range(document.positionAt(start), document.positionAt(end)));
+        decorations.addRange(new vscode.Location(document.uri, new vscode.Range(document.positionAt(start), document.positionAt(end))));
     }
 
     // Register completion, definition, and hover providers
@@ -315,7 +315,7 @@ export function activate(context: vscode.ExtensionContext) {
                 const statement = editor.document.getText(editor.selection).trim();
                 // repl.sendText(statement + (statement.endsWith(';;') ? '\n' : ';;\n'));
                 holTerminal?.execute(statement);
-                decorations.highlightRange(editor.document, editor.selection);
+                decorations.addRange(new vscode.Location(editor.document.uri, editor.selection));
                 return;
             }
 
@@ -380,7 +380,7 @@ export function activate(context: vscode.ExtensionContext) {
             let text = editor.document.getText(editor.selection);
             text = text.replace(tacticRe, '').trim();
             holTerminal?.execute(`e(${text});;\n`);
-            decorations.highlightRange(editor.document, editor.selection);
+            decorations.addRange(new vscode.Location(editor.document.uri, editor.selection));
             return;
         }
         const maxLines = multiline ? config.getConfigOption(config.TACTIC_MAX_LINES, 30) : 1;
@@ -392,10 +392,10 @@ export function activate(context: vscode.ExtensionContext) {
             newPos = selection.newline ? 
                 new vscode.Position(selection.range.end.line + 1, pos.character) :
                 new vscode.Position(selection.range.end.line, selection.range.end.character + 1);
-            decorations.highlightRange(editor.document, selection.range);
+            decorations.addRange(new vscode.Location(editor.document.uri, selection.range));
         } else {
             newPos = new vscode.Position(pos.line + 1, pos.character);
-            decorations.highlightRange(editor.document, null);
+            decorations.removeHighlighting(editor.document.uri);
         }
         if (newline) {
             newPos = editor.document.validatePosition(newPos);
@@ -434,7 +434,7 @@ export function activate(context: vscode.ExtensionContext) {
             holTerminal?.execute('b();;');
             const editor = vscode.window.activeTextEditor;
             if (editor) {
-                decorations.highlightRange(editor.document, null);
+                decorations.removeHighlighting(editor.document.uri);
             }
         })
     );
@@ -491,15 +491,15 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.remove_highlighting', (editor) => {
-            decorations.highlightRange(editor.document, null);
+            decorations.removeHighlighting(editor.document.uri);
         })
     );
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.jump_to_highlighting', (editor) => {
-            const range = decorations.getHighlightedRange(editor.document);
-            if (range) {
-                const pos = range.end;
+            const ranges = decorations.getHighlightedRanges(editor.document.uri);
+            if (ranges.length) {
+                const pos = ranges.at(-1)!.end;
                 editor.selection = new vscode.Selection(pos, pos);
                 editor.revealRange(new vscode.Range(pos, pos));
             }
