@@ -12,6 +12,14 @@ function fixLineBreak(data: string) {
         // .replace(/\x7f/gi,'\b \b');
 }
 
+export interface Terminal {
+    execute(cmd: string, location?: vscode.Location): void;
+
+    execute(cmds: { cmd: string, location?: vscode.Location }[]): void;
+
+    executeForResult(cmd: string, location?: vscode.Location, token?: vscode.CancellationToken): Promise<string>;
+}
+
 class Command {
     private static counter: number = 0;
 
@@ -52,7 +60,7 @@ class CommandWithResult extends Command {
     }
 }
 
-export class Terminal implements vscode.Pseudoterminal {
+export class CommandTerminal implements vscode.Pseudoterminal, Terminal {
     private holCmd: string;
     private workDir: string;
 
@@ -79,6 +87,9 @@ export class Terminal implements vscode.Pseudoterminal {
 
     private clearCommands(rejectReason: string) {
         [...this.commandQueue, ...Object.values(this.commands)].forEach(command => {
+            if (command.location) {
+                this.decorations.removeRange(command.location);
+            }
             if (command instanceof CommandWithResult) {
                 command.reject(rejectReason);
             }

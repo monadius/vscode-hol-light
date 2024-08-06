@@ -164,9 +164,9 @@ export function activate(context: vscode.ExtensionContext) {
             // replTerm = vscode.window.createTerminal('HOL Light');
             // replTerm.sendText(path);
 
-            holTerminal = new terminal.Terminal(path, workDir, decorations);
-            // holTerminal = new terminal.Terminal('ocaml');
-            replTerm = vscode.window.createTerminal({ name: 'HOL Light', pty: holTerminal });
+            const commandTerminal = new terminal.CommandTerminal(path, workDir, decorations);
+            replTerm = vscode.window.createTerminal({ name: 'HOL Light', pty: commandTerminal });
+            holTerminal = commandTerminal;
         }
 
         return replTerm;
