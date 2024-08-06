@@ -10,6 +10,12 @@ export function getWordAtPosition(document: vscode.TextDocument, position: vscod
     return document.getText(range);
 }
 
+export function locationStartEnd(document: vscode.TextDocument, start: number | vscode.Position, end: number | vscode.Position): vscode.Location {
+    const pos1 = typeof start === 'number' ? document.positionAt(start) : start;
+    const pos2 = typeof end === 'number' ? document.positionAt(end) : end;
+    return new vscode.Location(document.uri, new vscode.Range(pos1, pos2));
+}
+
 export function difference<T>(xs: Iterable<T>, ys: Iterable<T>): T[] {
     const s = ys instanceof Set ? ys : new Set(ys);
     return [...xs].filter(x => !s.has(x));

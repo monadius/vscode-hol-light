@@ -30,7 +30,8 @@ export function activate(context: vscode.ExtensionContext) {
     const database = new data.Database(diagnosticCollection, helpProvider, config.getCustomCommandNames());
 
     // A helper class for managing highlighted regions in editors
-    const decorations = new decoration.Decorations(config.getReplDecorationType());
+    // const decorations = new decoration.Decorations(config.getReplDecorationType());
+    const decorations = new decoration.CommandDecorations();
 
     loadHelpItems(config.getConfigOption(config.HOLLIGHT_PATH, ''));
     if (config.getConfigOption(config.AUTO_INDEX, false)) {
@@ -69,9 +70,9 @@ export function activate(context: vscode.ExtensionContext) {
         }
     }
 
-    function highlightStartEnd(document: vscode.TextDocument, start: number, end: number) {
-        decorations.addRange(new vscode.Location(document.uri, new vscode.Range(document.positionAt(start), document.positionAt(end))));
-    }
+    // function highlightStartEnd(document: vscode.TextDocument, start: number, end: number) {
+    //     decorations.addRange(new vscode.Location(document.uri, new vscode.Range(document.positionAt(start), document.positionAt(end))));
+    // }
 
     // Register completion, definition, and hover providers
 
@@ -103,7 +104,7 @@ export function activate(context: vscode.ExtensionContext) {
                     loadBaseHolLightFiles(holPath, true);
                 }
             } else if (config.affectsConfiguration(e, config.HIGHLIGHT_COLOR)) {
-                decorations.setDecoration(config.getReplDecorationType());
+                decorations.setDecorationStyle(decorations.pending, config.getReplDecorationType());
             } else if (config.affectsConfiguration(e, config.AUTO_INDEX)) {
                 if (config.getConfigOption(config.AUTO_INDEX, false) && vscode.window.activeTextEditor) {
                     indexDocument(vscode.window.activeTextEditor.document);
@@ -158,7 +159,7 @@ export function activate(context: vscode.ExtensionContext) {
             // replTerm = vscode.window.createTerminal('HOL Light');
             // replTerm.sendText(path);
 
-            holTerminal = new terminal.Terminal(path, workDir);
+            holTerminal = new terminal.Terminal(path, workDir, decorations);
             // holTerminal = new terminal.Terminal('ocaml');
             replTerm = vscode.window.createTerminal({ name: 'HOL Light', pty: holTerminal });
         }
@@ -173,7 +174,7 @@ export function activate(context: vscode.ExtensionContext) {
                     if (!holTerminal || !word) {
                         return null;
                     }
-                    const res = await holTerminal.executeForResult(word, token);
+                    const res = await holTerminal.executeForResult(word, undefined, token);
                     return new vscode.Hover(new vscode.MarkdownString(res));
                 }
         })
@@ -314,8 +315,8 @@ export function activate(context: vscode.ExtensionContext) {
             if (!editor.selection.isEmpty) {
                 const statement = editor.document.getText(editor.selection).trim();
                 // repl.sendText(statement + (statement.endsWith(';;') ? '\n' : ';;\n'));
-                holTerminal?.execute(statement);
-                decorations.addRange(new vscode.Location(editor.document.uri, editor.selection));
+                holTerminal?.execute(statement, new vscode.Location(editor.document.uri, editor.selection));
+                // decorations.addRange(new vscode.Location(editor.document.uri, editor.selection));
                 return;
             }
 
@@ -326,8 +327,8 @@ export function activate(context: vscode.ExtensionContext) {
                     selection.selectStatement(editor.document, pos);
 
             // repl.sendText(statement + ';;\n');
-            holTerminal?.execute(statement);
-            highlightStartEnd(editor.document, textStart, textEnd + 2);
+            holTerminal?.execute(statement, util.locationStartEnd(editor.document, textStart, textEnd + 2));
+            // highlightStartEnd(editor.document, textStart, textEnd + 2);
             
             if (newPos) {
                 editor.selection = new vscode.Selection(newPos, newPos);
@@ -362,8 +363,8 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.window.showWarningMessage('Not inside a term');
                 return;
             }
-            holTerminal?.execute(`g(${term.text});;`);
-            highlightStartEnd(editor.document, term.start, term.end);
+            holTerminal?.execute(`g(${term.text});;`, util.locationStartEnd(editor.document, term.start, term.end));
+            // highlightStartEnd(editor.document, term.start, term.end);
         })
     );
 
@@ -380,7 +381,7 @@ export function activate(context: vscode.ExtensionContext) {
             let text = editor.document.getText(editor.selection);
             text = text.replace(tacticRe, '').trim();
             holTerminal?.execute(`e(${text});;\n`);
-            decorations.addRange(new vscode.Location(editor.document.uri, editor.selection));
+            // decorations.addRange(new vscode.Location(editor.document.uri, editor.selection));
             return;
         }
         const maxLines = multiline ? config.getConfigOption(config.TACTIC_MAX_LINES, 30) : 1;
@@ -388,14 +389,15 @@ export function activate(context: vscode.ExtensionContext) {
         const pos = editor.selection.active;
         let newPos: vscode.Position;
         if (selection && !selection.range.isEmpty) {
-            holTerminal?.execute(`e(${editor.document.getText(selection.range)});;\n`);
+            holTerminal?.execute(`e(${editor.document.getText(selection.range)});;\n`, 
+                new vscode.Location(editor.document.uri, selection.range));
             newPos = selection.newline ? 
                 new vscode.Position(selection.range.end.line + 1, pos.character) :
                 new vscode.Position(selection.range.end.line, selection.range.end.character + 1);
-            decorations.addRange(new vscode.Location(editor.document.uri, selection.range));
+            // decorations.addRange(new vscode.Location(editor.document.uri, selection.range));
         } else {
             newPos = new vscode.Position(pos.line + 1, pos.character);
-            decorations.removeHighlighting(editor.document.uri);
+            decorations.clear(editor.document.uri);
         }
         if (newline) {
             newPos = editor.document.validatePosition(newPos);
@@ -434,7 +436,7 @@ export function activate(context: vscode.ExtensionContext) {
             holTerminal?.execute('b();;');
             const editor = vscode.window.activeTextEditor;
             if (editor) {
-                decorations.removeHighlighting(editor.document.uri);
+                decorations.clear(editor.document.uri);
             }
         })
     );
@@ -491,15 +493,15 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.remove_highlighting', (editor) => {
-            decorations.removeHighlighting(editor.document.uri);
+            decorations.clear(editor.document.uri);
         })
     );
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.jump_to_highlighting', (editor) => {
-            const ranges = decorations.getHighlightedRanges(editor.document.uri);
-            if (ranges.length) {
-                const pos = ranges.at(-1)!.end;
+            const range = decorations.getLatestHighlightedRange([decorations.pending, decorations.success, decorations.failure], editor.document.uri);
+            if (range) {
+                const pos = range.end;
                 editor.selection = new vscode.Selection(pos, pos);
                 editor.revealRange(new vscode.Range(pos, pos));
             }

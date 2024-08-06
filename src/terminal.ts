@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as child_process from 'child_process';
+import { CommandDecorations } from './decoration';
 
 const LINE_END = '\r\n';
 
@@ -19,7 +20,7 @@ class Command {
     readonly cmd: string;
 
     // Location for providing feedback
-    private location?: vscode.Location;
+    readonly location?: vscode.Location;
 
     constructor(cmd: string, location?: vscode.Location) {
         this.cmdId = Command.counter++;
@@ -53,6 +54,8 @@ export class Terminal implements vscode.Pseudoterminal {
     private holCmd: string;
     private workDir: string;
 
+    private decorations: CommandDecorations;
+
     private commandQueue: Command[] = [];
     private executingCommands: number = 0;
     private commands: {[key: number]: Command} = {};
@@ -66,9 +69,10 @@ export class Terminal implements vscode.Pseudoterminal {
 
     onDidClose?: vscode.Event<void | number> = this.closeEmitter.event;
 
-    constructor(holCmd: string, workDir: string) {
+    constructor(holCmd: string, workDir: string, decorations: CommandDecorations) {
         this.holCmd = holCmd;
         this.workDir = workDir;
+        this.decorations = decorations;
     }
 
     private clearCommands(rejectReason: string) {
@@ -127,6 +131,9 @@ export class Terminal implements vscode.Pseudoterminal {
                     delete this.commands[id];
                     if (command) {
                         this.executingCommands--;
+                        if (command.location) {
+                            this.decorations.addRange(this.decorations.success, command.location);
+                        }
                         if (cmdStart + 1 <= pos && command instanceof CommandWithResult) {
                             if (command.cancellationToken?.isCancellationRequested) {
                                 command.reject("Cancelled");
@@ -200,6 +207,9 @@ export class Terminal implements vscode.Pseudoterminal {
     }
 
     private enqueueCommand(command: Command, options?: { executeImmediately?: boolean, enqueueFirst?: boolean }) {
+        if (command.location) {
+            this.decorations.addRange(this.decorations.pending, command.location);
+        }
         if (options?.executeImmediately) {
             // Nothing is executed if the process is not open
             this.executeCommand(command);
@@ -213,20 +223,20 @@ export class Terminal implements vscode.Pseudoterminal {
         }
     }
 
-    execute(cmd: string): void {
+    execute(cmd: string, location?: vscode.Location): void {
         cmd = cmd.trim();
         if (!cmd.endsWith(';;')) {
             cmd += ';;';
         }
-        this.enqueueCommand(new Command(cmd));
+        this.enqueueCommand(new Command(cmd, location));
     }
 
-    executeForResult(cmd: string, token?: vscode.CancellationToken): Promise<string> {
+    executeForResult(cmd: string, location?: vscode.Location, token?: vscode.CancellationToken): Promise<string> {
         cmd = cmd.trim();
         if (!cmd.endsWith(';;')) {
             cmd += ';;';
         }
-        const command = new CommandWithResult(cmd, undefined, token);
+        const command = new CommandWithResult(cmd, location, token);
         this.enqueueCommand(command);
         return command.result;
     }

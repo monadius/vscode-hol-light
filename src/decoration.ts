@@ -52,8 +52,77 @@ export class Decorations {
         this.updateDecorations();
     }
 
-    removeHighlighting(uri: vscode.Uri) {
+    clear(uri: vscode.Uri) {
         this.documentRanges.delete(uri);
         this.updateDecorations();
+    }
+}
+
+
+class DecorationCollection {
+    private decorations: Decorations[];
+    
+    constructor(decorations: Decorations[]) {
+        this.decorations = decorations;
+    }
+
+    setDecorationStyle(decorationIndex: number, decoration?: vscode.TextEditorDecorationType) {
+        this.decorations[decorationIndex]?.setDecoration(decoration);
+    }
+
+    updateDecorations() {
+        this.decorations.forEach(ds => ds.updateDecorations());
+    }
+
+    addRange(decorationIndex: number, location: vscode.Location) {
+        this.decorations.forEach((ds, i) => {
+            if (i === decorationIndex) {
+                ds.addRange(location);
+            } else {
+                ds.removeRange(location);
+            }
+        });
+    }
+
+    removeRange(location: vscode.Location) {
+        this.decorations.forEach(ds => ds.removeRange(location));
+    }
+
+    clear(uri: vscode.Uri) {
+        this.decorations.forEach(ds => ds.clear(uri));
+    }
+
+    getLatestHighlightedRange(decorationIndex: number | number[], uri: vscode.Uri): vscode.Range | undefined {
+        const indices = typeof decorationIndex === 'number' ? [decorationIndex] : decorationIndex;
+        for (const i of indices) {
+            const ranges = this.decorations[i]?.getHighlightedRanges(uri);
+            if (ranges && ranges.length) {
+                return ranges.at(-1);
+            }
+        }
+    }
+}
+
+function createDecoration(highlightColor: string) {
+    const color = /^#[\dA-F]+$/.test(highlightColor) ? highlightColor : new vscode.ThemeColor(highlightColor);
+    const decoration = vscode.window.createTextEditorDecorationType({
+        rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
+        // backgroundColor: new vscode.ThemeColor("searchEditor.findMatchBackground"),
+        backgroundColor: color
+    });
+    return decoration;
+}
+
+export class CommandDecorations extends DecorationCollection {
+    readonly pending = 0;
+    readonly success = 1;
+    readonly failure = 2;
+
+    constructor() {
+        super([
+            new Decorations(createDecoration('#00008080')),
+            new Decorations(createDecoration('#00800080')),
+            new Decorations(createDecoration('#80000080')),
+        ]);
     }
 }
