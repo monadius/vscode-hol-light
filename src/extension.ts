@@ -160,9 +160,12 @@ export function activate(context: vscode.ExtensionContext) {
             } else {
                 return null;
             }
+
             // replTerm = vscode.window.createTerminal('HOL Light', path);
+
             // replTerm = vscode.window.createTerminal('HOL Light');
             // replTerm.sendText(path);
+            // holTerminal = new terminal.StandardTerminal(replTerm, decorations);
 
             const commandTerminal = new terminal.CommandTerminal(path, workDir, decorations);
             replTerm = vscode.window.createTerminal({ name: 'HOL Light', pty: commandTerminal });
@@ -176,7 +179,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.languages.registerHoverProvider(LANG_ID, {
             provideHover: async function (document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<null | vscode.Hover>  {
                     const word = util.getWordAtPosition(document, position);
-                    if (!holTerminal || !word) {
+                    if (!holTerminal || !word || !holTerminal.canExecuteForResult()) {
                         return null;
                     }
                     const res = await holTerminal.executeForResult(word, undefined, token);

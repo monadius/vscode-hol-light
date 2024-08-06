@@ -17,7 +17,49 @@ export interface Terminal {
 
     execute(cmds: { cmd: string, location?: vscode.Location }[]): void;
 
+    canExecuteForResult(): boolean;
+
     executeForResult(cmd: string, location?: vscode.Location, token?: vscode.CancellationToken): Promise<string>;
+}
+
+export class StandardTerminal implements Terminal {
+    private terminal: vscode.Terminal;
+
+    private decorations: CommandDecorations;
+
+    constructor(terminal: vscode.Terminal, decorations: CommandDecorations) {
+        this.terminal = terminal;
+        this.decorations = decorations;
+    }
+
+    canExecuteForResult(): boolean {
+        return false;
+    }
+
+    execute(cmd: string, location?: vscode.Location): void;
+    execute(cmds: { cmd: string; location?: vscode.Location; }[]): void;
+    execute(cmd: string | { cmd: string; location?: vscode.Location; }[], location?: vscode.Location): void {
+        const cleared = new Set();
+        (typeof cmd === 'string' ? [{ cmd, location }] : cmd).forEach(({ cmd, location }) => {
+            let s = cmd.trim();
+            if (!s.endsWith(';;')) {
+                s += ';;';
+            }
+            if (location) {
+                if (!cleared.has(location.uri)) {
+                    cleared.add(location.uri);
+                    this.decorations.clear(location.uri);
+                }
+                this.decorations.addRange(CommandDecorationType.pending, location);
+            }
+            this.terminal.sendText(s);
+        });
+    }
+
+    executeForResult(cmd: string, location?: vscode.Location, _token?: vscode.CancellationToken): Promise<string> {
+        this.execute(cmd, location);
+        return Promise.reject('Results cannot be returned');
+    }
 }
 
 class Command {
@@ -83,6 +125,10 @@ export class CommandTerminal implements vscode.Pseudoterminal, Terminal {
         this.holCmd = holCmd;
         this.workDir = workDir;
         this.decorations = decorations;
+    }
+
+    canExecuteForResult(): boolean {
+        return true;
     }
 
     private clearCommands(rejectReason: string) {
