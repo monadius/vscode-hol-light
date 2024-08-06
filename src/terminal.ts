@@ -131,13 +131,17 @@ export class Terminal implements vscode.Pseudoterminal {
                     delete this.commands[id];
                     if (command) {
                         this.executingCommands--;
+                        const err = pos > 0 && /^\s*#?\s*(?:Error|Exception):/.test(output[pos - 1]);
                         if (command.location) {
                             // this.decorations.addRange(this.decorations.success, command.location);
-                            this.decorations.setRange(this.decorations.success, command.location);
+                            this.decorations.setRange(err ? this.decorations.failure : this.decorations.success, command.location);
                         }
                         if (cmdStart + 1 <= pos && command instanceof CommandWithResult) {
                             if (command.cancellationToken?.isCancellationRequested) {
                                 command.reject("Cancelled");
+                            } else if (err) {
+                                console.log('command failed');
+                                command.reject('Error');
                             } else {
                                 const result = output.slice(cmdStart + 1, pos).join('\n');
                                 console.log('command output:');
@@ -192,7 +196,7 @@ export class Terminal implements vscode.Pseudoterminal {
         this.child?.stdin?.write(LINE_END);
         this.child?.stdin?.write(command.cmd);
         this.child?.stdin?.write(LINE_END);
-        this.child?.stdin?.write(`Printf.printf "\\n>>>end<<<${id}<<<%!";;`);
+        this.child?.stdin?.write(`Printf.printf ">>>end<<<${id}<<<%!";;`);
         this.child?.stdin?.write(LINE_END);
     }
 
