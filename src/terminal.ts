@@ -152,6 +152,9 @@ export class Terminal implements vscode.Pseudoterminal {
                                 command.resolve(result);
                             }
                         }
+                        if (err && command.groupId) {
+                            this.cancelCommands(command.groupId);
+                        }
                     }
                     cmdStart = Infinity;
                     this.executeNextCommand();
@@ -233,6 +236,20 @@ export class Terminal implements vscode.Pseudoterminal {
             }
             this.executeNextCommand();
         }
+    }
+
+    private cancelCommands(groupId: object, cancelReason?: string) {
+        this.commandQueue = this.commandQueue.filter(command => {
+            if (command.groupId === groupId) {
+                if (command.location) {
+                    this.decorations.removeRange(command.location);
+                }
+                if (command instanceof CommandWithResult) {
+                    command.reject(cancelReason ?? 'Group cancelled');
+                }
+            }
+            return command.groupId !== groupId;
+        });
     }
 
     execute(cmd: string, location?: vscode.Location): void;
