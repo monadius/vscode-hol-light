@@ -61,18 +61,3 @@ export function getCustomCommandNames(): CustomCommandNames {
         customTheorems: split(getConfigOption(CUSTOM_THEOREMS, '')),
     };
 }
-
-export function getReplDecorationType(): vscode.TextEditorDecorationType | undefined {
-    const highlightColor = getConfigOption<string>(HIGHLIGHT_COLOR, '');
-    if (!highlightColor) {
-        return;
-    }
-    const color = /^#[\dA-F]+$/.test(highlightColor) ? highlightColor : new vscode.ThemeColor(highlightColor);
-    const decoration = vscode.window.createTextEditorDecorationType({
-        rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
-        // backgroundColor: new vscode.ThemeColor("searchEditor.findMatchBackground"),
-        backgroundColor: color
-    });
-    return decoration;
-}
-

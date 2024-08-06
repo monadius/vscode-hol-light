@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as child_process from 'child_process';
-import { CommandDecorations } from './decoration';
+import { CommandDecorations, CommandDecorationType } from './decoration';
 
 const LINE_END = '\r\n';
 
@@ -134,7 +134,7 @@ export class Terminal implements vscode.Pseudoterminal {
                         const err = pos > 0 && /^\s*#?\s*(?:Error|Exception):/.test(output[pos - 1]);
                         if (command.location) {
                             // this.decorations.addRange(this.decorations.success, command.location);
-                            this.decorations.setRange(err ? this.decorations.failure : this.decorations.success, command.location);
+                            this.decorations.setRange(err ? CommandDecorationType.failure : CommandDecorationType.success, command.location);
                         }
                         if (cmdStart + 1 <= pos && command instanceof CommandWithResult) {
                             if (command.cancellationToken?.isCancellationRequested) {
@@ -187,7 +187,7 @@ export class Terminal implements vscode.Pseudoterminal {
 
     private executeCommand(command: Command) {
         if (command.location) {
-            this.decorations.addRange(this.decorations.pending, command.location);
+            this.decorations.addRange(CommandDecorationType.pending, command.location);
         }
         const id = command.cmdId;
         this.commands[id] = command;
@@ -216,7 +216,7 @@ export class Terminal implements vscode.Pseudoterminal {
 
     private enqueueCommand(command: Command, options?: { executeImmediately?: boolean, enqueueFirst?: boolean }) {
         if (command.location) {
-            this.decorations.addRange(this.decorations.pending, command.location);
+            this.decorations.addRange(CommandDecorationType.pending, command.location);
         }
         if (options?.executeImmediately) {
             // Nothing is executed if the process is not open

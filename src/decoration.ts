@@ -1,5 +1,18 @@
 import * as vscode from 'vscode';
 
+export function createDecorationType(highlightColor: string) {
+    if (!highlightColor) {
+        return;
+    }
+    const color = /^#[\dA-F]+$/.test(highlightColor) ? highlightColor : new vscode.ThemeColor(highlightColor);
+    const decoration = vscode.window.createTextEditorDecorationType({
+        rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
+        // backgroundColor: new vscode.ThemeColor("searchEditor.findMatchBackground"),
+        backgroundColor: color
+    });
+    return decoration;
+}
+
 export class Decorations {
     private documentRanges: WeakMap<vscode.Uri, vscode.Range[]> = new WeakMap();
 
@@ -118,26 +131,18 @@ class DecorationCollection {
     }
 }
 
-function createDecoration(highlightColor: string) {
-    const color = /^#[\dA-F]+$/.test(highlightColor) ? highlightColor : new vscode.ThemeColor(highlightColor);
-    const decoration = vscode.window.createTextEditorDecorationType({
-        rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
-        // backgroundColor: new vscode.ThemeColor("searchEditor.findMatchBackground"),
-        backgroundColor: color
-    });
-    return decoration;
+export const enum CommandDecorationType {
+    pending,
+    success,
+    failure
 }
 
 export class CommandDecorations extends DecorationCollection {
-    readonly pending = 0;
-    readonly success = 1;
-    readonly failure = 2;
-
-    constructor() {
+    constructor(options: { pending?: vscode.TextEditorDecorationType, success?: vscode.TextEditorDecorationType, failure?: vscode.TextEditorDecorationType }) {
         super([
-            new Decorations(createDecoration('#00008080')),
-            new Decorations(createDecoration('#00800080')),
-            new Decorations(createDecoration('#80000080')),
+            new Decorations(options.pending),
+            new Decorations(options.success),
+            new Decorations(options.failure),
         ]);
     }
 }

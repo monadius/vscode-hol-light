@@ -4,7 +4,7 @@ import * as pathLib from 'path';
 import * as analysis from './analysis';
 import * as config from './config';
 import * as data from './database';
-import * as decoration from './decoration';
+import { CommandDecorationType, CommandDecorations, createDecorationType } from './decoration';
 import * as help from './help';
 import * as selection from './selection';
 import * as tactic from './tactic';
@@ -31,7 +31,11 @@ export function activate(context: vscode.ExtensionContext) {
 
     // A helper class for managing highlighted regions in editors
     // const decorations = new decoration.Decorations(config.getReplDecorationType());
-    const decorations = new decoration.CommandDecorations();
+    const decorations = new CommandDecorations({
+        pending: createDecorationType(config.getConfigOption(config.HIGHLIGHT_COLOR, '')),
+        success: createDecorationType('#00800080'),
+        failure: createDecorationType('#80000080'),
+    });
 
     loadHelpItems(config.getConfigOption(config.HOLLIGHT_PATH, ''));
     if (config.getConfigOption(config.AUTO_INDEX, false)) {
@@ -104,7 +108,8 @@ export function activate(context: vscode.ExtensionContext) {
                     loadBaseHolLightFiles(holPath, true);
                 }
             } else if (config.affectsConfiguration(e, config.HIGHLIGHT_COLOR)) {
-                decorations.setDecorationStyle(decorations.pending, config.getReplDecorationType());
+                const decor = createDecorationType(config.getConfigOption(config.HIGHLIGHT_COLOR, ''));
+                decorations.setDecorationStyle(CommandDecorationType.pending, decor);
             } else if (config.affectsConfiguration(e, config.AUTO_INDEX)) {
                 if (config.getConfigOption(config.AUTO_INDEX, false) && vscode.window.activeTextEditor) {
                     indexDocument(vscode.window.activeTextEditor.document);
@@ -499,7 +504,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.jump_to_highlighting', (editor) => {
-            const range = decorations.getLatestHighlightedRange([decorations.pending, decorations.success, decorations.failure], editor.document.uri);
+            const range = decorations.getLatestHighlightedRange([CommandDecorationType.pending, CommandDecorationType.success, CommandDecorationType.failure], editor.document.uri);
             if (range) {
                 const pos = range.end;
                 editor.selection = new vscode.Selection(pos, pos);
