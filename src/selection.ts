@@ -4,7 +4,7 @@ interface Selection {
     start: number;
     end: number;
     text: string;
-    newPos: vscode.Position | null;
+    newPos?: vscode.Position;
 }
 
 function selectStatementText(document: vscode.TextDocument, text: string, start: number, end: number): Selection {
@@ -26,7 +26,7 @@ function selectStatementText(document: vscode.TextDocument, text: string, start:
         newPos = document.positionAt(text.length);
     }
 
-    return {start: textStart, end: textEnd, text: selectedText, newPos};
+    return { start: textStart, end: textEnd, text: selectedText, newPos };
 }
 
 export function selectStatementSimple(document: vscode.TextDocument, pos: number): Selection {
@@ -41,6 +41,51 @@ export function selectStatementSimple(document: vscode.TextDocument, pos: number
         end = text.indexOf(';;', pos);
     }
     return selectStatementText(document, text, start, end);
+}
+
+export function splitStatements(document: vscode.TextDocument, range: vscode.Range): Selection[] {
+    const statements: Selection[] = [];
+    const text = document.getText(range), n = text.length;
+    let prevPos = 0;
+    for (let i = 0; i <= n; i++) {
+        const ch = text[i];
+        if (ch === '`') {
+            // Skip HOL terms
+            for (i++; i < n; i++) {
+                if (text[i] === '`') {
+                    break;
+                }
+            }
+        } else if (ch === '"') {
+            // Skip strings
+            for (i++; i < n; i++) {
+                if (text[i] === '\\') {
+                    i++;
+                } else if (text[i] === '"') {
+                    break;
+                }
+            }
+        } else if (ch === '(' && text[i + 1] === '*') {
+            // Skip comments
+            let level = 1;
+            for (i += 2; i < n; i++) {
+                if (text[i] === '*' && text[i + 1] === ')') {
+                    if (--level <= 0) {
+                        break;
+                    }
+                } else if (text[i] === '(' && text[i + 1] === '*') {
+                    ++level;
+                }
+            }
+        } else if (!ch || (ch === ';' && text[i + 1] === ';')) {
+            if (i > prevPos) {
+                statements.push({ text, start: prevPos, end: i });
+            }
+            prevPos = i + 2;
+            i++;
+        }
+    }
+    return statements;
 }
 
 export function selectStatement(document: vscode.TextDocument, pos: number): Selection {
@@ -101,7 +146,7 @@ export function selectTermSimple(document: vscode.TextDocument, pos: number): Se
     const text = document.getText();
     let start = text.lastIndexOf('`', pos - 1);
     let end = text.indexOf('`', pos);
-    return start < 0 || end < 0 ? null : {start: start, end: end + 1, text: text.slice(start, end + 1), newPos: null};
+    return start < 0 || end < 0 ? null : { start: start, end: end + 1, text: text.slice(start, end + 1) };
 }
 
 export function selectTerm(document: vscode.TextDocument, pos: number): Selection | null {
@@ -114,7 +159,7 @@ export function selectTerm(document: vscode.TextDocument, pos: number): Selectio
                 break;
             }
             if (i <= pos && pos <= j) {
-                return {start: i, end: j + 1, text: text.slice(i, j + 1), newPos: null};
+                return { start: i, end: j + 1, text: text.slice(i, j + 1) };
             }
             i = j;
         } else if (ch === '"') {
