@@ -132,7 +132,8 @@ export class Terminal implements vscode.Pseudoterminal {
                     if (command) {
                         this.executingCommands--;
                         if (command.location) {
-                            this.decorations.addRange(this.decorations.success, command.location);
+                            // this.decorations.addRange(this.decorations.success, command.location);
+                            this.decorations.setRange(this.decorations.success, command.location);
                         }
                         if (cmdStart + 1 <= pos && command instanceof CommandWithResult) {
                             if (command.cancellationToken?.isCancellationRequested) {
@@ -181,6 +182,9 @@ export class Terminal implements vscode.Pseudoterminal {
     // private command?: Command;
 
     private executeCommand(command: Command) {
+        if (command.location) {
+            this.decorations.addRange(this.decorations.pending, command.location);
+        }
         const id = command.cmdId;
         this.commands[id] = command;
         this.executingCommands += 1;

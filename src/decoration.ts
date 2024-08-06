@@ -52,6 +52,11 @@ export class Decorations {
         this.updateDecorations();
     }
 
+    setRange(location: vscode.Location) {
+        this.documentRanges.set(location.uri, [location.range]);
+        this.updateDecorations();
+    }
+
     clear(uri: vscode.Uri) {
         this.documentRanges.delete(uri);
         this.updateDecorations();
@@ -72,6 +77,16 @@ class DecorationCollection {
 
     updateDecorations() {
         this.decorations.forEach(ds => ds.updateDecorations());
+    }
+
+    setRange(decorationIndex: number, location: vscode.Location) {
+        this.decorations.forEach((ds, i) => {
+            if (i === decorationIndex) {
+                ds.setRange(location);
+            } else {
+                ds.removeRange(location);
+            }
+        });
     }
 
     addRange(decorationIndex: number, location: vscode.Location) {
