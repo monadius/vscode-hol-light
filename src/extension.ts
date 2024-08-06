@@ -318,9 +318,18 @@ export function activate(context: vscode.ExtensionContext) {
             repl.show(true);
 
             if (!editor.selection.isEmpty) {
-                const statement = editor.document.getText(editor.selection).trim();
+                // const statement = editor.document.getText(editor.selection).trim();
+                const document = editor.document;
+                const offset = document.offsetAt(editor.selection.start);
+                const selections = selection.splitStatements(document, editor.selection);
+                const statements = selections.map(({ text, start, end }) => ({
+                    cmd: text.slice(start, end).trim(), 
+                    location: new vscode.Location(editor.document.uri, 
+                        new vscode.Range(document.positionAt(start + offset), document.positionAt(end + offset)))
+                })).filter(cmd => cmd.cmd);
                 // repl.sendText(statement + (statement.endsWith(';;') ? '\n' : ';;\n'));
-                holTerminal?.execute(statement, new vscode.Location(editor.document.uri, editor.selection));
+                // holTerminal?.execute(statement, new vscode.Location(editor.document.uri, editor.selection));
+                holTerminal?.execute(statements);
                 // decorations.addRange(new vscode.Location(editor.document.uri, editor.selection));
                 return;
             }

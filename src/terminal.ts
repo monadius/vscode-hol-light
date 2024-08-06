@@ -17,6 +17,8 @@ class Command {
 
     readonly cmdId: number;
 
+    groupId?: object;
+
     readonly cmd: string;
 
     // Location for providing feedback
@@ -214,29 +216,45 @@ export class Terminal implements vscode.Pseudoterminal {
         }
     }
 
-    private enqueueCommand(command: Command, options?: { executeImmediately?: boolean, enqueueFirst?: boolean }) {
-        if (command.location) {
-            this.decorations.addRange(CommandDecorationType.pending, command.location);
-        }
+    private enqueueCommands(commands: Command[], options?: { executeImmediately?: boolean, enqueueFirst?: boolean }) {
+        commands.forEach(command => {
+            if (command.location) {
+                this.decorations.addRange(CommandDecorationType.pending, command.location);
+            }
+        });
         if (options?.executeImmediately) {
             // Nothing is executed if the process is not open
-            this.executeCommand(command);
+            commands.forEach(command => this.executeCommand(command));
         } else {
             if (options?.enqueueFirst) {
-                this.commandQueue.unshift(command);
+                this.commandQueue.unshift(...commands);
             } else {
-                this.commandQueue.push(command);
+                this.commandQueue.push(...commands);
             }
             this.executeNextCommand();
         }
     }
 
-    execute(cmd: string, location?: vscode.Location): void {
-        cmd = cmd.trim();
-        if (!cmd.endsWith(';;')) {
-            cmd += ';;';
+    execute(cmd: string, location?: vscode.Location): void;
+
+    execute(cmds: { cmd: string, location?: vscode.Location }[]): void;
+
+    execute(cmd: string | { cmd: string, location?: vscode.Location}[], location?: vscode.Location): void {
+        const commands = (typeof cmd === 'string' ? [{ cmd, location }] : cmd).map(({ cmd, location }) => {
+            let s = cmd.trim();
+            if (!s.endsWith(';;')) {
+                s += ';;';
+            }
+            return new Command(s, location);
+        });
+        if (commands.length) {
+            if (commands.length > 1) {
+                // A unique group identifier
+                const group = {};
+                commands.forEach(cmd => cmd.groupId = group);
+            }
+            this.enqueueCommands(commands);
         }
-        this.enqueueCommand(new Command(cmd, location));
     }
 
     executeForResult(cmd: string, location?: vscode.Location, token?: vscode.CancellationToken): Promise<string> {
@@ -245,7 +263,7 @@ export class Terminal implements vscode.Pseudoterminal {
             cmd += ';;';
         }
         const command = new CommandWithResult(cmd, location, token);
-        this.enqueueCommand(command);
+        this.enqueueCommands([command]);
         return command.result;
     }
 
