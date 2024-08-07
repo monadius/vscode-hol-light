@@ -156,7 +156,16 @@ export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverP
             return null;
         }
         const res = await this.executeForResult(word, undefined, token);
-        return new vscode.Hover(new vscode.MarkdownString(res));
+        const m = res.match(/^.*:([^=]*)=(.*)/s);
+        if (!m) {
+            return null;
+        }
+        const type = m[1].trim();
+        let body = m[2].trim();
+        if (type === 'thm' || type === 'term') {
+            body = "```\n`" + body + "`\n```";
+        }
+        return new vscode.Hover(new vscode.MarkdownString(`### \`${word} : ${type}\`\n\n${body}`));
     }
 
 }

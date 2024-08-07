@@ -190,7 +190,7 @@ export class CommandTerminal implements vscode.Pseudoterminal, Terminal {
                     delete this.commands[id];
                     if (command) {
                         this.executingCommands = Math.max(0, this.executingCommands - 1);
-                        const err = pos > 0 && /^\s*#?\s*(?:Error|Exception):/.test(output[pos - 1]);
+                        const err = pos > 0 && /^\s*#?\s*(?:Error|Exception|Parse error):/i.test(output[pos - 1]);
                         if (command.location) {
                             // this.decorations.addRange(this.decorations.success, command.location);
                             this.decorations.setRange(err ? CommandDecorationType.failure : CommandDecorationType.success, command.location);
