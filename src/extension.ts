@@ -397,6 +397,16 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
+        vscode.commands.registerTextEditorCommand('hol-light.repl_send_statements_before_cursor', async (editor) => {
+            const repl = await getREPL(pathLib.dirname(editor.document.uri.fsPath));
+            if (!repl) {
+                return;
+            }
+            repl.show(true);
+        })
+    );
+
+    context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.repl_send_break', async () => {
             if (!replTerm) {
                 vscode.window.showErrorMessage('No HOL Light REPL');

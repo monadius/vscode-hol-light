@@ -45,6 +45,11 @@
             },
             {
                 "category": "HOL Light",
+                "command": "hol-light.repl_send_statements_before_cursor",
+                "title": "Send All Statements before the Cursor Position to REPL"
+            },
+            {
+                "category": "HOL Light",
                 "command": "hol-light.repl_send_break",
                 "title": "Send ^C to REPL"
             },
@@ -145,6 +150,11 @@
             {
                 "key": "alt+e",
                 "command": "hol-light.repl_send_statement",
+                "when": "editorTextFocus && editorLangId == hol-light-ocaml"
+            },
+            {
+                "key": "alt+a",
+                "command": "hol-light.repl_send_statements_before_cursor",
                 "when": "editorTextFocus && editorLangId == hol-light-ocaml"
             },
             {

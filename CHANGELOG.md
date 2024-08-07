@@ -2,6 +2,8 @@
 
 ## 2.1.0
 - Completion suggestions for imports (e.g., after `needs`).
+- New command `HOL Light: Send All Statements before the Cursor Position to REPL`:
+  evaluate everything up to the cursor position (default shortcut `Alt+a`).
 
 ## 2.0.0
 - All open HOL Light files and their dependencies are parsed and an index of definitions and modules is
