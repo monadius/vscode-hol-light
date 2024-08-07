@@ -128,17 +128,58 @@ export function activate(context: vscode.ExtensionContext) {
 
     async function getREPL(workDir: string = ''): Promise<vscode.Terminal | null> {
         if (!replTerm) {
+            let standardTerminal = false;
             const paths = config.getConfigOption<string[]>(config.EXE_PATHS, []);
-            const items: vscode.QuickPickItem[] = paths.map(path => ({ label: path }));
-            items.push({ label: '', kind: vscode.QuickPickItemKind.Separator });
-            items.push({ label: 'Choose a script file...', detail: 'Select a file in a file open dialog' });
+
+            const result = await new Promise<vscode.QuickPickItem | null>((resolve, _reject) => {
+                const items: vscode.QuickPickItem[] = paths.map(path => ({ 
+                    label: path, 
+                    // buttons: [{ iconPath: new vscode.ThemeIcon('terminal'), tooltip: 'Run in a standard terminal' }] 
+                }));
+                items.push({ label: '', kind: vscode.QuickPickItemKind.Separator });
+                items.push({ label: 'Choose a script file...', detail: 'Select a file in a file open dialog' });
+    
+                const input = vscode.window.createQuickPick();
+                input.items = items;
+                input.placeholder = 'Select a HOL Light startup script';
+                
+                const updateInput = () => {
+                    if (standardTerminal) {
+                        input.title = 'Run in a standard terminal (click the button to switch)';
+                        // Icon identifiers: https://code.visualstudio.com/api/references/icons-in-labels
+                        input.buttons = [{ iconPath: new vscode.ThemeIcon('terminal'), tooltip: 'Run in a separate process' }];
+                    } else {
+                        input.title = 'Run in a separate process (not compatible with utop or ledit)';
+                        input.buttons = [{ iconPath: new vscode.ThemeIcon('terminal'), tooltip: 'Run in a standard terminal' }];
+                    }
+                };
+
+                updateInput();
+
+                input.onDidHide(() => {
+                    resolve(null);
+                    input.dispose();
+                });
+
+                input.onDidTriggerButton(() => {
+                    standardTerminal = !standardTerminal;
+                    updateInput();
+                });
+
+                // TODO: try checkboxes for each item. 
+                // It will be necessary to update input.items every time when the corresponding
+                // item button is clicked.
+
+                input.onDidChangeSelection(items => {
+                    const item = items[0];
+                    resolve(item);
+                    input.hide();
+                });
+
+                input.show();
+            });
 
             let path: string;
-            const result = await vscode.window.showQuickPick(items, {
-               canPickMany: false, 
-               ignoreFocusOut: true,
-               placeHolder: "Select a HOL Light startup script"
-            });
             if (result) {
                 if (result.detail) {
                     const uri = await vscode.window.showOpenDialog({
@@ -161,15 +202,16 @@ export function activate(context: vscode.ExtensionContext) {
                 return null;
             }
 
-            // replTerm = vscode.window.createTerminal('HOL Light', path);
-
-            // replTerm = vscode.window.createTerminal('HOL Light');
-            // replTerm.sendText(path);
-            // holTerminal = new terminal.StandardTerminal(replTerm, decorations);
-
-            const commandTerminal = new terminal.CommandTerminal(path, workDir, decorations);
-            replTerm = vscode.window.createTerminal({ name: 'HOL Light', pty: commandTerminal });
-            holTerminal = commandTerminal;
+            if (standardTerminal) {
+                // replTerm = vscode.window.createTerminal('HOL Light', path);
+                replTerm = vscode.window.createTerminal('HOL Light');
+                replTerm.sendText(path);
+                holTerminal = new terminal.StandardTerminal(replTerm, decorations);
+            } else {
+                const commandTerminal = new terminal.CommandTerminal(path, workDir, decorations);
+                replTerm = vscode.window.createTerminal({ name: 'HOL Light', pty: commandTerminal });
+                holTerminal = commandTerminal;
+            }
         }
 
         return replTerm;
