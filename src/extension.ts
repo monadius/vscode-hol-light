@@ -6,9 +6,9 @@ import * as config from './config';
 import * as data from './database';
 import { CommandDecorationType, CommandDecorations, createDecorationType } from './decoration';
 import * as help from './help';
+import { Repl } from './repl';
 import * as selection from './selection';
 import * as tactic from './tactic';
-import * as terminal from './terminal';
 import * as util from './util';
 
 const LANG_ID = 'hol-light-ocaml';
@@ -17,8 +17,17 @@ const LANG_ID = 'hol-light-ocaml';
 export function activate(context: vscode.ExtensionContext) {
     console.log('HOL Light extension is activated');
 
-    let replTerm: vscode.Terminal | null = null;
-    let holTerminal: terminal.Terminal | null = null;
+    // A helper class for managing highlighted regions in editors
+    // const decorations = new decoration.Decorations(config.getReplDecorationType());
+    const decorations = new CommandDecorations({
+        pending: createDecorationType(config.getConfigOption(config.HIGHLIGHT_COLOR, '')),
+        success: createDecorationType('#00800080'),
+        failure: createDecorationType('#80000080'),
+    });
+
+    const repl = new Repl(context, decorations);
+    // let replTerm: vscode.Terminal | null = null;
+    // let holTerminal: terminal.Terminal | null = null;
 
     const diagnosticCollection = vscode.languages.createDiagnosticCollection('hol-imports');
     const analysisDiagnostic = vscode.languages.createDiagnosticCollection('hol-analysis');
@@ -28,14 +37,6 @@ export function activate(context: vscode.ExtensionContext) {
 
     // A completion, definition, and hover provider for all HOL Light definition
     const database = new data.Database(diagnosticCollection, helpProvider, config.getCustomCommandNames());
-
-    // A helper class for managing highlighted regions in editors
-    // const decorations = new decoration.Decorations(config.getReplDecorationType());
-    const decorations = new CommandDecorations({
-        pending: createDecorationType(config.getConfigOption(config.HIGHLIGHT_COLOR, '')),
-        success: createDecorationType('#00800080'),
-        failure: createDecorationType('#80000080'),
-    });
 
     loadHelpItems(config.getConfigOption(config.HOLLIGHT_PATH, ''));
     if (config.getConfigOption(config.AUTO_INDEX, false)) {
@@ -85,7 +86,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.languages.registerHoverProvider(LANG_ID, util.combineHoverProviders(helpProvider, database))
+        vscode.languages.registerHoverProvider(LANG_ID, util.combineHoverProviders(helpProvider, database, repl))
     );
     
     context.subscriptions.push(
@@ -123,121 +124,6 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.window.onDidChangeVisibleTextEditors(_editors => {
             decorations.updateDecorations();
-        })
-    );
-
-    async function getREPL(workDir: string = ''): Promise<vscode.Terminal | null> {
-        if (!replTerm) {
-            let standardTerminal = false;
-            const paths = config.getConfigOption<string[]>(config.EXE_PATHS, []);
-
-            const result = await new Promise<vscode.QuickPickItem | null>((resolve, _reject) => {
-                const items: vscode.QuickPickItem[] = paths.map(path => ({ 
-                    label: path, 
-                    // buttons: [{ iconPath: new vscode.ThemeIcon('terminal'), tooltip: 'Run in a standard terminal' }] 
-                }));
-                items.push({ label: '', kind: vscode.QuickPickItemKind.Separator });
-                items.push({ label: 'Choose a script file...', detail: 'Select a file in a file open dialog' });
-    
-                const input = vscode.window.createQuickPick();
-                input.items = items;
-                input.placeholder = 'Select a HOL Light startup script';
-                
-                const updateInput = () => {
-                    if (standardTerminal) {
-                        input.title = 'Run in a standard terminal (click the button to switch)';
-                        // Icon identifiers: https://code.visualstudio.com/api/references/icons-in-labels
-                        input.buttons = [{ iconPath: new vscode.ThemeIcon('terminal'), tooltip: 'Run in a separate process' }];
-                    } else {
-                        input.title = 'Run in a separate process (not compatible with utop or ledit)';
-                        input.buttons = [{ iconPath: new vscode.ThemeIcon('terminal'), tooltip: 'Run in a standard terminal' }];
-                    }
-                };
-
-                updateInput();
-
-                input.onDidHide(() => {
-                    resolve(null);
-                    input.dispose();
-                });
-
-                input.onDidTriggerButton(() => {
-                    standardTerminal = !standardTerminal;
-                    updateInput();
-                });
-
-                // TODO: try checkboxes for each item. 
-                // It will be necessary to update input.items every time when the corresponding
-                // item button is clicked.
-
-                input.onDidChangeSelection(items => {
-                    const item = items[0];
-                    resolve(item);
-                    input.hide();
-                });
-
-                input.show();
-            });
-
-            let path: string;
-            if (result) {
-                if (result.detail) {
-                    const uri = await vscode.window.showOpenDialog({
-                        canSelectFiles: true, 
-                        canSelectFolders: false, 
-                        canSelectMany: false
-                    });
-                    if (!uri || !uri.length || !uri[0].fsPath) {
-                        return null;
-                    }
-                    path = uri[0].fsPath;
-                    if (!paths.includes(path)) {
-                        paths.push(path);
-                        config.updateConfigOption(config.EXE_PATHS, paths);
-                    }
-                } else {
-                    path = result.label;
-                }
-            } else {
-                return null;
-            }
-
-            if (standardTerminal) {
-                // replTerm = vscode.window.createTerminal('HOL Light', path);
-                replTerm = vscode.window.createTerminal('HOL Light');
-                replTerm.sendText(path);
-                holTerminal = new terminal.StandardTerminal(replTerm, decorations);
-            } else {
-                const commandTerminal = new terminal.CommandTerminal(path, workDir, decorations);
-                replTerm = vscode.window.createTerminal({ name: 'HOL Light', pty: commandTerminal });
-                holTerminal = commandTerminal;
-            }
-        }
-
-        return replTerm;
-    }
-
-    context.subscriptions.push(
-        vscode.languages.registerHoverProvider(LANG_ID, {
-            provideHover: async function (document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<null | vscode.Hover>  {
-                    const word = util.getWordAtPosition(document, position);
-                    if (!holTerminal || !word || !holTerminal.canExecuteForResult()) {
-                        return null;
-                    }
-                    const res = await holTerminal.executeForResult(word, undefined, token);
-                    return new vscode.Hover(new vscode.MarkdownString(res));
-                }
-        })
-    );
-
-
-
-    context.subscriptions.push(
-        vscode.window.onDidCloseTerminal((term) => {
-            if (term === replTerm) {
-                replTerm = null;
-                holTerminal = null;
-            }
         })
     );
 
@@ -319,14 +205,8 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.repl', async () => {
-            if (replTerm) {
-                replTerm.dispose();
-                replTerm = null;
-            }
-            const repl = await getREPL();
-            if (repl) {
-                repl.show(true);
-            }
+            repl.dispose();
+            (await repl.getTerminalWindow())?.show(true);
         })
     );
 
@@ -356,11 +236,11 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.repl_send_statement', async (editor) => {
-            const repl = await getREPL(pathLib.dirname(editor.document.uri.fsPath));
-            if (!repl) {
+            const terminal = await repl.getTerminalWindow(pathLib.dirname(editor.document.uri.fsPath));
+            if (!terminal) {
                 return;
             }
-            repl.show(true);
+            terminal.show(true);
 
             if (!editor.selection.isEmpty) {
                 // const statement = editor.document.getText(editor.selection).trim();
@@ -373,9 +253,8 @@ export function activate(context: vscode.ExtensionContext) {
                         new vscode.Range(document.positionAt(start + offset), document.positionAt(end + offset)))
                 })).filter(cmd => cmd.cmd);
                 // repl.sendText(statement + (statement.endsWith(';;') ? '\n' : ';;\n'));
-                // holTerminal?.execute(statement, new vscode.Location(editor.document.uri, editor.selection));
-                holTerminal?.execute(statements);
-                // decorations.addRange(new vscode.Location(editor.document.uri, editor.selection));
+                // repl.execute(statement, new vscode.Location(editor.document.uri, editor.selection));
+                repl.execute(statements);
                 return;
             }
 
@@ -385,9 +264,7 @@ export function activate(context: vscode.ExtensionContext) {
                     selection.selectStatementSimple(editor.document, pos) :
                     selection.selectStatement(editor.document, pos);
 
-            // repl.sendText(statement + ';;\n');
-            holTerminal?.execute(statement, util.locationStartEnd(editor.document, textStart, textEnd + 2));
-            // highlightStartEnd(editor.document, textStart, textEnd + 2);
+            repl.execute(statement, util.locationStartEnd(editor.document, textStart, textEnd + 2));
             
             if (newPos) {
                 editor.selection = new vscode.Selection(newPos, newPos);
@@ -398,31 +275,31 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.repl_send_statements_before_cursor', async (editor) => {
-            const repl = await getREPL(pathLib.dirname(editor.document.uri.fsPath));
-            if (!repl) {
+            const terminal = await repl.getTerminalWindow(pathLib.dirname(editor.document.uri.fsPath));
+            if (!terminal) {
                 return;
             }
-            repl.show(true);
+            terminal.show(true);
         })
     );
 
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.repl_send_break', async () => {
-            if (!replTerm) {
+            if (!repl.isActive()) {
                 vscode.window.showErrorMessage('No HOL Light REPL');
                 return;
             }
-            replTerm.sendText(String.fromCharCode(3));
+            repl.sendText(String.fromCharCode(3));
         })
     );
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.repl_send_goal', async (editor) => {
-            const repl = await getREPL();
-            if (!repl) {
+            const terminal = await repl.getTerminalWindow(pathLib.dirname(editor.document.uri.fsPath));
+            if (!terminal) {
                 return;
             }
-            repl.show(true);
+            terminal.show(true);
             const pos = editor.document.offsetAt(editor.selection.active);
 
             const term = config.getConfigOption(config.SIMPLE_SELECTION, false) ?
@@ -432,25 +309,23 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.window.showWarningMessage('Not inside a term');
                 return;
             }
-            holTerminal?.execute(`g(${term.text});;`, util.locationStartEnd(editor.document, term.start, term.end));
-            // highlightStartEnd(editor.document, term.start, term.end);
+            repl.execute(`g(${term.text});;`, util.locationStartEnd(editor.document, term.start, term.end));
         })
     );
 
     const tacticRe = /^\s*(?:THEN\b|THENL\b(\s*\[)?)|\b(?:THEN|THENL(\s*\[)?)\s*$/g;
 
     async function replSendTactic(editor: vscode.TextEditor, multiline: boolean, newline: boolean) {
-        const repl = await getREPL();
-        if (!repl) {
+        const terminal = await repl.getTerminalWindow(pathLib.dirname(editor.document.uri.fsPath));
+        if (!terminal) {
             return;
         }
-        repl.show(true);
+        terminal.show(true);
         if (!editor.selection.isEmpty) {
             // If the selection is not empty then use it
             let text = editor.document.getText(editor.selection);
             text = text.replace(tacticRe, '').trim();
-            holTerminal?.execute(`e(${text});;\n`);
-            // decorations.addRange(new vscode.Location(editor.document.uri, editor.selection));
+            repl.execute(`e(${text});;\n`);
             return;
         }
         const maxLines = multiline ? config.getConfigOption(config.TACTIC_MAX_LINES, 30) : 1;
@@ -458,7 +333,7 @@ export function activate(context: vscode.ExtensionContext) {
         const pos = editor.selection.active;
         let newPos: vscode.Position;
         if (selection && !selection.range.isEmpty) {
-            holTerminal?.execute(`e(${editor.document.getText(selection.range)});;\n`, 
+            repl.execute(`e(${editor.document.getText(selection.range)});;\n`, 
                 new vscode.Location(editor.document.uri, selection.range));
             newPos = selection.newline ? 
                 new vscode.Position(selection.range.end.line + 1, pos.character) :
@@ -498,11 +373,11 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.repl_back_proof', async () => {
-            if (!replTerm) {
+            if (!repl.isActive()) {
                 vscode.window.showErrorMessage('No HOL Light REPL');
                 return;
             }
-            holTerminal?.execute('b();;');
+            repl.execute('b();;');
             const editor = vscode.window.activeTextEditor;
             if (editor) {
                 decorations.clear(editor.document.uri);
@@ -512,31 +387,31 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.repl_print_goal', async () => {
-            if (!replTerm) {
+            if (!repl.isActive()) {
                 vscode.window.showErrorMessage('No HOL Light REPL');
                 return;
             }
-            holTerminal?.execute('p();;');
+            repl.execute('p();;');
         })
     );
 
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.repl_rotate_goal', async () => {
-            if (!replTerm) {
+            if (!repl.isActive()) {
                 vscode.window.showErrorMessage('No HOL Light REPL');
                 return;
             }
-            holTerminal?.execute('r(1);;');
+            repl.execute('r(1);;');
         })
     );
 
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.search', async () => {
-            const repl = await getREPL();
-            if (!repl) {
+            const terminal = await repl.getTerminalWindow();
+            if (!terminal) {
                 return;
             }
-            repl.show(true);
+            terminal.show(true);
             const result = await vscode.window.showInputBox();
             if (!result) {
                 return;
@@ -556,7 +431,7 @@ export function activate(context: vscode.ExtensionContext) {
                 }
                 return s;
             });
-            holTerminal?.execute(`search([${terms.join('; ')}]);;`);
+            repl.execute(`search([${terms.join('; ')}]);;`);
         })
     );
 
