@@ -798,4 +798,16 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         }
     }
 
+    async resolveCompletionItem(item: vscode.CompletionItem, token: vscode.CancellationToken) {
+        if (item.documentation || !this.replProvider?.canExecuteForResult()) {
+            return item;
+        }
+        const label = typeof item.label === 'string' ? item.label : item.label.label;
+        const info = await this.replProvider?.getInfo(label, token);
+        if (info) {
+            item.documentation = info;
+        }
+        return item;
+    }
+
 }

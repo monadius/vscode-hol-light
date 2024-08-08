@@ -144,6 +144,27 @@ export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverP
         return this.vscodeTerminal;
     }
 
+    async getInfo(word: string, token?: vscode.CancellationToken): Promise<vscode.MarkdownString | null> {
+        if (!word) {
+            return null;
+        }
+        try {
+            const res = await this.executeForResult(word, undefined, token);
+            const m = res.match(/^.*:([^=]*)=(.*)/s);
+            if (!m) {
+                return null;
+            }
+            const type = m[1].trim();
+            let body = m[2].trim();
+            if (type === 'thm' || type === 'term') {
+                body = "```\n`" + body + "`\n```";
+            }
+            return new vscode.MarkdownString(`### \`${word} : ${type}\`\n\n${body}`);
+        } catch {
+            return null;
+        }
+    }
+
     /**
      * HoverProvider implementation
      */
@@ -155,17 +176,8 @@ export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverP
         if (!word) {
             return null;
         }
-        const res = await this.executeForResult(word, undefined, token);
-        const m = res.match(/^.*:([^=]*)=(.*)/s);
-        if (!m) {
-            return null;
-        }
-        const type = m[1].trim();
-        let body = m[2].trim();
-        if (type === 'thm' || type === 'term') {
-            body = "```\n`" + body + "`\n```";
-        }
-        return new vscode.Hover(new vscode.MarkdownString(`### \`${word} : ${type}\`\n\n${body}`));
+        const res = await this.getInfo(word, token);
+        return res ? new vscode.Hover(res) : null;
     }
 
 }
