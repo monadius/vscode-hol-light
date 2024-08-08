@@ -5,6 +5,8 @@ export const DEBUG: boolean = true;
 export const SECTION = 'hol-light';
 
 export const HIGHLIGHT_COLOR = 'highlightColor';
+export const HIGHLIGHT_COLOR_SUCCESS = 'highlightColorSuccess';
+export const HIGHLIGHT_COLOR_FAILURE = 'highlightColorFailure';
 export const HOLLIGHT_PATH = 'path';
 export const EXE_PATHS = 'exePaths';
 export const ROOT_PATHS = 'rootPaths';

@@ -21,8 +21,8 @@ export function activate(context: vscode.ExtensionContext) {
     // const decorations = new decoration.Decorations(config.getReplDecorationType());
     const decorations = new CommandDecorations({
         pending: createDecorationType(config.getConfigOption(config.HIGHLIGHT_COLOR, '')),
-        success: createDecorationType('#00800080'),
-        failure: createDecorationType('#80000080'),
+        success: createDecorationType(config.getConfigOption(config.HIGHLIGHT_COLOR_SUCCESS, '')),
+        failure: createDecorationType(config.getConfigOption(config.HIGHLIGHT_COLOR_FAILURE, '')),
     });
 
     const repl = new Repl(context, decorations);
@@ -75,10 +75,6 @@ export function activate(context: vscode.ExtensionContext) {
         }
     }
 
-    // function highlightStartEnd(document: vscode.TextDocument, start: number, end: number) {
-    //     decorations.addRange(new vscode.Location(document.uri, new vscode.Range(document.positionAt(start), document.positionAt(end))));
-    // }
-
     // Register completion, definition, and hover providers
 
     context.subscriptions.push(
@@ -111,6 +107,12 @@ export function activate(context: vscode.ExtensionContext) {
             } else if (config.affectsConfiguration(e, config.HIGHLIGHT_COLOR)) {
                 const decor = createDecorationType(config.getConfigOption(config.HIGHLIGHT_COLOR, ''));
                 decorations.setDecorationStyle(CommandDecorationType.pending, decor);
+            } else if (config.affectsConfiguration(e, config.HIGHLIGHT_COLOR_SUCCESS)) {
+                const decor = createDecorationType(config.getConfigOption(config.HIGHLIGHT_COLOR_SUCCESS, ''));
+                decorations.setDecorationStyle(CommandDecorationType.success, decor);
+            } else if (config.affectsConfiguration(e, config.HIGHLIGHT_COLOR_FAILURE)) {
+                const decor = createDecorationType(config.getConfigOption(config.HIGHLIGHT_COLOR_FAILURE, ''));
+                decorations.setDecorationStyle(CommandDecorationType.failure, decor);
             } else if (config.affectsConfiguration(e, config.AUTO_INDEX)) {
                 if (config.getConfigOption(config.AUTO_INDEX, false) && vscode.window.activeTextEditor) {
                     indexDocument(vscode.window.activeTextEditor.document);
@@ -338,7 +340,6 @@ export function activate(context: vscode.ExtensionContext) {
             newPos = selection.newline ? 
                 new vscode.Position(selection.range.end.line + 1, pos.character) :
                 new vscode.Position(selection.range.end.line, selection.range.end.character + 1);
-            // decorations.addRange(new vscode.Location(editor.document.uri, selection.range));
         } else {
             newPos = new vscode.Position(pos.line + 1, pos.character);
             decorations.clear(editor.document.uri);
@@ -372,16 +373,13 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('hol-light.repl_back_proof', async () => {
+        vscode.commands.registerTextEditorCommand('hol-light.repl_back_proof', async (editor) => {
             if (!repl.isActive()) {
                 vscode.window.showErrorMessage('No HOL Light REPL');
                 return;
             }
             repl.execute('b();;');
-            const editor = vscode.window.activeTextEditor;
-            if (editor) {
-                decorations.clear(editor.document.uri);
-            }
+            decorations.clear(editor.document.uri);
         })
     );
 
