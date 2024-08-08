@@ -36,7 +36,7 @@ export function activate(context: vscode.ExtensionContext) {
     const helpProvider = new help.HelpProvider();
 
     // A completion, definition, and hover provider for all HOL Light definition
-    const database = new data.Database(diagnosticCollection, helpProvider, config.getCustomCommandNames());
+    const database = new data.Database(diagnosticCollection, helpProvider, repl, config.getCustomCommandNames());
 
     loadHelpItems(config.getConfigOption(config.HOLLIGHT_PATH, ''));
     if (config.getConfigOption(config.AUTO_INDEX, false)) {

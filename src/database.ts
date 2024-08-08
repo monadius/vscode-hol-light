@@ -5,7 +5,8 @@ import * as path from 'path';
 import { CustomCommandNames } from './config';
 import * as config from './config';
 import * as help from './help';
-import { Definition, Module, ParseResult, parseText, Dependency as ParserDependency } from './parser';
+import { Definition, Module, ParseResult, parseText, Dependency as ParserDependency, DefinitionType } from './parser';
+import * as repl from './repl';
 import { Trie } from './trie';
 import * as util from './util';
 
@@ -134,6 +135,11 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
     private helpProvider?: help.HelpProvider;
 
     /**
+     * Repl may provide extra information for items which cannot be parsed
+     */
+    private replProvider?: repl.Repl;
+
+    /**
      * Custom command names for parsing.
      */
     private customCommandNames: CustomCommandNames;
@@ -148,9 +154,10 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
      */
     private importPrefixRe?: RegExp;
 
-    constructor(diagnosticCollection: vscode.DiagnosticCollection, helpProvider?: help.HelpProvider, customCommandNames?: CustomCommandNames) {
+    constructor(diagnosticCollection: vscode.DiagnosticCollection, helpProvider?: help.HelpProvider, replProvider?: repl.Repl, customCommandNames?: CustomCommandNames) {
         this.diagnosticCollection = diagnosticCollection;
         this.helpProvider = helpProvider;
+        this.replProvider = replProvider;
         this.customCommandNames = customCommandNames ?? { customDefinitions: [], customImports: [], customTheorems: [] };
     }
 
@@ -701,14 +708,22 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
      * @param _token 
      * @returns 
      */
-    provideHover(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken) {
+    provideHover(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken) {
         const word = util.getWordAtPosition(document, position);
         if (!word) {
             return null;
         }
 
         let { defs, mods } = this.findDefinitionsAndModules(word, document.uri.fsPath, position);
-        return defs[0]?.toHoverItem() || (mods.values().next().value as Module | undefined)?.toHoverItem();
+        if (defs[0]) {
+            if (defs[0].type === DefinitionType.other && this.replProvider) {
+                return this.replProvider.provideHover(document, position, token)
+                            .then(r => r ?? defs[0].toHoverItem())
+                            .catch(() => defs[0].toHoverItem());
+            }
+            return defs[0].toHoverItem();
+        }
+        return (mods.values().next().value as Module | undefined)?.toHoverItem();
     }
 
     /**
