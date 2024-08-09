@@ -245,17 +245,15 @@ export function activate(context: vscode.ExtensionContext) {
             terminal.show(true);
 
             if (!editor.selection.isEmpty) {
-                // const statement = editor.document.getText(editor.selection).trim();
                 const document = editor.document;
-                const offset = document.offsetAt(editor.selection.start);
-                const selections = selection.splitStatements(document, editor.selection);
-                const statements = selections.map(({ text, start, end }) => ({
+                const selections = selection.splitStatements(document, { 
+                    range: editor.selection,
+                    returnDocumentRanges: true,
+                });
+                const statements = selections.map(({ text, start, end, range }) => ({
                     cmd: text.slice(start, end).trim(), 
-                    location: new vscode.Location(editor.document.uri, 
-                        new vscode.Range(document.positionAt(start + offset), document.positionAt(end + offset)))
+                    location: range ? new vscode.Location(editor.document.uri, range) : undefined,
                 })).filter(cmd => cmd.cmd);
-                // repl.sendText(statement + (statement.endsWith(';;') ? '\n' : ';;\n'));
-                // repl.execute(statement, new vscode.Location(editor.document.uri, editor.selection));
                 repl.execute(statements);
                 return;
             }
@@ -284,29 +282,14 @@ export function activate(context: vscode.ExtensionContext) {
             terminal.show(true);
 
             const document = editor.document;
-
-            console.time('splitRe');
-
-            for (let i = 0; i < 1000; i++) {
-                const selections = selection.splitStatementsRe(document);
-            }
-
-            console.timeEnd('splitRe');
-
-
-            // console.time('split');
-
-            // for (let i = 0; i < 100; i++) {
-            //     const selections = selection.splitStatements(document);
-            // }
-
-            // console.timeEnd('split');
-
-            const selections = selection.splitStatementsRe(document);
-            const statements = selections.map(({ text, start, end }) => ({
+            const selections = selection.splitStatements(document, { 
+                range: new vscode.Range(document.positionAt(0), editor.selection.active),
+                parseLastStatement: true,
+                returnDocumentRanges: true,
+            });
+            const statements = selections.map(({ text, start, end, range }) => ({
                 cmd: text.slice(start, end).trim(), 
-                location: new vscode.Location(editor.document.uri, 
-                    new vscode.Range(document.positionAt(start), document.positionAt(end)))
+                location: range ? new vscode.Location(editor.document.uri, range) : undefined,
             })).filter(cmd => cmd.cmd);
 
             repl.execute(statements);

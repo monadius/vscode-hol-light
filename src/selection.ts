@@ -5,6 +5,8 @@ interface Selection {
     end: number;
     text: string;
     newPos?: vscode.Position;
+    // Range in the original document
+    range?: vscode.Range;
 }
 
 function selectStatementText(document: vscode.TextDocument, text: string, start: number, end: number): Selection {
@@ -43,119 +45,93 @@ export function selectStatementSimple(document: vscode.TextDocument, pos: number
     return selectStatementText(document, text, start, end);
 }
 
-export function splitStatements(document: vscode.TextDocument, range?: vscode.Range): Selection[] {
+export function splitStatements(document: vscode.TextDocument, 
+        options: { range?: vscode.Range, parseLastStatement?: boolean, returnDocumentRanges?: boolean } = {}): Selection[] {
     const statements: Selection[] = [];
-    const text = document.getText(range), n = text.length;
-    let prevPos = 0;
-    for (let i = 0; i <= n; i++) {
-        const ch = text[i];
-        if (ch === '`') {
-            // Skip HOL terms
-            for (i++; i < n; i++) {
-                if (text[i] === '`') {
-                    break;
-                }
-            }
-        } else if (ch === '"') {
-            // Skip strings
-            for (i++; i < n; i++) {
-                if (text[i] === '\\') {
-                    i++;
-                } else if (text[i] === '"') {
-                    break;
-                }
-            }
-        } else if (ch === '(' && text[i + 1] === '*') {
-            // Skip comments
-            let level = 1;
-            for (i += 2; i < n; i++) {
-                if (text[i] === '*' && text[i + 1] === ')') {
-                    if (--level <= 0) {
-                        break;
-                    }
-                } else if (text[i] === '(' && text[i + 1] === '*') {
-                    ++level;
-                }
-            }
-        } else if (!ch || (ch === ';' && text[i + 1] === ';')) {
-            if (i > prevPos) {
-                statements.push({ text, start: prevPos, end: i });
-            }
-            prevPos = i + 2;
-            i++;
-        }
-    }
-    return statements;
-}
 
-export function splitStatementsRe(document: vscode.TextDocument, range?: vscode.Range): Selection[] {
-    const statements: Selection[] = [];
-    const text = document.getText(range), n = text.length;
-    let prevPos = 0;
+    let range = options.range;
+    if (range && options.parseLastStatement) {
+        range = new vscode.Range(range.start, document.positionAt(Infinity));
+    }
+
+    const text = document.getText(range);
+    const n = text.length;
+    const offset = range ? document.offsetAt(range.start) : 0;
+    const finalPos = options.range ? document.offsetAt(options.range.end) - offset : n;
+    
+    const reSkipSpaces = /\S/g;
+    let startPos = text.search(reSkipSpaces);
+    if (startPos < 0 || startPos > finalPos) {
+        return [];
+    }
     // Adding $ slows down the regex matching
     const re = /\(\*|["`]|;;+/g;
-    let m: RegExpExecArray | null;
-    while (m = re.exec(text)) {
-        switch (m[0]) {
-            case '(*': {
-                let level = 1, i = m.index + 2;
-                for (; i < n; i++) {
-                    if (text[i] === '*' && text[i + 1] === ')') {
-                        if (--level <= 0) {
+    re.lastIndex = startPos;
+
+    while (true) {
+        const m = re.exec(text);
+        if (!m || m[0][0] === ';') {
+            const endPos = m?.index ?? text.length;
+            if (endPos > startPos) {
+                const docRange = options.returnDocumentRanges ? new vscode.Range(document.positionAt(startPos + offset), document.positionAt(endPos + offset)) : undefined;
+                statements.push({ text, start: startPos, end: endPos, range: docRange });
+            }
+            if (!m || endPos + 1 >= finalPos) {
+                break;
+            }
+            reSkipSpaces.lastIndex = endPos + m[0].length;
+            const m2 = reSkipSpaces.exec(text);
+            if (!m2 || m2.index > finalPos) {
+                break;
+            }
+            startPos = m2.index;
+            re.lastIndex = startPos;
+        } else {
+            switch (m[0]) {
+                case '(*': {
+                    let level = 1, i = m.index + 2;
+                    while (i < n) {
+                        i = text.indexOf('*', i + 1);
+                        if (i < 0) {
+                            i = n;
                             break;
                         }
-                    } else if (text[i] === '(' && text[i + 1] === '*') {
-                        ++level;
+                        if (text[i - 1] === '(') {
+                            ++level;
+                        } else if (text[i + 1] === ')') {
+                            if (--level <= 0) {
+                                break;
+                            }
+                            i++;
+                        }
                     }
+                    re.lastIndex = i + 2;
+                    break;
                 }
-                re.lastIndex = i + 2;
-                break;
-            }
-            case '"': {
-                // Faster than using stringRe = /\\.|"/sg (for hypermap.hl)
-                let i = m.index;
-                while (0 <= i && i < n) {
-                    i = text.indexOf('"', i + 1);
-                    if (i < 0) {
-                        i = n;
-                        break;
+                case '"': {
+                    // Faster than using stringRe = /\\.|"/sg (for hypermap.hl)
+                    let i = m.index;
+                    while (i < n) {
+                        i = text.indexOf('"', i + 1);
+                        if (i < 0) {
+                            i = n;
+                            break;
+                        }
+                        let j = i;
+                        for (; j > 0 && text[j - 1] === '\\'; j--) {}
+                        // Break if we have an even number of \ before "
+                        if ((i - j) % 2 === 0) {
+                            break;
+                        }
                     }
-                    let j = i;
-                    for (; j > 0 && text[j - 1] === '\\'; j--) {}
-                    // Break if we have an even number of \ before "
-                    if ((i - j) % 2 === 0) {
-                        break;
-                    }
+                    re.lastIndex = i + 1;
+                    break;
                 }
-                re.lastIndex = i + 1;
-                // let i = m.index + 1;
-                // for (; i < n; i++) {
-                //     if (text[i] === '\\') {
-                //         i++;
-                //     } else if (text[i] === '"') {
-                //         break;
-                //     }
-                // }
-                // re.lastIndex = i + 1;
-                break;
-            }
-            case '`': {
-                const end = text.indexOf('`', m.index + 1);
-                // Set re.lastIndex to n + 1 when end < 0 to avoid matching an unclosed term
-                re.lastIndex = end < 0 ? n + 1 : end + 1;
-                break;
-            }
-            default: {
-                const i = m.index;
-                if (i > prevPos) {
-                    statements.push({ text, start: prevPos, end: i });
+                case '`': {
+                    const end = text.indexOf('`', m.index + 1);
+                    re.lastIndex = end < 0 ? n + 1 : end + 1;
+                    break;
                 }
-                prevPos = i + 2;
-                if (!m[0]) {
-                    // This case is only possible when $ is included in the regex
-                    re.lastIndex = n + 1;
-                }
-                break;
             }
         }
     }
