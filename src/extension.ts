@@ -282,6 +282,34 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             terminal.show(true);
+
+            const document = editor.document;
+
+            console.time('splitRe');
+
+            for (let i = 0; i < 1000; i++) {
+                const selections = selection.splitStatementsRe(document);
+            }
+
+            console.timeEnd('splitRe');
+
+
+            // console.time('split');
+
+            // for (let i = 0; i < 100; i++) {
+            //     const selections = selection.splitStatements(document);
+            // }
+
+            // console.timeEnd('split');
+
+            const selections = selection.splitStatementsRe(document);
+            const statements = selections.map(({ text, start, end }) => ({
+                cmd: text.slice(start, end).trim(), 
+                location: new vscode.Location(editor.document.uri, 
+                    new vscode.Range(document.positionAt(start), document.positionAt(end)))
+            })).filter(cmd => cmd.cmd);
+
+            repl.execute(statements);
         })
     );
 

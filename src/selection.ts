@@ -43,7 +43,7 @@ export function selectStatementSimple(document: vscode.TextDocument, pos: number
     return selectStatementText(document, text, start, end);
 }
 
-export function splitStatements(document: vscode.TextDocument, range: vscode.Range): Selection[] {
+export function splitStatements(document: vscode.TextDocument, range?: vscode.Range): Selection[] {
     const statements: Selection[] = [];
     const text = document.getText(range), n = text.length;
     let prevPos = 0;
@@ -85,6 +85,81 @@ export function splitStatements(document: vscode.TextDocument, range: vscode.Ran
             i++;
         }
     }
+    return statements;
+}
+
+export function splitStatementsRe(document: vscode.TextDocument, range?: vscode.Range): Selection[] {
+    const statements: Selection[] = [];
+    const text = document.getText(range), n = text.length;
+    let prevPos = 0;
+    // Adding $ slows down the regex matching
+    const re = /\(\*|["`]|;;+/g;
+    let m: RegExpExecArray | null;
+    while (m = re.exec(text)) {
+        switch (m[0]) {
+            case '(*': {
+                let level = 1, i = m.index + 2;
+                for (; i < n; i++) {
+                    if (text[i] === '*' && text[i + 1] === ')') {
+                        if (--level <= 0) {
+                            break;
+                        }
+                    } else if (text[i] === '(' && text[i + 1] === '*') {
+                        ++level;
+                    }
+                }
+                re.lastIndex = i + 2;
+                break;
+            }
+            case '"': {
+                // Faster than using stringRe = /\\.|"/sg (for hypermap.hl)
+                let i = m.index;
+                while (0 <= i && i < n) {
+                    i = text.indexOf('"', i + 1);
+                    if (i < 0) {
+                        i = n;
+                        break;
+                    }
+                    let j = i;
+                    for (; j > 0 && text[j - 1] === '\\'; j--) {}
+                    // Break if we have an even number of \ before "
+                    if ((i - j) % 2 === 0) {
+                        break;
+                    }
+                }
+                re.lastIndex = i + 1;
+                // let i = m.index + 1;
+                // for (; i < n; i++) {
+                //     if (text[i] === '\\') {
+                //         i++;
+                //     } else if (text[i] === '"') {
+                //         break;
+                //     }
+                // }
+                // re.lastIndex = i + 1;
+                break;
+            }
+            case '`': {
+                const end = text.indexOf('`', m.index + 1);
+                // Set re.lastIndex to n + 1 when end < 0 to avoid matching an unclosed term
+                re.lastIndex = end < 0 ? n + 1 : end + 1;
+                break;
+            }
+            default: {
+                const i = m.index;
+                if (i > prevPos) {
+                    statements.push({ text, start: prevPos, end: i });
+                }
+                prevPos = i + 2;
+                if (!m[0]) {
+                    // This case is only possible when $ is included in the regex
+                    re.lastIndex = n + 1;
+                }
+                break;
+            }
+        }
+    }
+
     return statements;
 }
 
