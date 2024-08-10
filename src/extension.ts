@@ -246,28 +246,37 @@ export function activate(context: vscode.ExtensionContext) {
 
             if (!editor.selection.isEmpty) {
                 const document = editor.document;
-                const selections = selection.splitStatements(document, { 
-                    range: editor.selection,
-                    returnDocumentRanges: true,
-                });
-                const statements = selections.map(({ text, start, end, range }) => ({
-                    cmd: text.slice(start, end).trim(), 
-                    location: range ? new vscode.Location(editor.document.uri, range) : undefined,
+                const selections = selection.splitStatements(document, { range: editor.selection });
+                const statements = selections.map(({ text, documentStart, documentEnd }) => ({
+                    cmd: text.trim(), 
+                    location: util.locationStartEnd(document, documentStart, documentEnd)
                 })).filter(cmd => cmd.cmd);
                 repl.execute(statements);
                 return;
             }
 
             const pos = editor.document.offsetAt(editor.selection.active);
-            const {start: textStart, end: textEnd, text: statement, newPos} = 
+            const statementSelection = 
                 config.getConfigOption(config.SIMPLE_SELECTION, false) ?
                     selection.selectStatementSimple(editor.document, pos) :
                     selection.selectStatement(editor.document, pos);
 
-            repl.execute(statement, util.locationStartEnd(editor.document, textStart, textEnd + 2));
+            // console.time('select statement');
+            // for (let i = 0; i < 100; i++) {
+            //     const select = selection.selectStatement(editor.document, pos);
+            // }
+            // console.timeEnd('select statement');
+        
+            // console.time('select statement2');
+            // for (let i = 0; i < 100; i++) {
+            //     const select = selection.selectStatement2(editor.document, pos);
+            // }
+            // console.timeEnd('select statement2');
+
+            repl.execute(statementSelection.text, util.locationStartEnd(editor.document, statementSelection.documentStart, statementSelection.documentEnd));
             
-            if (newPos) {
-                editor.selection = new vscode.Selection(newPos, newPos);
+            if (statementSelection.newPos) {
+                editor.selection = new vscode.Selection(statementSelection.newPos, statementSelection.newPos);
                 editor.revealRange(editor.selection);
             }
         })
@@ -285,11 +294,10 @@ export function activate(context: vscode.ExtensionContext) {
             const selections = selection.splitStatements(document, { 
                 range: new vscode.Range(document.positionAt(0), editor.selection.active),
                 parseLastStatement: true,
-                returnDocumentRanges: true,
             });
-            const statements = selections.map(({ text, start, end, range }) => ({
-                cmd: text.slice(start, end).trim(), 
-                location: range ? new vscode.Location(editor.document.uri, range) : undefined,
+            const statements = selections.map(({ text, documentStart, documentEnd }) => ({
+                cmd: text.trim(),
+                location: util.locationStartEnd(document, documentStart, documentEnd),
             })).filter(cmd => cmd.cmd);
 
             repl.execute(statements);
@@ -322,7 +330,7 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.window.showWarningMessage('Not inside a term');
                 return;
             }
-            repl.execute(`g(${term.text});;`, util.locationStartEnd(editor.document, term.start, term.end));
+            repl.execute(`g(${term.text});;`, util.locationStartEnd(editor.document, term.documentStart, term.documentEnd));
         })
     );
 

@@ -170,7 +170,7 @@ export class CommandTerminal implements vscode.Pseudoterminal, Terminal {
 
         this.child.stdout?.on('data', (data: Buffer) => {
             const out = data.toString();
-            console.log(`out: "${out}"`);
+            // console.log(`out: "${out}"`);
             this.writeEmitter.fire(fixLineBreak(out));
 
             const lines = out.split('\n');
@@ -203,9 +203,9 @@ export class CommandTerminal implements vscode.Pseudoterminal, Terminal {
                                 command.reject('Error');
                             } else {
                                 const result = output.slice(cmdStart + 1, pos).join('\n');
-                                console.log('command output:');
-                                console.log(result);
-                                console.log('end output');
+                                // console.log('command output:');
+                                // console.log(result);
+                                // console.log('end output');
                                 command.resolve(result);
                             }
                         }
@@ -220,7 +220,7 @@ export class CommandTerminal implements vscode.Pseudoterminal, Terminal {
         });
 
         this.child.stderr?.on('data', (data: Buffer) => {
-            console.log('err: ' + data.toString());
+            // console.log('err: ' + data.toString());
             this.writeEmitter.fire('\x1b[91m' + fixLineBreak(data.toString()) + '\x1b[0m');
         });
 
@@ -251,6 +251,7 @@ export class CommandTerminal implements vscode.Pseudoterminal, Terminal {
         if (command.location) {
             this.decorations.addRange(CommandDecorationType.pending, command.location);
         }
+        console.log(`executing: ${command.cmd}`);
         const id = command.cmdId;
         this.commands[id] = command;
         this.executingCommands += 1;

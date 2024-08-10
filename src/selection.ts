@@ -1,12 +1,10 @@
 import * as vscode from 'vscode';
 
 interface Selection {
-    start: number;
-    end: number;
+    documentStart: number;
+    documentEnd: number;
     text: string;
     newPos?: vscode.Position;
-    // Range in the original document
-    range?: vscode.Range;
 }
 
 function selectStatementText(document: vscode.TextDocument, text: string, start: number, end: number): Selection {
@@ -28,7 +26,7 @@ function selectStatementText(document: vscode.TextDocument, text: string, start:
         newPos = document.positionAt(text.length);
     }
 
-    return { start: textStart, end: textEnd, text: selectedText, newPos };
+    return { documentStart: textStart, documentEnd: textEnd, text: selectedText, newPos };
 }
 
 export function selectStatementSimple(document: vscode.TextDocument, pos: number): Selection {
@@ -46,7 +44,7 @@ export function selectStatementSimple(document: vscode.TextDocument, pos: number
 }
 
 export function splitStatements(document: vscode.TextDocument, 
-        options: { range?: vscode.Range, parseLastStatement?: boolean, returnDocumentRanges?: boolean } = {}): Selection[] {
+        options: { range?: vscode.Range, parseLastStatement?: boolean, text?: string } = {}): Selection[] {
     const statements: Selection[] = [];
 
     let range = options.range;
@@ -54,7 +52,7 @@ export function splitStatements(document: vscode.TextDocument,
         range = new vscode.Range(range.start, document.positionAt(Infinity));
     }
 
-    const text = document.getText(range);
+    const text = options.text ?? document.getText(range);
     const n = text.length;
     const offset = range ? document.offsetAt(range.start) : 0;
     const finalPos = options.range ? document.offsetAt(options.range.end) - offset : n;
@@ -72,9 +70,12 @@ export function splitStatements(document: vscode.TextDocument,
         const m = re.exec(text);
         if (!m || m[0][0] === ';') {
             const endPos = m?.index ?? text.length;
-            if (endPos > startPos) {
-                const docRange = options.returnDocumentRanges ? new vscode.Range(document.positionAt(startPos + offset), document.positionAt(endPos + offset)) : undefined;
-                statements.push({ text, start: startPos, end: endPos, range: docRange });
+            if (endPos >= startPos) {
+                statements.push({
+                    text: text.slice(startPos, endPos), 
+                    documentStart: startPos + offset,
+                    documentEnd: endPos + offset + (!m ? 0 : 2)
+                });
             }
             if (!m || endPos + 1 >= finalPos) {
                 break;
@@ -140,64 +141,36 @@ export function splitStatements(document: vscode.TextDocument,
 }
 
 export function selectStatement(document: vscode.TextDocument, pos: number): Selection {
-    const text = document.getText(), n = text.length;
-    const positions: number[] = [];
-    for (let i = 0; i <= n; i++) {
-        const ch = text[i];
-        if (ch === '`') {
-            // Skip HOL terms
-            for (i++; i < n; i++) {
-                if (text[i] === '`') {
-                    break;
-                }
-            }
-        } else if (ch === '"') {
-            // Skip strings
-            for (i++; i < n; i++) {
-                if (text[i] === '\\') {
-                    i++;
-                } else if (text[i] === '"') {
-                    break;
-                }
-            }
-        } else if (ch === '(' && text[i + 1] === '*') {
-            // Skip comments
-            let level = 1;
-            for (i += 2; i < n; i++) {
-                if (text[i] === '*' && text[i + 1] === ')') {
-                    if (--level <= 0) {
-                        break;
-                    }
-                } else if (text[i] === '(' && text[i + 1] === '*') {
-                    ++level;
-                }
-            }
-        } else if (!ch || (ch === ';' && text[i + 1] === ';')) {
-            if (!ch || i + 1 >= pos) {
-                let start = positions.at(-1) ?? -1;
-                let end = -1;
-                const start0 = Math.max(0, start);
-                if (/^;;\s*$/.test(text.slice(start0, pos + 1))) {
-                    start = positions.at(-2) ?? -1;
-                    end = start0;
-                } else {
-                    end = i;
-                }
-                return selectStatementText(document, text, start, end);
-            }
-            positions.push(i);
-            i++;
-        }
+    const text = document.getText();
+    const startPos = text.search(/\S/);
+    if (pos < startPos) {
+        // Skip whitespaces at the start of the document
+        pos = startPos;
     }
-    // This line is executed in exceptional situations only (e.g., an unclosed string literal)
-    return selectStatementText(document, text, positions.at(-1) ?? -1, -1);
+    const selections = splitStatements(document, {
+        range: new vscode.Range(document.positionAt(0), document.positionAt(pos)),
+        parseLastStatement: true,
+        text: text,
+    });
+    const s = selections.pop();
+    if (!s) {
+        // This can only happen for empty documents (containing whitespaces only)
+        return { text: '', documentStart: 0, documentEnd: 0, newPos: document.positionAt(Infinity) };
+    }
+
+    const re = /[^\s;]/g;
+    re.lastIndex = s.documentEnd;
+    const m = re.exec(text);
+    const newPos = document.positionAt(m ? m.index : Infinity);
+
+    return {...s, newPos };
 }
 
 export function selectTermSimple(document: vscode.TextDocument, pos: number): Selection | null {
     const text = document.getText();
     let start = text.lastIndexOf('`', pos - 1);
     let end = text.indexOf('`', pos);
-    return start < 0 || end < 0 ? null : { start: start, end: end + 1, text: text.slice(start, end + 1) };
+    return start < 0 || end < 0 ? null : { documentStart: start, documentEnd: end + 1, text: text.slice(start, end + 1) };
 }
 
 export function selectTerm(document: vscode.TextDocument, pos: number): Selection | null {
@@ -210,7 +183,7 @@ export function selectTerm(document: vscode.TextDocument, pos: number): Selectio
                 break;
             }
             if (i <= pos && pos <= j) {
-                return { start: i, end: j + 1, text: text.slice(i, j + 1) };
+                return { documentStart: i, documentEnd: j + 1, text: text.slice(i, j + 1) };
             }
             i = j;
         } else if (ch === '"') {
