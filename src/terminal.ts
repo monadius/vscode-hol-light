@@ -74,6 +74,8 @@ class Command {
     // Location for providing feedback
     readonly location?: vscode.Location;
 
+    progressResolve?: () => void;
+
     constructor(cmd: string, location?: vscode.Location) {
         this.cmdId = Command.counter++;
         this.cmd = cmd;
@@ -133,6 +135,7 @@ export class CommandTerminal implements vscode.Pseudoterminal, Terminal {
 
     private clearCommands(rejectReason: string) {
         [...this.commandQueue, ...Object.values(this.commands)].forEach(command => {
+            command.progressResolve?.();
             if (command.location) {
                 this.decorations.removeRange(command.location);
             }
@@ -189,6 +192,7 @@ export class CommandTerminal implements vscode.Pseudoterminal, Terminal {
                     const command = this.commands[id];
                     delete this.commands[id];
                     if (command) {
+                        command.progressResolve?.();
                         this.executingCommands = Math.max(0, this.executingCommands - 1);
                         const err = pos > 0 && /^\s*#?\s*(?:Error|Exception|Parse error):/i.test(output[pos - 1]);
                         if (command.location) {
@@ -252,6 +256,11 @@ export class CommandTerminal implements vscode.Pseudoterminal, Terminal {
             this.decorations.addRange(CommandDecorationType.pending, command.location);
         }
         console.log(`executing: ${command.cmd}`);
+        vscode.window.withProgress({
+            location: vscode.ProgressLocation.Window,
+            title: command.cmd
+        }, 
+        (_progress) => new Promise<void>((resolve) => command.progressResolve = resolve));
         const id = command.cmdId;
         this.commands[id] = command;
         this.executingCommands += 1;
