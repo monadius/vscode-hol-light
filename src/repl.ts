@@ -5,6 +5,8 @@ import { CommandDecorations } from './decoration';
 import * as terminal from './terminal';
 import * as util from './util';
 
+import * as client from './hol_client';
+
 export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverProvider {
     private vscodeTerminal?: vscode.Terminal;
     private holTerminal?: terminal.Terminal;
@@ -135,7 +137,8 @@ export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverP
                 this.vscodeTerminal.sendText(path);
                 this.holTerminal = new terminal.StandardTerminal(this.vscodeTerminal, this.decorations);
             } else {
-                const commandTerminal = new terminal.CommandTerminal(path, workDir, this.decorations);
+                // const commandTerminal = new terminal.CommandTerminal(path, workDir, this.decorations);
+                const commandTerminal = new client.HolClient(2012, this.decorations);
                 this.vscodeTerminal = vscode.window.createTerminal({ name: 'HOL Light', pty: commandTerminal });
                 this.holTerminal = commandTerminal;
             }
