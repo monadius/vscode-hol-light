@@ -71,6 +71,8 @@ class Command {
 
     groupId?: object;
 
+    silent = false;
+
     readonly cmd: string;
 
     // Location for providing feedback
@@ -127,8 +129,8 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
     private currentCommand?: Command;
 
     private socket?: net.Socket;
-    private connected: boolean = false;
     private serverPid?: number;
+    private readyFlag = false;
 
     private writeEmitter = new vscode.EventEmitter<string>();
     private closeEmitter = new vscode.EventEmitter<void | number>();
@@ -160,7 +162,6 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
         this.socket = net.connect(this.port);
         this.socket.on('connect', () => {
             console.log('client connected');
-            this.connected = true;
         });
         this.socket.on('close', (hadError) => {
             console.log('HolClient: connection closed');
@@ -189,6 +190,7 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
                 if (line === 'ready') {
                     this.currentCommand?.clear(this.decorations);
                     this.currentCommand = undefined;
+                    this.readyFlag = true;
                     this.executeNextCommand();
                 } else if (line.startsWith('info:')) {
                     const serverInfo = unescapeString(line.slice(5)).split(';');
@@ -198,19 +200,25 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
                             this.serverPid = +m[1];
                         }
                     }
+                    // console.log(`info: ${line}, pid = ${this.serverPid}`);
                 } else if (line.startsWith('stdout:')) {
-                    this.writeEmitter.fire(fixLineBreaks(unescapeString(line.slice(7))));
+                    if (!this.currentCommand?.silent) {
+                        this.writeEmitter.fire(fixLineBreaks(unescapeString(line.slice(7))));
+                    }
                 } else if (line.startsWith('stderr:')) {
-                    this.writeEmitter.fire(colorText(fixLineBreaks(unescapeString(line.slice(7))), 'red'));
+                    if (!this.currentCommand?.silent) {
+                        this.writeEmitter.fire(colorText(fixLineBreaks(unescapeString(line.slice(7))), 'red'));
+                    }
                 } else if (line.startsWith('result:')) {
+                    const result = unescapeString(line.slice(7));
+                    const err = /^Error:|Exception/.test(result);
+                    if (!this.currentCommand?.silent) {
+                        this.writeEmitter.fire(colorText(fixLineBreaks(unescapeString(line.slice(7))), err ? 'red' : 'default'));
+                    }
                     if (this.currentCommand) {
                         const command = this.currentCommand;
                         this.currentCommand = undefined;
                         command.progressResolve?.();
-
-                        const result = unescapeString(line.slice(7));
-                        const err = /^Error:|Exception/.test(result);
-                        this.writeEmitter.fire(colorText(fixLineBreaks(unescapeString(line.slice(7))), err ? 'red' : 'default'));
 
                         if (command.location) {
                             // this.decorations.addRange(this.decorations.success, command.location);
@@ -245,43 +253,45 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
         this.socket?.end();
         // this.socket.destroy();
         this.socket = undefined;
-        this.connected = false;
+        this.serverPid = undefined;
+        this.readyFlag = false;
         // Clear all commands
         this.clearCommands("Connection closed");
     }
 
     interrupt(): void {
-        if (this.serverPid && this.connected) {
+        if (this.serverPid) {
             process.kill(-this.serverPid, 'SIGINT');
         }
         this.clearCommands("Interrupted");
     }
 
-    // private command?: Command;
-
     private executeCommand(command: Command) {
-        if (!this.socket || !this.connected) {
-            console.log('executeCommand: no connection');
-            command.clear(this.decorations, 'not connected');
+        if (!this.socket || !this.readyFlag) {
+            console.log('executeCommand: no connection or not ready');
+            command.clear(this.decorations, 'not ready');
             return;
         }
         if (command.location) {
             this.decorations.addRange(CommandDecorationType.pending, command.location);
         }
         console.log(`executing: ${command.cmd}`);
-        vscode.window.withProgress({
-                location: vscode.ProgressLocation.Window,
-                title: command.cmd
-            }, 
-            (_progress) => new Promise<void>((resolve) => command.progressResolve = resolve));
+        if (!command.silent) {
+            vscode.window.withProgress({
+                    location: vscode.ProgressLocation.Window,
+                    title: command.cmd
+                }, 
+                (_progress) => new Promise<void>((resolve) => command.progressResolve = resolve)
+            );
+        }
+        this.readyFlag = false;
         this.currentCommand = command;
         this.socket.write(escapeString(command.cmd));
         this.socket.write(LINE_END);
     }
 
-    // Should only be called after receiving `ready` from the server
     private executeNextCommand() {
-        while (this.connected && this.commandQueue.length && !this.currentCommand) {
+        while (this.readyFlag && this.commandQueue.length && !this.currentCommand) {
             const command = this.commandQueue.shift();
             if (!command) {
                 continue;
@@ -294,23 +304,18 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
         }
     }
 
-    private enqueueCommands(commands: Command[], options?: { executeImmediately?: boolean, enqueueFirst?: boolean }) {
+    private enqueueCommands(commands: Command[], options?: { enqueueFirst?: boolean }) {
         commands.forEach(command => {
             if (command.location) {
                 this.decorations.addRange(CommandDecorationType.pending, command.location);
             }
         });
-        if (options?.executeImmediately) {
-            // Nothing is executed if the process is not open
-            commands.forEach(command => this.executeCommand(command));
+        if (options?.enqueueFirst) {
+            this.commandQueue.unshift(...commands);
         } else {
-            if (options?.enqueueFirst) {
-                this.commandQueue.unshift(...commands);
-            } else {
-                this.commandQueue.push(...commands);
-            }
-            this.executeNextCommand();
+            this.commandQueue.push(...commands);
         }
+        this.executeNextCommand();
     }
 
     private cancelCommands(groupId: object, cancelReason?: string) {
@@ -355,6 +360,7 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
             cmd += ';;';
         }
         const command = new CommandWithResult(cmd, location, token);
+        command.silent = true;
         this.enqueueCommands([command]);
         return command.result;
     }
