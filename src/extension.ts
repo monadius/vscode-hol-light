@@ -366,7 +366,7 @@ export function activate(context: vscode.ExtensionContext) {
                 new vscode.Position(selection.range.end.line, selection.range.end.character + 1);
         } else {
             newPos = new vscode.Position(pos.line + 1, pos.character);
-            decorations.clear(editor.document.uri);
+            decorations.clearAll(editor.document.uri);
         }
         if (newline) {
             newPos = editor.document.validatePosition(newPos);
@@ -403,7 +403,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             repl.execute('b();;');
-            decorations.clear(editor.document.uri);
+            decorations.clearAll(editor.document.uri);
         })
     );
 
@@ -459,13 +459,13 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.remove_highlighting', (editor) => {
-            decorations.clear(editor.document.uri);
+            decorations.clearAll(editor.document.uri);
         })
     );
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.jump_to_highlighting', (editor) => {
-            const range = decorations.getLatestHighlightedRange([CommandDecorationType.pending, CommandDecorationType.success, CommandDecorationType.failure], editor.document.uri);
+            const range = decorations.getLatestHighlightedRange([CommandDecorationType.failure, CommandDecorationType.success, CommandDecorationType.pending], editor.document.uri);
             if (range) {
                 const pos = range.end;
                 editor.selection = new vscode.Selection(pos, pos);

@@ -230,6 +230,7 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
                         command.progressResolve?.();
 
                         if (command.location) {
+                            this.decorations.clear(err ? CommandDecorationType.success : CommandDecorationType.failure, command.location.uri);
                             // this.decorations.addRange(this.decorations.success, command.location);
                             this.decorations.setRange(err ? CommandDecorationType.failure : CommandDecorationType.success, command.location);
                         }

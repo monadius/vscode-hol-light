@@ -116,7 +116,11 @@ class DecorationCollection {
         this.decorations.forEach(ds => ds.removeRange(location));
     }
 
-    clear(uri: vscode.Uri) {
+    clear(decorationIndex: number, uri: vscode.Uri) {
+        this.decorations[decorationIndex]?.clear(uri);
+    }
+
+    clearAll(uri: vscode.Uri) {
         this.decorations.forEach(ds => ds.clear(uri));
     }
 

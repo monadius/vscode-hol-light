@@ -48,7 +48,7 @@ export class StandardTerminal implements Terminal {
             if (location) {
                 if (!cleared.has(location.uri)) {
                     cleared.add(location.uri);
-                    this.decorations.clear(location.uri);
+                    this.decorations.clearAll(location.uri);
                 }
                 this.decorations.addRange(CommandDecorationType.pending, location);
             }
