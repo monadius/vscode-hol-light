@@ -41,6 +41,29 @@ function unescapeString(s: string): string {
 
 const fixLineBreaks = (s: string) => s.replace(/\r*\n/g, '\r\n');
 
+const COLORS: { [key: string]: number } = {
+    'default': 0,
+    'bold': 1,
+    'underline': 4,
+    'black': 30,
+    'red': 31,
+    'green': 32,
+    'yellow': 33,
+    'blue': 34,
+    'magenta': 35,
+    'cyan': 36,
+    'white': 37
+};
+
+function colorText(s: string, color: string): string {
+    const n = COLORS[color];
+    if (!n) {
+        // Return an unmodified string for unknown colors and for the default color 
+        return s;
+    }
+    return `\x1b[${n}m${s}\x1b[0m`;
+}
+
 class Command {
     private static counter: number = 0;
 
@@ -105,6 +128,7 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
 
     private socket?: net.Socket;
     private connected: boolean = false;
+    private serverPid?: number;
 
     private writeEmitter = new vscode.EventEmitter<string>();
     private closeEmitter = new vscode.EventEmitter<void | number>();
@@ -137,19 +161,17 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
         this.socket.on('connect', () => {
             console.log('client connected');
             this.connected = true;
-            this.executeNextCommand();
         });
         this.socket.on('close', (hadError) => {
-            console.log('client close');
+            console.log('HolClient: connection closed');
             this.closeEmitter.fire(hadError ? 1 : 0);
         });
         this.socket.on('error', err => {
-            console.log(`Client Error: ${err}`);
+            console.log(`HolClient: connection error: ${err}`);
         });
 
 
         let output: string[] = [];
-        let pos = 0;
 
         this.socket.on('data', (data: Buffer) => {
             const out = data.toString();
@@ -161,28 +183,34 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
                 output[k] = (output[k] ?? '') + lines[i];
             }
 
-            for (; pos < output.length - 1; pos++) {
-                if (output[pos].startsWith('stdout:')) {
-                    this.writeEmitter.fire(fixLineBreaks(unescapeString(output[pos].slice(8))));
-                } else if (output[pos].startsWith('stderr:')) {
-                    this.writeEmitter.fire('\x1b[91m' + fixLineBreaks(unescapeString(output[pos].slice(8))) + '\x1b[0m');
-                } else if (output[pos] !== '$ready$') {
-                    this.writeEmitter.fire(fixLineBreaks(unescapeString(output[pos])));
-                } else if (output[pos] === '$ready$') {
+            // Process complete lines
+            for (let i = 0; i < output.length - 1; i++) {
+                const line = output[i];
+                if (line === 'ready') {
+                    this.currentCommand?.clear(this.decorations);
+                    this.currentCommand = undefined;
+                    this.executeNextCommand();
+                } else if (line.startsWith('info:')) {
+                    const serverInfo = unescapeString(line.slice(5)).split(';');
+                    for (const info of serverInfo) {
+                        let m = info.match(/^pid:(\d+)$/);
+                        if (m) {
+                            this.serverPid = +m[1];
+                        }
+                    }
+                } else if (line.startsWith('stdout:')) {
+                    this.writeEmitter.fire(fixLineBreaks(unescapeString(line.slice(7))));
+                } else if (line.startsWith('stderr:')) {
+                    this.writeEmitter.fire(colorText(fixLineBreaks(unescapeString(line.slice(7))), 'red'));
+                } else if (line.startsWith('result:')) {
                     if (this.currentCommand) {
                         const command = this.currentCommand;
                         this.currentCommand = undefined;
                         command.progressResolve?.();
 
-                        let err = false;
-                        let result = '';
-                        for (let i = 0; i < pos; i++) {
-                            const line = output[i];
-                            if (!line.startsWith('stdout:') && !line.startsWith('stderr:')) {
-                                result = unescapeString(line);
-                                err ||= line.startsWith('Error:') || line.startsWith('Exception:');
-                            }
-                        }
+                        const result = unescapeString(line.slice(7));
+                        const err = /^Error:|Exception/.test(result);
+                        this.writeEmitter.fire(colorText(fixLineBreaks(unescapeString(line.slice(7))), err ? 'red' : 'default'));
 
                         if (command.location) {
                             // this.decorations.addRange(this.decorations.success, command.location);
@@ -192,7 +220,6 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
                             if (command.cancellationToken?.isCancellationRequested) {
                                 command.reject("Cancelled");
                             } else if (err) {
-                                console.log('command failed');
                                 command.reject('Error');
                             } else {
                                 // console.log('command output:');
@@ -205,14 +232,12 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
                             this.cancelCommands(command.groupId);
                         }
                     }
-                    // TODO: should clear the output when a command is interrupted
-                    output = [];
-                    pos = 0;
-                    this.executeNextCommand();
-                    break;
                 }
             }
 
+            if (output.length > 1) {
+                output = [output[output.length - 1]];
+            }
         });
     }
 
@@ -226,12 +251,9 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
     }
 
     interrupt(): void {
-        // if (this.child?.pid) {
-        //     process.kill(-this.child.pid, 'SIGINT');
-        // }
-        // Clear all commands
-        // this.socket?.write('$interrupt$\n');
-        // process.kill(-398538, 'SIGINT');
+        if (this.serverPid && this.connected) {
+            process.kill(-this.serverPid, 'SIGINT');
+        }
         this.clearCommands("Interrupted");
     }
 
@@ -257,6 +279,7 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
         this.socket.write(LINE_END);
     }
 
+    // Should only be called after receiving `ready` from the server
     private executeNextCommand() {
         while (this.connected && this.commandQueue.length && !this.currentCommand) {
             const command = this.commandQueue.shift();
