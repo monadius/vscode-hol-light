@@ -12,14 +12,19 @@ function fixLineBreak(data: string) {
         // .replace(/\x7f/gi,'\b \b');
 }
 
-export interface Terminal {
-    execute(cmd: string, location?: vscode.Location): void;
+export interface CommandOptions {
+    location?: vscode.Location;
+    silent?: boolean;
+}
 
-    execute(cmds: { cmd: string, location?: vscode.Location }[]): void;
+export interface Terminal {
+    execute(cmd: string, options?: CommandOptions): void;
+
+    execute(cmds: { cmd: string, options?: CommandOptions }[]): void;
 
     canExecuteForResult(): boolean;
 
-    executeForResult(cmd: string, location?: vscode.Location, token?: vscode.CancellationToken): Promise<string>;
+    executeForResult(cmd: string, options?: CommandOptions, token?: vscode.CancellationToken): Promise<string>;
 }
 
 export class StandardTerminal implements Terminal {
@@ -36,15 +41,16 @@ export class StandardTerminal implements Terminal {
         return false;
     }
 
-    execute(cmd: string, location?: vscode.Location): void;
-    execute(cmds: { cmd: string; location?: vscode.Location; }[]): void;
-    execute(cmd: string | { cmd: string; location?: vscode.Location; }[], location?: vscode.Location): void {
+    execute(cmd: string, options?: CommandOptions): void;
+    execute(cmds: { cmd: string, options?: CommandOptions }[]): void;
+    execute(cmd: string | { cmd: string; options?: CommandOptions; }[], options?: CommandOptions): void {
         const cleared = new Set();
-        (typeof cmd === 'string' ? [{ cmd, location }] : cmd).forEach(({ cmd, location }) => {
+        (typeof cmd === 'string' ? [{ cmd, options }] : cmd).forEach(({ cmd, options }) => {
             let s = cmd.trim();
             if (!s.endsWith(';;')) {
                 s += ';;';
             }
+            const location = options?.location;
             if (location) {
                 if (!cleared.has(location.uri)) {
                     cleared.add(location.uri);
@@ -56,8 +62,8 @@ export class StandardTerminal implements Terminal {
         });
     }
 
-    executeForResult(cmd: string, location?: vscode.Location, _token?: vscode.CancellationToken): Promise<string> {
-        this.execute(cmd, location);
+    executeForResult(cmd: string, options?: CommandOptions, _token?: vscode.CancellationToken): Promise<string> {
+        this.execute(cmd, options);
         return Promise.reject('Results cannot be returned');
     }
 }
@@ -319,17 +325,15 @@ export class CommandTerminal implements vscode.Pseudoterminal, Terminal {
         });
     }
 
-    execute(cmd: string, location?: vscode.Location): void;
-
-    execute(cmds: { cmd: string, location?: vscode.Location }[]): void;
-
-    execute(cmd: string | { cmd: string, location?: vscode.Location}[], location?: vscode.Location): void {
-        const commands = (typeof cmd === 'string' ? [{ cmd, location }] : cmd).map(({ cmd, location }) => {
+    execute(cmd: string, options?: CommandOptions): void;
+    execute(cmds: { cmd: string, options?: CommandOptions }[]): void;
+    execute(cmd: string | { cmd: string, options?: CommandOptions }[], options?: CommandOptions): void {
+        const commands = (typeof cmd === 'string' ? [{ cmd, options }] : cmd).map(({ cmd, options }) => {
             let s = cmd.trim();
             if (!s.endsWith(';;')) {
                 s += ';;';
             }
-            return new Command(s, location);
+            return new Command(s, options?.location);
         });
         if (commands.length) {
             if (commands.length > 1) {
@@ -341,12 +345,12 @@ export class CommandTerminal implements vscode.Pseudoterminal, Terminal {
         }
     }
 
-    executeForResult(cmd: string, location?: vscode.Location, token?: vscode.CancellationToken): Promise<string> {
+    executeForResult(cmd: string, options?: CommandOptions, token?: vscode.CancellationToken): Promise<string> {
         cmd = cmd.trim();
         if (!cmd.endsWith(';;')) {
             cmd += ';;';
         }
-        const command = new CommandWithResult(cmd, location, token);
+        const command = new CommandWithResult(cmd, options?.location, token);
         this.enqueueCommands([command]);
         return command.result;
     }

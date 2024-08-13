@@ -36,12 +36,12 @@ export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverP
         this.vscodeTerminal?.sendText(text, addNewLine);
     }
 
-    execute(cmd: string, location?: vscode.Location): void;
-    execute(cmds: { cmd: string; location?: vscode.Location; }[]): void;
+    execute(cmd: string, options?: terminal.CommandOptions): void;
+    execute(cmds: { cmd: string, options?: terminal.CommandOptions }[]): void;
     
-    execute(cmd: string | { cmd: string; location?: vscode.Location; }[], location?: vscode.Location): void {
+    execute(cmd: string | { cmd: string; options?: terminal.CommandOptions; }[], options?: terminal.CommandOptions): void {
         if (typeof cmd === 'string') {
-            this.holTerminal?.execute(cmd, location);
+            this.holTerminal?.execute(cmd, options);
         } else {
             this.holTerminal?.execute(cmd);
         }
@@ -51,8 +51,8 @@ export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverP
         return this.holTerminal?.canExecuteForResult() ?? false;
     }
 
-    executeForResult(cmd: string, location?: vscode.Location, token?: vscode.CancellationToken): Promise<string> {
-        return this.holTerminal?.executeForResult(cmd, location, token) ?? Promise.reject("Uninitialized HOL terminal");
+    executeForResult(cmd: string, options?: terminal.CommandOptions, token?: vscode.CancellationToken): Promise<string> {
+        return this.holTerminal?.executeForResult(cmd, options, token) ?? Promise.reject("Uninitialized HOL terminal");
     }
 
     async getTerminalWindow(workDir: string = ''): Promise<vscode.Terminal | null> {
@@ -152,7 +152,7 @@ export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverP
             return null;
         }
         try {
-            const res = await this.executeForResult(word, undefined, token);
+            const res = await this.executeForResult(word, { silent: true }, token);
             const m = res.match(/^.*:([^=]*)=(.*)/s);
             if (!m) {
                 return null;

@@ -273,7 +273,9 @@ export function activate(context: vscode.ExtensionContext) {
             // }
             // console.timeEnd('select statement2');
 
-            repl.execute(statementSelection.text, util.locationStartEnd(editor.document, statementSelection.documentStart, statementSelection.documentEnd));
+            repl.execute(statementSelection.text, {
+                location: util.locationStartEnd(editor.document, statementSelection.documentStart, statementSelection.documentEnd)
+            });
             
             if (statementSelection.newPos) {
                 editor.selection = new vscode.Selection(statementSelection.newPos, statementSelection.newPos);
@@ -330,7 +332,9 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.window.showWarningMessage('Not inside a term');
                 return;
             }
-            repl.execute(`g(${term.text});;`, util.locationStartEnd(editor.document, term.documentStart, term.documentEnd));
+            repl.execute(`g(${term.text});;`, {
+                location: util.locationStartEnd(editor.document, term.documentStart, term.documentEnd)
+            });
         })
     );
 
@@ -354,8 +358,9 @@ export function activate(context: vscode.ExtensionContext) {
         const pos = editor.selection.active;
         let newPos: vscode.Position;
         if (selection && !selection.range.isEmpty) {
-            repl.execute(`e(${editor.document.getText(selection.range)});;\n`, 
-                new vscode.Location(editor.document.uri, selection.range));
+            repl.execute(`e(${editor.document.getText(selection.range)});;\n`, {
+                location: new vscode.Location(editor.document.uri, selection.range)
+            });
             newPos = selection.newline ? 
                 new vscode.Position(selection.range.end.line + 1, pos.character) :
                 new vscode.Position(selection.range.end.line, selection.range.end.character + 1);

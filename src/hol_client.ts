@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import * as net from 'node:net';
 
 import { CommandDecorations, CommandDecorationType } from './decoration';
-import { Terminal } from './terminal';
+import { Terminal, CommandOptions } from './terminal';
 
 const LINE_END = '\n';
 
@@ -71,7 +71,7 @@ class Command {
 
     groupId?: object;
 
-    silent = false;
+    silent: boolean;
 
     readonly cmd: string;
 
@@ -80,10 +80,11 @@ class Command {
 
     progressResolve?: () => void;
 
-    constructor(cmd: string, location?: vscode.Location) {
+    constructor(cmd: string, options?: CommandOptions) {
         this.cmdId = Command.counter++;
         this.cmd = cmd;
-        this.location = location;
+        this.location = options?.location;
+        this.silent = options?.silent ?? false;
     }
 
     clear(decorations: CommandDecorations, reason?: string) {
@@ -101,8 +102,8 @@ class CommandWithResult extends Command {
 
     readonly cancellationToken?: vscode.CancellationToken;
 
-    constructor(cmd: string, location?: vscode.Location, token?: vscode.CancellationToken) {
-        super(cmd, location);
+    constructor(cmd: string, options?: CommandOptions, token?: vscode.CancellationToken) {
+        super(cmd, options);
         this.cancellationToken = token;
         let resolveVar: (v: string) => void;
         let rejectVar: (v: string) => void;
@@ -332,17 +333,15 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
         });
     }
 
-    execute(cmd: string, location?: vscode.Location): void;
-
-    execute(cmds: { cmd: string, location?: vscode.Location }[]): void;
-
-    execute(cmd: string | { cmd: string, location?: vscode.Location}[], location?: vscode.Location): void {
-        const commands = (typeof cmd === 'string' ? [{ cmd, location }] : cmd).map(({ cmd, location }) => {
+    execute(cmd: string, options?: CommandOptions): void;
+    execute(cmds: { cmd: string, options?: CommandOptions }[]): void;
+    execute(cmd: string | { cmd: string, options?: CommandOptions }[], options?: CommandOptions): void {
+        const commands = (typeof cmd === 'string' ? [{ cmd, options }] : cmd).map(({ cmd, options }) => {
             let s = cmd.trim();
             if (!s.endsWith(';;')) {
                 s += ';;';
             }
-            return new Command(s, location);
+            return new Command(s, options);
         });
         if (commands.length) {
             if (commands.length > 1) {
@@ -354,12 +353,12 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
         }
     }
 
-    executeForResult(cmd: string, location?: vscode.Location, token?: vscode.CancellationToken): Promise<string> {
+    executeForResult(cmd: string, options?: CommandOptions, token?: vscode.CancellationToken): Promise<string> {
         cmd = cmd.trim();
         if (!cmd.endsWith(';;')) {
             cmd += ';;';
         }
-        const command = new CommandWithResult(cmd, location, token);
+        const command = new CommandWithResult(cmd, options, token);
         command.silent = true;
         this.enqueueCommands([command]);
         return command.result;
