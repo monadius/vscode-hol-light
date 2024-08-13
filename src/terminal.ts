@@ -9,6 +9,8 @@ const fixLineBreaks = (s: string) => s.replace(/\r*\n/g, '\r\n');
 export interface CommandOptions {
     location?: vscode.Location;
     silent?: boolean;
+    // This flag is true for commands entered in the terminal window directly
+    interactive?: boolean;
 }
 
 export interface Terminal {

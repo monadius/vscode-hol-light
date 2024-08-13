@@ -65,14 +65,17 @@ function colorText(s: string, color: string): string {
 }
 
 class Command {
+    // Currently command ids are not used
     private static counter: number = 0;
-
     readonly cmdId: number;
 
+    // A unique identifier for a group of commands
     groupId?: object;
 
-    silent: boolean;
-
+    // A hack to suppress echoing of interactive commands if they are executed immediately
+    echoInput = true;
+    readonly silent: boolean;
+    readonly interactive: boolean;
     readonly cmd: string;
 
     // Location for providing feedback
@@ -85,6 +88,7 @@ class Command {
         this.cmd = cmd;
         this.location = options?.location;
         this.silent = options?.silent ?? false;
+        this.interactive = options?.interactive ?? false;
     }
 
     clear(decorations: CommandDecorations, _reason?: string) {
@@ -290,8 +294,8 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
                 }, 
                 (_progress) => new Promise<void>((resolve) => command.progressResolve = resolve)
             );
-            if (this.echoInput) {
-                this.writeEmitter.fire(fixLineBreaks(command.cmd));
+            if (this.echoInput && command.echoInput) {
+                this.writeEmitter.fire(colorText(fixLineBreaks(command.cmd), 'bold'));
                 this.writeEmitter.fire('\r\n');
             }
         }
@@ -316,7 +320,11 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
     }
 
     private enqueueCommands(commands: Command[], options?: { enqueueFirst?: boolean }) {
+        const first = options?.enqueueFirst || !this.commandQueue.length;
         commands.forEach(command => {
+            if (first && command.interactive) {
+                command.echoInput = false;
+            }
             if (command.location) {
                 this.decorations.addRange(CommandDecorationType.pending, command.location);
             }
@@ -369,7 +377,6 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
             cmd += ';;';
         }
         const command = new CommandWithResult(cmd, options, token);
-        command.silent = true;
         this.enqueueCommands([command]);
         return command.result;
     }
@@ -400,9 +407,18 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
             this.interrupt();
             this.buffer = [];
         } else if (data.endsWith('\r') || data.endsWith('\r\n')) {
+            if (data.endsWith('\r')) {
+                data += '\n';
+                this.writeEmitter.fire('\n');
+            }
             this.buffer.push(data);
-            this.execute(this.buffer.join(''));
-            this.buffer = [];
+            const s = this.buffer.join('');
+            if (s.trimEnd().endsWith(';;')) {
+                this.buffer = [];
+                this.execute(s, { interactive: true });
+            } else {
+                this.buffer = [s];
+            }
         } else {
             this.buffer.push(data);
         }

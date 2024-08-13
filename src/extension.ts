@@ -249,7 +249,7 @@ export function activate(context: vscode.ExtensionContext) {
                 const selections = selection.splitStatements(document, { range: editor.selection });
                 const statements = selections.map(({ text, documentStart, documentEnd }) => ({
                     cmd: text.trim(), 
-                    location: util.locationStartEnd(document, documentStart, documentEnd)
+                    options: { location: util.locationStartEnd(document, documentStart, documentEnd) }
                 })).filter(cmd => cmd.cmd);
                 repl.execute(statements);
                 return;
@@ -299,7 +299,7 @@ export function activate(context: vscode.ExtensionContext) {
             });
             const statements = selections.map(({ text, documentStart, documentEnd }) => ({
                 cmd: text.trim(),
-                location: util.locationStartEnd(document, documentStart, documentEnd),
+                options: { location: util.locationStartEnd(document, documentStart, documentEnd) },
             })).filter(cmd => cmd.cmd);
 
             repl.execute(statements);
