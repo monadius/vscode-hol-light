@@ -87,7 +87,7 @@ class Command {
         this.silent = options?.silent ?? false;
     }
 
-    clear(decorations: CommandDecorations, reason?: string) {
+    clear(decorations: CommandDecorations, _reason?: string) {
         this.progressResolve?.();
         if (this.location) {
             decorations.removeRange(this.location);
@@ -123,6 +123,8 @@ class CommandWithResult extends Command {
 
 export class HolClient implements vscode.Pseudoterminal, Terminal {
     private port: number;
+
+    private echoInput = true;
 
     private decorations: CommandDecorations;
 
@@ -172,8 +174,8 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
             console.log(`HolClient: connection error: ${err}`);
         });
 
-
         let output: string[] = [];
+        let suppressPrompt = false;
 
         this.socket.on('data', (data: Buffer) => {
             const out = data.toString();
@@ -189,6 +191,10 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
             for (let i = 0; i < output.length - 1; i++) {
                 const line = output[i];
                 if (line === 'ready') {
+                    if (!suppressPrompt) {
+                        this.writeEmitter.fire('# ');
+                    }
+                    suppressPrompt = false;
                     this.currentCommand?.clear(this.decorations);
                     this.currentCommand = undefined;
                     this.readyFlag = true;
@@ -215,6 +221,8 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
                     const err = /^Error:|Exception/.test(result);
                     if (!this.currentCommand?.silent) {
                         this.writeEmitter.fire(colorText(fixLineBreaks(unescapeString(line.slice(7))), err ? 'red' : 'default'));
+                    } else {
+                        suppressPrompt = true;
                     }
                     if (this.currentCommand) {
                         const command = this.currentCommand;
@@ -231,9 +239,6 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
                             } else if (err) {
                                 command.reject('Error');
                             } else {
-                                // console.log('command output:');
-                                // console.log(result);
-                                // console.log('end output');
                                 command.resolve(result);
                             }
                         }
@@ -276,7 +281,7 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
         if (command.location) {
             this.decorations.addRange(CommandDecorationType.pending, command.location);
         }
-        console.log(`executing: ${command.cmd}`);
+        // console.log(`executing: ${command.cmd}`);
         if (!command.silent) {
             vscode.window.withProgress({
                     location: vscode.ProgressLocation.Window,
@@ -284,6 +289,10 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
                 }, 
                 (_progress) => new Promise<void>((resolve) => command.progressResolve = resolve)
             );
+            if (this.echoInput) {
+                this.writeEmitter.fire(fixLineBreaks(command.cmd));
+                this.writeEmitter.fire('\r\n');
+            }
         }
         this.readyFlag = false;
         this.currentCommand = command;
@@ -367,7 +376,7 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
     private buffer: string[] = [];
 
     handleInput(data: string): void {
-        console.log(`handleInput("${data}")`);
+        // console.log(`handleInput("${data}")`);
         if (data[0] === '\x1b') {
             // https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences
             console.log('special: ' + data.slice(1));
@@ -392,10 +401,6 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
         } else if (data.endsWith('\r') || data.endsWith('\r\n')) {
             this.buffer.push(data);
             this.execute(this.buffer.join(''));
-            // this.child?.stdin?.write('Printf.printf ">>>begin<<<";;\r\n');
-            // this.child?.stdin?.write(this.buffer.join(''));
-            // this.child?.stdin?.write('\r\n');
-            // this.child?.stdin?.write('Printf.printf "\\n>>>end<<<%!";;\r\n');
             this.buffer = [];
         } else {
             this.buffer.push(data);

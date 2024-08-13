@@ -4,13 +4,7 @@ import { CommandDecorations, CommandDecorationType } from './decoration';
 
 const LINE_END = '\r\n';
 
-function fixLineBreak(data: string) {
-    return data.replace(/\r\n|\r|\n/g, '\r\n');
-        // .replace(/\r\n/gi,'\r')
-        // .replace(/\r/gi, '\n')
-        // .replace(/\n/gi, '\r\n')
-        // .replace(/\x7f/gi,'\b \b');
-}
+const fixLineBreaks = (s: string) => s.replace(/\r*\n/g, '\r\n');
 
 export interface CommandOptions {
     location?: vscode.Location;
@@ -180,7 +174,7 @@ export class CommandTerminal implements vscode.Pseudoterminal, Terminal {
         this.child.stdout?.on('data', (data: Buffer) => {
             const out = data.toString();
             // console.log(`out: "${out}"`);
-            this.writeEmitter.fire(fixLineBreak(out));
+            this.writeEmitter.fire(fixLineBreaks(out));
 
             const lines = out.split('\n');
             for (let i = 0, k = Math.max(0, output.length - 1); i < lines.length; i++, k++) {
@@ -231,7 +225,7 @@ export class CommandTerminal implements vscode.Pseudoterminal, Terminal {
 
         this.child.stderr?.on('data', (data: Buffer) => {
             // console.log('err: ' + data.toString());
-            this.writeEmitter.fire('\x1b[91m' + fixLineBreak(data.toString()) + '\x1b[0m');
+            this.writeEmitter.fire('\x1b[91m' + fixLineBreaks(data.toString()) + '\x1b[0m');
         });
 
         this.executeNextCommand();
@@ -376,17 +370,13 @@ export class CommandTerminal implements vscode.Pseudoterminal, Terminal {
             }
             return;
         }
-        this.writeEmitter.fire(fixLineBreak(data));
+        this.writeEmitter.fire(fixLineBreaks(data));
         if (data.charCodeAt(0) === 3) {
             this.interrupt();
             this.buffer = [];
         } else if (data.endsWith('\r') || data.endsWith('\r\n')) {
             this.buffer.push(data);
             this.execute(this.buffer.join(''));
-            // this.child?.stdin?.write('Printf.printf ">>>begin<<<";;\r\n');
-            // this.child?.stdin?.write(this.buffer.join(''));
-            // this.child?.stdin?.write('\r\n');
-            // this.child?.stdin?.write('Printf.printf "\\n>>>end<<<%!";;\r\n');
             this.buffer = [];
         } else {
             this.buffer.push(data);
