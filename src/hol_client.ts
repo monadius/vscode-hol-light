@@ -215,16 +215,19 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
                     // console.log(`info: ${line}, pid = ${this.serverPid}`);
                 } else if (line.startsWith('stdout:')) {
                     if (!this.currentCommand?.silent) {
+                        // this.writeEmitter.fire('stdout: ');
                         this.writeEmitter.fire(fixLineBreaks(unescapeString(line.slice(7))));
                     }
                 } else if (line.startsWith('stderr:')) {
                     if (!this.currentCommand?.silent) {
+                        // this.writeEmitter.fire('stderr: ');
                         this.writeEmitter.fire(colorText(fixLineBreaks(unescapeString(line.slice(7))), 'red'));
                     }
                 } else if (line.startsWith('result:')) {
                     const result = unescapeString(line.slice(7));
                     const err = /^Error:|Exception/.test(result);
                     if (!this.currentCommand?.silent) {
+                        // this.writeEmitter.fire('result: ');
                         this.writeEmitter.fire(colorText(fixLineBreaks(unescapeString(line.slice(7))), err ? 'red' : 'default'));
                     } else {
                         suppressPrompt = true;
@@ -273,7 +276,9 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
 
     interrupt(): void {
         if (this.serverPid) {
-            process.kill(-this.serverPid, 'SIGINT');
+            // Do not use negative PID to kill all processes in a group.
+            // The group PID is not known if a script is used to run HOL Light.
+            process.kill(this.serverPid, 'SIGINT');
         }
         this.clearCommands("Interrupted");
     }
