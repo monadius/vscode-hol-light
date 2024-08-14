@@ -172,6 +172,7 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
         });
         this.socket.on('close', (hadError) => {
             console.log('HolClient: connection closed');
+            this.close();
             this.closeEmitter.fire(hadError ? 1 : 0);
         });
         this.socket.on('error', err => {
@@ -404,6 +405,7 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
         }
         this.writeEmitter.fire(fixLineBreaks(data));
         if (data.charCodeAt(0) === 3) {
+            this.writeEmitter.fire('^C\r\n');
             this.interrupt();
             this.buffer = [];
         } else if (data.endsWith('\r') || data.endsWith('\r\n')) {
