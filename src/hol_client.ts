@@ -39,6 +39,14 @@ function unescapeString(s: string): string {
     });
 }
 
+const fixErrorLocation = (s: string, location: vscode.Location) =>
+    s.replace(/^File "\(command-line input\)", line (\d+), characters (\d+)-(\d+)/, (_, line, start, end) => {
+        const newLine = +line + location.range.start.line;
+        const newStart = (+line === 1 ? +start + location.range.start.character : +start) + 1;
+        const newEnd = (+line === 1 ? +end + location.range.start.character : +end) + 1;
+        return `File "${location.uri.fsPath}", line ${newLine}, characters ${newStart}-${newEnd}`;
+    });
+
 const fixLineBreaks = (s: string) => s.replace(/\r*\n/g, '\r\n');
 
 const COLORS: { [key: string]: number } = {
@@ -221,14 +229,22 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
                 } else if (line.startsWith('stderr:')) {
                     if (!this.currentCommand?.silent) {
                         // this.writeEmitter.fire('stderr: ');
-                        this.writeEmitter.fire(colorText(fixLineBreaks(unescapeString(line.slice(7))), 'red'));
+                        let text = fixLineBreaks(unescapeString(line.slice(7)));
+                        if (this.currentCommand?.location) {
+                            text = fixErrorLocation(text, this.currentCommand.location);
+                        }
+                        this.writeEmitter.fire(colorText(text, 'red'));
                     }
-                } else if (line.startsWith('result:')) {
+                } else if (line.startsWith('result:') || line.startsWith('rerror:')) {
                     const result = unescapeString(line.slice(7));
-                    const err = /^Error:|Exception/.test(result);
+                    const err = line.startsWith('rerror:');
                     if (!this.currentCommand?.silent) {
                         // this.writeEmitter.fire('result: ');
-                        this.writeEmitter.fire(colorText(fixLineBreaks(unescapeString(line.slice(7))), err ? 'red' : 'default'));
+                        let text = fixLineBreaks(unescapeString(line.slice(7)));
+                        if (err && this.currentCommand?.location) {
+                            text = fixErrorLocation(text, this.currentCommand.location);
+                        }
+                        this.writeEmitter.fire(colorText(text, err ? 'red' : 'default'));
                     } else {
                         suppressPrompt = true;
                     }
