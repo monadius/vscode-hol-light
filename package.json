@@ -282,6 +282,10 @@
                     "default": [".", "{hol}", "{workspace}"],
                     "description": "Paths for searching dependencies"
                 },
+                "hol-light.server": {
+                    "type": "string",
+                    "description": "Address of a HOL Light server. If not specified, then localhost:2012 is used."
+                },
                 "hol-light.autoIndex": {
                     "type": "boolean",
                     "default": true,

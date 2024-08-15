@@ -57,43 +57,51 @@ export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverP
 
     async getTerminalWindow(workDir: string = ''): Promise<vscode.Terminal | null> {
         if (!this.vscodeTerminal) {
-            let standardTerminal = false;
+            // let standardTerminal = false;
             const paths = config.getConfigOption<string[]>(config.EXE_PATHS, []);
+            const serverLabel = 'Connect to a HOL Light server...';
 
             const result = await new Promise<vscode.QuickPickItem | null>((resolve, _reject) => {
-                const items: vscode.QuickPickItem[] = paths.map(path => ({ 
-                    label: path, 
-                    // buttons: [{ iconPath: new vscode.ThemeIcon('terminal'), tooltip: 'Run in a standard terminal' }] 
-                }));
+                const items: vscode.QuickPickItem[] = paths.map(path => {
+                    // const buttons = [{ iconPath: new vscode.ThemeIcon('terminal'), tooltip: 'Run in a standard terminal' }];
+                    const label = path === '#hol-server#' ? serverLabel : path;
+                    return {
+                        label, 
+                        // buttons 
+                    };
+                });
                 items.push({ label: '', kind: vscode.QuickPickItemKind.Separator });
+                if (!paths.includes('#hol-server#')) {
+                    items.push({ label: serverLabel });
+                }
                 items.push({ label: 'Choose a script file...', detail: 'Select a file in a file open dialog' });
     
                 const input = vscode.window.createQuickPick();
                 input.items = items;
                 input.placeholder = 'Select a HOL Light startup script';
                 
-                const updateInput = () => {
-                    if (standardTerminal) {
-                        input.title = 'Run in a standard terminal (click the button to switch)';
-                        // Icon identifiers: https://code.visualstudio.com/api/references/icons-in-labels
-                        input.buttons = [{ iconPath: new vscode.ThemeIcon('terminal'), tooltip: 'Run in a separate process' }];
-                    } else {
-                        input.title = 'Run in a separate process (not compatible with utop or ledit)';
-                        input.buttons = [{ iconPath: new vscode.ThemeIcon('terminal'), tooltip: 'Run in a standard terminal' }];
-                    }
-                };
+                // const updateInput = () => {
+                //     if (standardTerminal) {
+                //         input.title = 'Run in a standard terminal (click the button to switch)';
+                //         // Icon identifiers: https://code.visualstudio.com/api/references/icons-in-labels
+                //         input.buttons = [{ iconPath: new vscode.ThemeIcon('terminal'), tooltip: 'Run in a separate process' }];
+                //     } else {
+                //         input.title = 'Run in a separate process (not compatible with utop or ledit)';
+                //         input.buttons = [{ iconPath: new vscode.ThemeIcon('terminal'), tooltip: 'Run in a standard terminal' }];
+                //     }
+                // };
 
-                updateInput();
+                // updateInput();
 
                 input.onDidHide(() => {
                     resolve(null);
                     input.dispose();
                 });
 
-                input.onDidTriggerButton(() => {
-                    standardTerminal = !standardTerminal;
-                    updateInput();
-                });
+                // input.onDidTriggerButton(() => {
+                //     standardTerminal = !standardTerminal;
+                //     updateInput();
+                // });
 
                 // TODO: try checkboxes for each item. 
                 // It will be necessary to update input.items every time when the corresponding
@@ -108,9 +116,13 @@ export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverP
                 input.show();
             });
 
+            let standardTerminal = true;
             let path: string;
             if (result) {
-                if (result.detail) {
+                if (result.label === serverLabel) {
+                    standardTerminal = false;
+                    path = '';
+                } else if (result.detail) {
                     const uri = await vscode.window.showOpenDialog({
                         canSelectFiles: true, 
                         canSelectFolders: false, 
@@ -138,7 +150,8 @@ export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverP
                 this.holTerminal = new terminal.StandardTerminal(this.vscodeTerminal, this.decorations);
             } else {
                 // const commandTerminal = new terminal.CommandTerminal(path, workDir, this.decorations);
-                const commandTerminal = new client.HolClient(2012, this.decorations);
+                const address = config.getConfigOption(config.SERVER_ADDRESS, '');
+                const commandTerminal = new client.HolClient(address, this.decorations);
                 this.vscodeTerminal = vscode.window.createTerminal({ name: 'HOL Light', pty: commandTerminal });
                 this.holTerminal = commandTerminal;
             }

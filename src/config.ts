@@ -10,6 +10,7 @@ export const HIGHLIGHT_COLOR_FAILURE = 'highlightColorFailure';
 export const HOLLIGHT_PATH = 'path';
 export const EXE_PATHS = 'exePaths';
 export const ROOT_PATHS = 'rootPaths';
+export const SERVER_ADDRESS = 'server';
 export const AUTO_INDEX = 'autoIndex';
 export const CUSTOM_IMPORTS = 'customImports';
 export const CUSTOM_DEFINITIONS = 'customDefinitions';
