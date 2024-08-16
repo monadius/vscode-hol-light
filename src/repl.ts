@@ -2,10 +2,12 @@ import * as vscode from 'vscode';
 
 import * as config from './config';
 import { CommandDecorations } from './decoration';
+import * as client from './hol_client';
 import * as terminal from './terminal';
 import * as util from './util';
 
-import * as client from './hol_client';
+import { getServerCode } from './extra/server_code';
+
 
 export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverProvider {
     private vscodeTerminal?: vscode.Terminal;
@@ -53,6 +55,11 @@ export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverP
 
     executeForResult(cmd: string, options?: terminal.CommandOptions, token?: vscode.CancellationToken): Promise<string> {
         return this.holTerminal?.executeForResult(cmd, options, token) ?? Promise.reject("Uninitialized HOL terminal");
+    }
+
+    startServer(port: number, debug: boolean = true) {
+        const serverCode = getServerCode(port, debug);
+        this.vscodeTerminal?.sendText(serverCode);
     }
 
     async getTerminalWindow(workDir: string = ''): Promise<vscode.Terminal | null> {

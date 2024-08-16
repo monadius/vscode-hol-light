@@ -35,6 +35,11 @@
             },
             {
                 "category": "HOL Light",
+                "command": "hol-light.start_server",
+                "title": "Start Server"
+            },
+            {
+                "category": "HOL Light",
                 "command": "hol-light.set_path",
                 "title": "Set HOL Light path"
             },

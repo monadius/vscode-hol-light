@@ -213,6 +213,15 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
+        vscode.commands.registerCommand('hol-light.start_server', async () => {
+            const address = await config.getServerAddress({ portOnly: true });
+            if (address) {
+                repl.startServer(address[1], false);
+            }
+        })
+    );
+
+    context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.set_path', chooseHOLLightPath)
     );
 
