@@ -59,16 +59,16 @@ export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverP
         if (!this.vscodeTerminal) {
             // let standardTerminal = false;
             const paths = config.getConfigOption<string[]>(config.EXE_PATHS, []);
+            const serverDetail = `Default address: ${config.getConfigOption(config.SERVER_ADDRESS, config.DEFAULT_SERVER_ADDRESS) || config.DEFAULT_SERVER_ADDRESS}`;
             const serverLabel = 'Connect to a HOL Light server...';
 
             const result = await new Promise<vscode.QuickPickItem | null>((resolve, _reject) => {
                 const items: vscode.QuickPickItem[] = paths.map(path => {
+                    if (path === '#hol-server#') {
+                        return { label: serverLabel, detail: serverDetail };
+                    }
                     // const buttons = [{ iconPath: new vscode.ThemeIcon('terminal'), tooltip: 'Run in a standard terminal' }];
-                    const label = path === '#hol-server#' ? serverLabel : path;
-                    return {
-                        label, 
-                        // buttons 
-                    };
+                    return { label: path };
                 });
                 items.push({ label: '', kind: vscode.QuickPickItemKind.Separator });
                 if (!paths.includes('#hol-server#')) {
@@ -150,9 +150,12 @@ export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverP
                 this.holTerminal = new terminal.StandardTerminal(this.vscodeTerminal, this.decorations);
             } else {
                 // const commandTerminal = new terminal.CommandTerminal(path, workDir, this.decorations);
-                const address = config.getConfigOption(config.SERVER_ADDRESS, '');
-                const commandTerminal = new client.HolClient(address, this.decorations);
-                this.vscodeTerminal = vscode.window.createTerminal({ name: 'HOL Light', pty: commandTerminal });
+                const address = await config.getServerAddress();
+                if (!address) {
+                    return null;
+                }
+                const commandTerminal = new client.HolClient(address[0], address[1], this.decorations);
+                this.vscodeTerminal = vscode.window.createTerminal({ name: 'HOL Light (client)', pty: commandTerminal });
                 this.holTerminal = commandTerminal;
             }
         }

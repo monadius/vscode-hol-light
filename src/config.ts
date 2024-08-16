@@ -18,6 +18,8 @@ export const CUSTOM_THEOREMS = 'customTheorems';
 export const TACTIC_MAX_LINES = 'tacticMaxLines';
 export const SIMPLE_SELECTION = 'simpleSelection';
 
+export const DEFAULT_SERVER_ADDRESS = 'localhost:2012';
+
 export function getFullConfigName(name: string): string {
     return SECTION + '.' + name;
 }
@@ -63,4 +65,39 @@ export function getCustomCommandNames(): CustomCommandNames {
         customDefinitions: split(getConfigOption(CUSTOM_DEFINITIONS, '')),
         customTheorems: split(getConfigOption(CUSTOM_THEOREMS, '')),
     };
+}
+
+export async function getServerAddress(options?: { portOnly?: boolean }): Promise<[string, number] | null> {
+    let port = 0;
+    let host = '';
+
+    function parseAddress(address: string) {
+        if (address.includes(':')) {
+            const xs = address.split(':');
+            host = xs[0];
+            port = +xs[1];
+        } else if (/^\d+$/.test(address)) {
+            port = parseInt(address);
+        } else if (address) {
+            host = address;
+        }
+    }
+
+    parseAddress(DEFAULT_SERVER_ADDRESS);
+    const address = getConfigOption(SERVER_ADDRESS, DEFAULT_SERVER_ADDRESS) || DEFAULT_SERVER_ADDRESS;
+    if (address !== DEFAULT_SERVER_ADDRESS) {
+        parseAddress(address);
+    }
+
+    let input = await vscode.window.showInputBox({
+        placeHolder: options?.portOnly ? `${port}` : `${host}:${port}`,
+        title: `Enter the HOL server ${options?.portOnly ? 'port' : 'address'}`,
+    });
+    
+    if (typeof input !== 'string') {
+        return null;
+    }
+
+    parseAddress(input);
+    return [options?.portOnly ? 'localhost' : host, port];
 }

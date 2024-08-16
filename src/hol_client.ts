@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 
 import * as net from 'node:net';
 
+import * as config from './config';
 import { CommandDecorations, CommandDecorationType } from './decoration';
 import { Terminal, CommandOptions } from './terminal';
 
@@ -134,7 +135,8 @@ class CommandWithResult extends Command {
 }
 
 export class HolClient implements vscode.Pseudoterminal, Terminal {
-    private address: string;
+    private host: string;
+    private port: number;
 
     private echoInput = true;
 
@@ -153,8 +155,9 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
     onDidWrite: vscode.Event<string> = this.writeEmitter.event;
     onDidClose?: vscode.Event<void | number> = this.closeEmitter.event;
 
-    constructor(address: string, decorations: CommandDecorations) {
-        this.address = address;
+    constructor(host: string, port: number, decorations: CommandDecorations) {
+        this.host = host;
+        this.port = port;
         this.decorations = decorations;
     }
 
@@ -174,19 +177,7 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
             this.close();
         }
 
-        let port = 2012;
-        let host = 'localhost';
-        if (this.address.includes(':')) {
-            const xs = this.address.split(':');
-            host = xs[0];
-            port = +xs[1];
-        } else if (/^\d+$/.test(this.address)) {
-            port = parseInt(this.address);
-        } else if (this.address) {
-            host = this.address;
-        }
-
-        this.socket = net.connect(port, host);
+        this.socket = net.connect(this.port, this.host);
         this.socket.on('connect', () => {
             console.log('client connected');
         });
@@ -195,9 +186,19 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
             this.close();
             this.closeEmitter.fire(hadError ? 1 : 0);
         });
-        this.socket.on('error', err => {
+        this.socket.on('error', async (err) => {
             console.log(`HolClient: connection error: ${err}`);
-            vscode.window.showErrorMessage(`${err}`);
+            if (/ECONNREFUSED/.test(err.message)) {
+                const res = await vscode.window.showErrorMessage(`${err}`, 'Change server address...');
+                if (res) {
+                    const address = await config.getServerAddress();
+                    if (address) {
+                        config.updateConfigOption(config.SERVER_ADDRESS, address.join(':'));
+                    }
+                }
+            } else {
+                vscode.window.showErrorMessage(`${err}`);
+            }
         });
 
         let output: string[] = [];
