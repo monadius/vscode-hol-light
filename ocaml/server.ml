@@ -1,4 +1,3 @@
-const SERVER_CODE = `
 (* https://github.com/monadius/hol_server/blob/main/server.ml *)
 
 let debug_flag = ref true
@@ -102,11 +101,6 @@ let rec toploop_service new_stdout new_stderr ic oc =
             restore new_stdout; restore new_stderr in
           redirect Unix.stdout new_stdout;
           redirect Unix.stderr new_stderr;
-          (* Set timeout for special commands only (we don't want to interrupt "needs", etc.) *)
-          (* let set_alarm = starts_with s ~prefix:"raw_print_string" ||
-                          starts_with s ~prefix:"refine" in
-          let timeout = get_timeout () in
-          if timeout > 0 && set_alarm then ignore (Unix.alarm timeout); *)
           try_finally (write_to_string Toploop.use_input, finally) (Toploop.String input)
         with exn ->
           let exn_str = Printexc.to_string exn in
@@ -182,16 +176,3 @@ let start ?(host_name = "127.0.0.1") port =
     flush_all();
     establish_forkless_server toploop_service (Unix.ADDR_INET (address, port)) in
   Unix.handle_unix_error start_server ()
-`;
-
-export function getServerCode(port: number, debug: boolean) {
-    return `
-#directory "+compiler-libs";;
-#load "unix.cma";;
-module Server = struct
-${SERVER_CODE}
-end;;
-Server.debug_flag := ${debug};;
-Server.start ${port};;
-`;
-}

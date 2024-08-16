@@ -1,15 +1,16 @@
 import * as vscode from 'vscode';
 
+import * as pathLib from 'node:path';
+
 import * as config from './config';
 import { CommandDecorations } from './decoration';
 import * as client from './hol_client';
 import * as terminal from './terminal';
 import * as util from './util';
 
-import { getServerCode } from './extra/server_code';
-
-
 export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverProvider {
+    private extensionPath: string;
+
     private vscodeTerminal?: vscode.Terminal;
     private holTerminal?: terminal.Terminal;
 
@@ -22,6 +23,8 @@ export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverP
                 }
             })
         );
+
+        this.extensionPath = context.extensionPath;
     }
 
     isActive() {
@@ -58,7 +61,15 @@ export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverP
     }
 
     startServer(port: number, debug: boolean = true) {
-        const serverCode = getServerCode(port, debug);
+        // const serverCode = getServerCode(port, debug);
+        const path = pathLib.join(this.extensionPath, 'ocaml', 'server.ml');
+        const serverCode = `
+#directory "+compiler-libs";;
+#load "unix.cma";;
+#mod_use "${path}";;
+Server.debug_flag := ${debug};;
+Server.start ${port};;
+`;
         this.vscodeTerminal?.sendText(serverCode);
     }
 

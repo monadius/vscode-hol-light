@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import * as pathLib from 'path';
+import * as pathLib from 'node:path';
 
 import * as analysis from './analysis';
 import * as config from './config';
