@@ -11,15 +11,22 @@ import * as util from './util';
 export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverProvider {
     private extensionPath: string;
 
-    private vscodeTerminal?: vscode.Terminal;
+    private holTerminalWindow?: vscode.Terminal;
     private holTerminal?: terminal.Terminal;
+
+    private clientTerminal?: vscode.Terminal;
+    private holClient?: client.HolClient;
 
     constructor(context: vscode.ExtensionContext, private decorations: CommandDecorations) {
         context.subscriptions.push(
             vscode.window.onDidCloseTerminal((term) => {
-                if (term === this.vscodeTerminal) {
-                    this.vscodeTerminal = undefined;
+                if (term === this.holTerminalWindow) {
+                    this.holTerminalWindow = undefined;
                     this.holTerminal = undefined;
+                }
+                if (term === this.clientTerminal) {
+                    this.clientTerminal = undefined;
+                    this.holClient = undefined;
                 }
             })
         );
@@ -27,54 +34,89 @@ export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverP
         this.extensionPath = context.extensionPath;
     }
 
-    isActive() {
-        return !!this.vscodeTerminal;
+    private getActiveTerminal(): vscode.Terminal | undefined {
+        return this.clientTerminal || this.holTerminalWindow;
+    }
+
+    private getActiveExecutor(): terminal.Terminal | undefined {
+        return this.holClient || this.holTerminal;
+    }
+
+    isActive(): boolean {
+        return !!this.getActiveTerminal();
     }
 
     dispose() {
-        this.vscodeTerminal?.dispose();
-        this.vscodeTerminal = undefined;
+        this.clientTerminal?.dispose();
+        this.clientTerminal = undefined;
+        this.holClient = undefined;
+
+        this.holTerminalWindow?.dispose();
+        this.holTerminalWindow = undefined;
         this.holTerminal = undefined;
     }
 
     sendText(text: string, addNewLine?: boolean) {
-        this.vscodeTerminal?.sendText(text, addNewLine);
+        this.getActiveTerminal()?.sendText(text, addNewLine);
     }
 
     execute(cmd: string, options?: terminal.CommandOptions): void;
     execute(cmds: { cmd: string, options?: terminal.CommandOptions }[]): void;
     
     execute(cmd: string | { cmd: string; options?: terminal.CommandOptions; }[], options?: terminal.CommandOptions): void {
-        if (typeof cmd === 'string') {
-            this.holTerminal?.execute(cmd, options);
-        } else {
-            this.holTerminal?.execute(cmd);
+        const executor = this.getActiveExecutor();
+        if (executor) {
+            if (typeof cmd === 'string') {
+                executor.execute(cmd, options);
+            } else {
+                executor.execute(cmd);
+            }
         }
     }
 
     canExecuteForResult(): boolean {
-        return this.holTerminal?.canExecuteForResult() ?? false;
+        return this.getActiveExecutor()?.canExecuteForResult() ?? false;
     }
 
     executeForResult(cmd: string, options?: terminal.CommandOptions, token?: vscode.CancellationToken): Promise<string> {
-        return this.holTerminal?.executeForResult(cmd, options, token) ?? Promise.reject("Uninitialized HOL terminal");
+        return this.getActiveExecutor()?.executeForResult(cmd, options, token) ?? Promise.reject("Uninitialized HOL terminal");
+    }
+
+    private waitingForClient = false;
+
+    canStartServer(): boolean {
+        return !this.waitingForClient && !!this.holTerminalWindow && !this.holClient && !this.clientTerminal;
     }
 
     startServer(port: number, debug: boolean = true) {
-        // const serverCode = getServerCode(port, debug);
+        if (!this.holTerminalWindow || !this.canStartServer()) {
+            return;
+        }
+
         const path = pathLib.join(this.extensionPath, 'ocaml', 'server.ml');
         const serverCode = `
 #directory "+compiler-libs";;
 #load "unix.cma";;
 #mod_use "${path}";;
 Server.debug_flag := ${debug};;
-Server.start ${port};;
+Server.start ~single_connection:true ${port};;
 `;
-        this.vscodeTerminal?.sendText(serverCode);
+        this.holTerminalWindow.sendText(serverCode);
+
+        // Try to open a client terminal after some delay
+        this.waitingForClient = true;
+        setTimeout(() => {
+            this.waitingForClient = false;
+            if (this.canStartServer()) {
+                this.holClient = new client.HolClient('localhost', port, this.decorations);
+                this.clientTerminal = vscode.window.createTerminal({ name: 'HOL Light (client)', pty: this.holClient });
+                this.clientTerminal.show(true);
+            }
+        }, 200);
     }
 
-    async getTerminalWindow(workDir: string = ''): Promise<vscode.Terminal | null> {
-        if (!this.vscodeTerminal) {
+    async getTerminalWindow(_workDir: string = ''): Promise<vscode.Terminal | undefined> {
+        if (!this.getActiveTerminal()) {
             // let standardTerminal = false;
             const paths = config.getConfigOption<string[]>(config.EXE_PATHS, []);
             const serverDetail = `Default address: ${config.getConfigOption(config.SERVER_ADDRESS, config.DEFAULT_SERVER_ADDRESS) || config.DEFAULT_SERVER_ADDRESS}`;
@@ -147,7 +189,7 @@ Server.start ${port};;
                         canSelectMany: false
                     });
                     if (!uri || !uri.length || !uri[0].fsPath) {
-                        return null;
+                        return;
                     }
                     path = uri[0].fsPath;
                     if (!paths.includes(path)) {
@@ -158,27 +200,26 @@ Server.start ${port};;
                     path = result.label;
                 }
             } else {
-                return null;
+                return;
             }
 
             if (standardTerminal) {
                 // replTerm = vscode.window.createTerminal('HOL Light', path);
-                this.vscodeTerminal = vscode.window.createTerminal('HOL Light');
-                this.vscodeTerminal.sendText(path);
-                this.holTerminal = new terminal.StandardTerminal(this.vscodeTerminal, this.decorations);
+                this.holTerminalWindow = vscode.window.createTerminal('HOL Light');
+                this.holTerminalWindow.sendText(path);
+                this.holTerminal = new terminal.StandardTerminal(this.holTerminalWindow, this.decorations);
             } else {
                 // const commandTerminal = new terminal.CommandTerminal(path, workDir, this.decorations);
                 const address = await config.getServerAddress();
                 if (!address) {
-                    return null;
+                    return;
                 }
-                const commandTerminal = new client.HolClient(address[0], address[1], this.decorations);
-                this.vscodeTerminal = vscode.window.createTerminal({ name: 'HOL Light (client)', pty: commandTerminal });
-                this.holTerminal = commandTerminal;
+                this.holClient = new client.HolClient(address[0], address[1], this.decorations);
+                this.clientTerminal = vscode.window.createTerminal({ name: 'HOL Light (client)', pty: this.holClient });
             }
         }
 
-        return this.vscodeTerminal;
+        return this.getActiveTerminal();
     }
 
     async getInfo(word: string, token?: vscode.CancellationToken): Promise<vscode.MarkdownString | null> {

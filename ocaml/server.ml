@@ -125,7 +125,7 @@ let string_of_sockaddr = function
   | Unix.ADDR_UNIX s -> s
   | Unix.ADDR_INET (inet_addr, _) -> Unix.string_of_inet_addr inet_addr
 
-let establish_forkless_server server_fun sockaddr =
+let establish_forkless_server ?(single_connection = false) server_fun sockaddr =
   let domain = Unix.domain_of_sockaddr sockaddr in
   let sock = Unix.socket domain Unix.SOCK_STREAM 0 in
   try
@@ -150,6 +150,7 @@ let establish_forkless_server server_fun sockaddr =
         (try Sys.remove tmp_stderr with Sys_error _ -> ())
       in
       try_finally (server_fun new_stdout new_stderr inchan, finally) outchan;
+      if single_connection then raise Sys.Break;
     done
   with 
   | Unix.Unix_error (Unix.EADDRINUSE, _, _) ->
@@ -167,12 +168,12 @@ let get_host_address host_name =
   let host = Unix.gethostbyname host_name in
   host.Unix.h_addr_list.(0)
 
-let start ?(host_name = "127.0.0.1") port =
+let start ?single_connection ?(host_name = "127.0.0.1") port =
   Sys.catch_break true;
   let address = get_host_address host_name in
   let start_server () = 
     Format.printf "Pid: %d; Host address: %s; port number: %d (no forks)@." 
     (Unix.getpid ()) (Unix.string_of_inet_addr address) port;
     flush_all();
-    establish_forkless_server toploop_service (Unix.ADDR_INET (address, port)) in
+    establish_forkless_server ?single_connection toploop_service (Unix.ADDR_INET (address, port)) in
   Unix.handle_unix_error start_server ()

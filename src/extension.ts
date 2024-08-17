@@ -214,9 +214,20 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.start_server', async () => {
-            const address = await config.getServerAddress({ portOnly: true });
-            if (address) {
-                repl.startServer(address[1], false);
+            if (!repl.canStartServer()) {
+                if (repl.isActive()) {
+                    vscode.window.showErrorMessage('Cannot start a new server: There is an active client');
+                } else {
+                    const action = await vscode.window.showErrorMessage('Cannot start a server: No active REPL session', 'Open REPL');
+                    if (action) {
+                        vscode.commands.executeCommand('hol-light.repl');
+                    }
+                }
+            } else {
+                const address = await config.getServerAddress({ portOnly: true });
+                if (address) {
+                    repl.startServer(address[1], false);
+                }
             }
         })
     );
