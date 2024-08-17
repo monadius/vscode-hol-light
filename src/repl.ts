@@ -9,13 +9,15 @@ import * as terminal from './terminal';
 import * as util from './util';
 
 export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverProvider {
-    private extensionPath: string;
+    private readonly extensionPath: string;
 
     private holTerminalWindow?: vscode.Terminal;
     private holTerminal?: terminal.Terminal;
 
     private clientTerminal?: vscode.Terminal;
     private holClient?: client.HolClient;
+
+    private readonly startServerItem: vscode.StatusBarItem;
 
     constructor(context: vscode.ExtensionContext, private decorations: CommandDecorations) {
         context.subscriptions.push(
@@ -28,10 +30,24 @@ export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverP
                     this.clientTerminal = undefined;
                     this.holClient = undefined;
                 }
+                this.updateStatusBarItem();
             })
         );
 
         this.extensionPath = context.extensionPath;
+
+        this.startServerItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+        this.startServerItem.command = 'hol-light.start_server';
+        this.startServerItem.text = '$(server-environment)Start Server';
+        context.subscriptions.push(this.startServerItem);
+    }
+
+    private updateStatusBarItem() {
+        if (this.canStartServer()) {
+            this.startServerItem.show();
+        } else {
+            this.startServerItem.hide();
+        }
     }
 
     private getActiveTerminal(): vscode.Terminal | undefined {
@@ -54,6 +70,8 @@ export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverP
         this.holTerminalWindow?.dispose();
         this.holTerminalWindow = undefined;
         this.holTerminal = undefined;
+        
+        this.updateStatusBarItem();
     }
 
     sendText(text: string, addNewLine?: boolean) {
@@ -112,6 +130,8 @@ Server.start ~single_connection:true ${port};;
                 this.clientTerminal = vscode.window.createTerminal({ name: 'HOL Light (client)', pty: this.holClient });
                 this.clientTerminal.show(true);
             }
+
+            this.updateStatusBarItem();
         }, 200);
     }
 
@@ -219,6 +239,7 @@ Server.start ~single_connection:true ${port};;
             }
         }
 
+        this.updateStatusBarItem();
         return this.getActiveTerminal();
     }
 
