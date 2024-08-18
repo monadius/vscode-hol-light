@@ -454,25 +454,14 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             terminal.show(true);
-            const result = await vscode.window.showInputBox();
+            const result = await vscode.window.showInputBox({
+                title: 'Search HOL Light definitions',
+                prompt: 'Use "" for names. Separate search terms with comma (,). Use `` for terms if they include commas.'}
+            );
             if (!result) {
                 return;
             }
-            const terms = result.split(',').map(s => {
-                s = s.trim();
-                if (s.startsWith('"') && s.endsWith('"')) {
-                    s = `name ${s}`;
-                }
-                else {
-                    if (!s.startsWith('`')) {
-                        s = '`' + s;
-                    }
-                    if (!s.endsWith('`')) {
-                        s = s + '`';
-                    }
-                }
-                return s;
-            });
+            const terms = selection.splitSearchInput(result);
             repl.execute(`search([${terms.join('; ')}]);;`);
         })
     );

@@ -211,3 +211,31 @@ export function selectTerm(document: vscode.TextDocument, pos: number): Selectio
     }
     return null;
 }
+
+/**
+ * Splits a string input for using with the HOL Light `search` command
+ */
+export function splitSearchInput(input: string): string[] {
+    const result: string[] = [];
+    
+    const re = /".*?(?:"|$)|`.*?(?:`|$)|[^,`"]+/g;
+    let m: RegExpExecArray | null;
+    while (m = re.exec(input)) {
+        if (!m[0]) {
+            continue;
+        }
+        switch (m[0][0]) {
+            case '"':
+                result.push(`name ${m[0]}${m[0].endsWith('"') ? '' : '"'}`);
+                break;
+            case '`':
+                result.push(m[0] + (m[0].endsWith('`') ? '' : '`'));
+                break;
+            default:
+                result.push('`' + m[0] + '`');
+                break;
+        }
+    }
+
+    return result;
+}
