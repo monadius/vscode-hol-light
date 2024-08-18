@@ -67,7 +67,7 @@ export function getCustomCommandNames(): CustomCommandNames {
     };
 }
 
-export async function getServerAddress(options?: { portOnly?: boolean }): Promise<[string, number] | null> {
+export async function getServerAddress(options?: { portOnly?: boolean, showInputBox?: boolean }): Promise<[string, number] | null> {
     let port = 0;
     let host = '';
 
@@ -89,15 +89,28 @@ export async function getServerAddress(options?: { portOnly?: boolean }): Promis
         parseAddress(address);
     }
 
-    let input = await vscode.window.showInputBox({
-        placeHolder: options?.portOnly ? `${port}` : `${host}:${port}`,
-        title: `Enter the HOL server ${options?.portOnly ? 'port' : 'address'}`,
-    });
-    
-    if (typeof input !== 'string') {
-        return null;
+    if (options?.showInputBox) {
+        const input = await vscode.window.showInputBox({
+            placeHolder: options?.portOnly ? `${port}` : `${host}:${port}`,
+            title: `Enter the HOL server ${options?.portOnly ? 'port' : 'address'}`,
+            validateInput: (value) => {
+                if (!value) {
+                    return null;
+                }
+                if (options?.portOnly) {
+                    return /^\d+$/.test(value) ? null : 'The value should be a number';
+                } else {
+                    return /^([a-z\d.]+:)?\d+$/i.test(value) ? null : 'The value should be in the format hostname:port';
+                }
+            }
+        });
+        
+        if (typeof input !== 'string') {
+            return null;
+        }
+
+        parseAddress(input);
     }
 
-    parseAddress(input);
     return [options?.portOnly ? 'localhost' : host, port];
 }

@@ -191,7 +191,7 @@ export class HolClient implements vscode.Pseudoterminal, Terminal {
             if (/ECONNREFUSED/.test(err.message)) {
                 const res = await vscode.window.showErrorMessage(`${err}`, 'Change server address...');
                 if (res) {
-                    const address = await config.getServerAddress();
+                    const address = await config.getServerAddress({ showInputBox: true });
                     if (address) {
                         config.updateConfigOption(config.SERVER_ADDRESS, address.join(':'));
                     }

@@ -39,6 +39,7 @@ export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverP
         this.startServerItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
         this.startServerItem.command = 'hol-light.start_server';
         this.startServerItem.text = '$(server-environment)Start Server';
+        this.startServerItem.tooltip = 'Start a server for interacting with HOL Light';
         context.subscriptions.push(this.startServerItem);
     }
 
@@ -139,23 +140,30 @@ Server.start ~single_connection:true ${port};;
         if (!this.getActiveTerminal()) {
             // let standardTerminal = false;
             const paths = config.getConfigOption<string[]>(config.EXE_PATHS, []);
-            const serverDetail = `Default address: ${config.getConfigOption(config.SERVER_ADDRESS, config.DEFAULT_SERVER_ADDRESS) || config.DEFAULT_SERVER_ADDRESS}`;
-            const serverLabel = 'Connect to a HOL Light server...';
+            const serverDetail = `Address: ${config.getConfigOption(config.SERVER_ADDRESS, config.DEFAULT_SERVER_ADDRESS) || config.DEFAULT_SERVER_ADDRESS}`;
+            const serverLabel = 'Connect to a HOL Light server';
+            const serverItem: vscode.QuickPickItem = { 
+                label: serverLabel,
+                detail: serverDetail,
+                buttons: [{ iconPath: new vscode.ThemeIcon('settings-gear'), tooltip: 'Change the address' }],
+            };
 
             const result = await new Promise<vscode.QuickPickItem | null>((resolve, _reject) => {
                 const items: vscode.QuickPickItem[] = paths.map(path => {
                     if (path === '#hol-server#') {
-                        return { label: serverLabel, detail: serverDetail };
+                        return serverItem;
                     }
                     // const buttons = [{ iconPath: new vscode.ThemeIcon('terminal'), tooltip: 'Run in a standard terminal' }];
                     return { label: path };
                 });
                 items.push({ label: '', kind: vscode.QuickPickItemKind.Separator });
                 if (!paths.includes('#hol-server#')) {
-                    items.push({ label: serverLabel });
+                    items.push(serverItem);
                 }
                 items.push({ label: 'Choose a script file...', detail: 'Select a file in a file open dialog' });
-    
+
+                let resolveOnHide = true;
+                
                 const input = vscode.window.createQuickPick();
                 input.items = items;
                 input.placeholder = 'Select a HOL Light startup script';
@@ -174,8 +182,25 @@ Server.start ~single_connection:true ${port};;
                 // updateInput();
 
                 input.onDidHide(() => {
-                    resolve(null);
-                    input.dispose();
+                    if (resolveOnHide) {
+                        resolve(null);
+                        input.dispose();
+                    }
+                });
+
+                input.onDidTriggerItemButton(async (event) => {
+                    if (event.item === serverItem) {
+                        resolveOnHide = false;
+                        input.hide();
+                        const address = await config.getServerAddress({ showInputBox: true });
+                        if (address) {
+                            config.updateConfigOption(config.SERVER_ADDRESS, address.join(':'));
+                            serverItem.detail = `Address: ${address.join(':')}`;
+                        }
+                        resolveOnHide = true;
+                        input.items = items;
+                        input.show();
+                    }
                 });
 
                 // input.onDidTriggerButton(() => {
