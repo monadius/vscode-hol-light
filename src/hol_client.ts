@@ -4,7 +4,7 @@ import * as net from 'node:net';
 
 import * as config from './config';
 import { CommandDecorations, CommandDecorationType } from './decoration';
-import { Terminal, CommandOptions } from './terminal';
+import { Executor, CommandOptions } from './executor';
 
 const LINE_END = '\n';
 
@@ -134,7 +134,7 @@ class CommandWithResult extends Command {
     }
 }
 
-export class HolClient implements vscode.Pseudoterminal, Terminal {
+export class HolClient implements vscode.Pseudoterminal, Executor {
     private host: string;
     private port: number;
 

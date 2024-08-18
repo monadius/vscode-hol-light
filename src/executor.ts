@@ -9,7 +9,7 @@ export interface CommandOptions {
     interactive?: boolean;
 }
 
-export interface Terminal {
+export interface Executor {
     execute(cmd: string, options?: CommandOptions): void;
     execute(cmds: { cmd: string, options?: CommandOptions }[]): void;
 
@@ -18,7 +18,7 @@ export interface Terminal {
     executeForResult(cmd: string, options?: CommandOptions, token?: vscode.CancellationToken): Promise<string>;
 }
 
-export class StandardTerminal implements Terminal {
+export class StandardExecutor implements Executor {
     private terminal: vscode.Terminal;
 
     private decorations: CommandDecorations;

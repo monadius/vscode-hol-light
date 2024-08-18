@@ -1,10 +1,10 @@
-// CommandTerminal is unused
+// CommandExecutor is unused
 
 import * as vscode from 'vscode';
 import * as child_process from 'node:child_process';
 
 import { CommandDecorations, CommandDecorationType } from './decoration';
-import { Terminal, CommandOptions } from './terminal';
+import { Executor, CommandOptions } from './executor';
 
 const LINE_END = '\r\n';
 const fixLineBreaks = (s: string) => s.replace(/\r*\n/g, '\r\n');
@@ -51,7 +51,7 @@ class CommandWithResult extends Command {
     }
 }
 
-export class CommandTerminal implements vscode.Pseudoterminal, Terminal {
+export class CommandExecutor implements vscode.Pseudoterminal, Executor {
     private holCmd: string;
     private workDir: string;
 

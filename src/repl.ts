@@ -4,15 +4,15 @@ import * as pathLib from 'node:path';
 
 import * as config from './config';
 import { CommandDecorations } from './decoration';
+import { Executor, StandardExecutor, CommandOptions } from './executor';
 import * as client from './hol_client';
-import * as terminal from './terminal';
 import * as util from './util';
 
-export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverProvider {
+export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
     private readonly extensionPath: string;
 
-    private holTerminalWindow?: vscode.Terminal;
-    private holTerminal?: terminal.Terminal;
+    private holTerminal?: vscode.Terminal;
+    private holExecutor?: Executor;
 
     private clientTerminal?: vscode.Terminal;
     private holClient?: client.HolClient;
@@ -22,9 +22,9 @@ export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverP
     constructor(context: vscode.ExtensionContext, private decorations: CommandDecorations) {
         context.subscriptions.push(
             vscode.window.onDidCloseTerminal((term) => {
-                if (term === this.holTerminalWindow) {
-                    this.holTerminalWindow = undefined;
+                if (term === this.holTerminal) {
                     this.holTerminal = undefined;
+                    this.holExecutor = undefined;
                 }
                 if (term === this.clientTerminal) {
                     this.clientTerminal = undefined;
@@ -52,11 +52,11 @@ export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverP
     }
 
     private getActiveTerminal(): vscode.Terminal | undefined {
-        return this.clientTerminal || this.holTerminalWindow;
+        return this.clientTerminal || this.holTerminal;
     }
 
-    private getActiveExecutor(): terminal.Terminal | undefined {
-        return this.holClient || this.holTerminal;
+    private getActiveExecutor(): Executor | undefined {
+        return this.holClient || this.holExecutor;
     }
 
     isActive(): boolean {
@@ -68,9 +68,9 @@ export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverP
         this.clientTerminal = undefined;
         this.holClient = undefined;
 
-        this.holTerminalWindow?.dispose();
-        this.holTerminalWindow = undefined;
+        this.holTerminal?.dispose();
         this.holTerminal = undefined;
+        this.holExecutor = undefined;
         
         this.updateStatusBarItem();
     }
@@ -79,10 +79,10 @@ export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverP
         this.getActiveTerminal()?.sendText(text, addNewLine);
     }
 
-    execute(cmd: string, options?: terminal.CommandOptions): void;
-    execute(cmds: { cmd: string, options?: terminal.CommandOptions }[]): void;
+    execute(cmd: string, options?: CommandOptions): void;
+    execute(cmds: { cmd: string, options?: CommandOptions }[]): void;
     
-    execute(cmd: string | { cmd: string; options?: terminal.CommandOptions; }[], options?: terminal.CommandOptions): void {
+    execute(cmd: string | { cmd: string; options?: CommandOptions; }[], options?: CommandOptions): void {
         const executor = this.getActiveExecutor();
         if (executor) {
             if (typeof cmd === 'string') {
@@ -97,18 +97,18 @@ export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverP
         return this.getActiveExecutor()?.canExecuteForResult() ?? false;
     }
 
-    executeForResult(cmd: string, options?: terminal.CommandOptions, token?: vscode.CancellationToken): Promise<string> {
+    executeForResult(cmd: string, options?: CommandOptions, token?: vscode.CancellationToken): Promise<string> {
         return this.getActiveExecutor()?.executeForResult(cmd, options, token) ?? Promise.reject("Uninitialized HOL terminal");
     }
 
     private waitingForClient = false;
 
     canStartServer(): boolean {
-        return !this.waitingForClient && !!this.holTerminalWindow && !this.holClient && !this.clientTerminal;
+        return !this.waitingForClient && !!this.holTerminal && !this.holClient && !this.clientTerminal;
     }
 
     startServer(port: number, debug: boolean = true) {
-        if (!this.holTerminalWindow || !this.canStartServer()) {
+        if (!this.holTerminal || !this.canStartServer()) {
             return;
         }
 
@@ -120,7 +120,7 @@ export class Repl implements terminal.Terminal, vscode.Disposable, vscode.HoverP
 Server.debug_flag := ${debug};;
 Server.start ~single_connection:true ${port};;
 `;
-        this.holTerminalWindow.sendText(serverCode);
+        this.holTerminal.sendText(serverCode);
 
         // Try to open a client terminal after some delay
         this.waitingForClient = true;
@@ -250,9 +250,9 @@ Server.start ~single_connection:true ${port};;
 
             if (standardTerminal) {
                 // replTerm = vscode.window.createTerminal('HOL Light', path);
-                this.holTerminalWindow = vscode.window.createTerminal('HOL Light');
-                this.holTerminalWindow.sendText(path);
-                this.holTerminal = new terminal.StandardTerminal(this.holTerminalWindow, this.decorations);
+                this.holTerminal = vscode.window.createTerminal('HOL Light');
+                this.holTerminal.sendText(path);
+                this.holExecutor = new StandardExecutor(this.holTerminal, this.decorations);
             } else {
                 // const commandTerminal = new terminal.CommandTerminal(path, workDir, this.decorations);
                 const address = await config.getServerAddress();
