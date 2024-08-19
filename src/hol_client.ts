@@ -326,9 +326,13 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         if (!command.silent) {
             vscode.window.withProgress({
                     location: vscode.ProgressLocation.Window,
-                    title: command.cmd
+                    title: command.cmd,
+                    cancellable: true
                 }, 
-                (_progress) => new Promise<void>((resolve) => command.progressResolve = resolve)
+                (_progress, token) => {
+                    token.onCancellationRequested(() => this.interrupt());
+                    return new Promise<void>((resolve) => command.progressResolve = resolve);
+                }
             );
             if (this.echoInput && command.echoInput) {
                 this.writeEmitter.fire(colorText(fixLineBreaks(command.cmd), 'bold'));
