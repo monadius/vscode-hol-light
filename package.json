@@ -269,6 +269,18 @@
                 "path": "./snippets/hol-light.json"
             }
         ],
+        "notebooks": [
+            {
+                "type": "hol-notebook",
+                "displayName": "HOL Light Notebook",
+                "priority": "option",
+                "selector": [
+                    {
+                        "filenamePattern": "*.[hm]l"
+                    }
+                ]
+            }
+        ],
         "configuration": {
             "title": "HOL Light configuration",
             "properties": {

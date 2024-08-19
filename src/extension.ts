@@ -6,6 +6,7 @@ import * as config from './config';
 import * as data from './database';
 import { CommandDecorationType, CommandDecorations, createDecorationType } from './decoration';
 import * as help from './help';
+import * as notebook from './notebook';
 import { Repl } from './repl';
 import * as selection from './selection';
 import * as tactic from './tactic';
@@ -92,6 +93,11 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         // Register the completion character '/' for import (needs) completions.
         vscode.languages.registerCompletionItemProvider(LANG_ID, database, '/')
+    );
+
+    // Register notebook providers
+    context.subscriptions.push(
+        vscode.workspace.registerNotebookSerializer('hol-notebook', new notebook.HolNotebookSerializer())
     );
 
     // Register a configuration change event handler
