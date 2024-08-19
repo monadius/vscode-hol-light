@@ -43,19 +43,39 @@ export function selectStatementSimple(document: vscode.TextDocument, pos: number
     return selectStatementText(document, text, start, end);
 }
 
-export function splitStatements(document: vscode.TextDocument, 
-        options: { range?: vscode.Range, parseLastStatement?: boolean, text?: string } = {}): Selection[] {
+type SplitOptionsText = { start?: number, end?: number, parseLastStatement?: boolean };
+type SplitOptionsDocument = { range?: vscode.Range, parseLastStatement?: boolean };
+export function splitStatements(text: string, options: SplitOptionsText): Selection[];
+export function splitStatements(document: vscode.TextDocument, options: SplitOptionsDocument): Selection[];
+
+export function splitStatements(document: vscode.TextDocument | string, 
+        options: SplitOptionsDocument | SplitOptionsText = {}): Selection[] {
     const statements: Selection[] = [];
 
-    let range = options.range;
-    if (range && options.parseLastStatement) {
-        range = new vscode.Range(range.start, document.positionAt(Infinity));
+    function getArguments(): { text: string, offset: number, finalPos: number } {
+        if (typeof document === 'string') {
+            const opts = options as SplitOptionsText;
+            const offset = opts.start ?? 0;
+            let end = opts.parseLastStatement ? Infinity : opts.end ?? Infinity;
+            const text = document.slice(offset, end);
+            const finalPos = typeof opts.end === 'number' ? opts.end - offset : text.length;
+            return { text, offset, finalPos };
+        }
+
+        const opts = options as SplitOptionsDocument;
+        let range = opts.range;
+        if (range && opts.parseLastStatement) {
+            range = new vscode.Range(range.start, document.positionAt(Infinity));
+        }
+    
+        const text = document.getText(range);
+        const offset = range ? document.offsetAt(range.start) : 0;
+        const finalPos = opts.range ? document.offsetAt(opts.range.end) - offset : text.length;
+        return { text, offset, finalPos };
     }
 
-    const text = options.text ?? document.getText(range);
+    const { text, offset, finalPos } = getArguments();
     const n = text.length;
-    const offset = range ? document.offsetAt(range.start) : 0;
-    const finalPos = options.range ? document.offsetAt(options.range.end) - offset : n;
     
     const reSkipSpaces = /\S/g;
     let startPos = text.search(reSkipSpaces);
@@ -147,11 +167,7 @@ export function selectStatement(document: vscode.TextDocument, pos: number): Sel
         // Skip whitespaces at the start of the document
         pos = startPos;
     }
-    const selections = splitStatements(document, {
-        range: new vscode.Range(document.positionAt(0), document.positionAt(pos)),
-        parseLastStatement: true,
-        text: text,
-    });
+    const selections = splitStatements(text, { start: 0, end: pos, parseLastStatement: true });
     const s = selections.pop();
     if (!s) {
         // This can only happen for empty documents (containing whitespaces only)
