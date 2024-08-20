@@ -95,10 +95,12 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.languages.registerCompletionItemProvider(LANG_ID, database, '/')
     );
 
-    // Register notebook providers
+    // Register notebook classes
     context.subscriptions.push(
-        vscode.workspace.registerNotebookSerializer('hol-notebook', new notebook.HolNotebookSerializer())
+        vscode.workspace.registerNotebookSerializer(notebook.NOTEBOOK_TYPE, new notebook.HolNotebookSerializer())
     );
+
+    context.subscriptions.push(new notebook.HolNotebookController(repl));
 
     // Register a configuration change event handler
 
@@ -232,7 +234,7 @@ export function activate(context: vscode.ExtensionContext) {
             } else {
                 const address = await config.getServerAddress({ portOnly: true });
                 if (address) {
-                    repl.startServer(address[1], false);
+                    repl.startServer(address[1]);
                 }
             }
         })
@@ -338,7 +340,7 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.window.showErrorMessage('No HOL Light REPL');
                 return;
             }
-            repl.sendText(String.fromCharCode(3));
+            repl.interrupt();
         })
     );
 

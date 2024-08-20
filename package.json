@@ -271,12 +271,15 @@
         ],
         "notebooks": [
             {
-                "type": "hol-notebook",
+                "type": "hol-light-notebook",
                 "displayName": "HOL Light Notebook",
                 "priority": "option",
                 "selector": [
                     {
-                        "filenamePattern": "*.[hm]l"
+                        "filenamePattern": "*.hl"
+                    },
+                    {
+                        "filenamePattern": "*.ml"
                     }
                 ]
             }
