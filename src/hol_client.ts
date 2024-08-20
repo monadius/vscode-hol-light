@@ -100,7 +100,7 @@ class Command {
         this.interactive = options?.interactive ?? false;
     }
 
-    clear(decorations: CommandDecorations, _reason?: string) {
+    clear(decorations: CommandDecorations, _reason?: Error) {
         this.progressResolve?.();
         if (this.location) {
             decorations.removeRange(this.location);
@@ -111,7 +111,7 @@ class Command {
 class CommandWithResult extends Command {
     readonly result: Promise<string>;
     readonly resolve: (value: string) => void;
-    readonly reject: (reason: string) => void;
+    readonly reject: (reason: Error) => void;
 
     readonly cancellationToken?: vscode.CancellationToken;
 
@@ -119,7 +119,7 @@ class CommandWithResult extends Command {
         super(cmd, options);
         this.cancellationToken = token;
         let resolveVar: (v: string) => void;
-        let rejectVar: (v: string) => void;
+        let rejectVar: (v: Error) => void;
         this.result = new Promise<string>((resolve, reject) => {
             resolveVar = resolve;
             rejectVar = reject;
@@ -128,9 +128,9 @@ class CommandWithResult extends Command {
         this.reject = rejectVar!;
     }
 
-    clear(decorations: CommandDecorations, reason?: string) {
+    clear(decorations: CommandDecorations, reason?: Error) {
         super.clear(decorations, reason);
-        this.reject(reason ?? 'clear');
+        this.reject(reason ?? new Error('Command cancelled (clear)'));
     }
 }
 
@@ -165,7 +165,7 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         return true;
     }
 
-    private clearCommands(rejectReason: string) {
+    private clearCommands(rejectReason: Error) {
         this.currentCommand?.clear(this.decorations, rejectReason);
         this.commandQueue.forEach(command => command.clear(this.decorations, rejectReason));
         this.commandQueue.length = 0;
@@ -274,9 +274,9 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
                         }
                         if (command instanceof CommandWithResult) {
                             if (command.cancellationToken?.isCancellationRequested) {
-                                command.reject("Cancelled");
+                                command.reject(new Error('Cancelled'));
                             } else if (err) {
-                                command.reject('Error');
+                                command.reject(new Error(result));
                             } else {
                                 command.resolve(result);
                             }
@@ -301,7 +301,7 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         this.serverPid = undefined;
         this.readyFlag = false;
         // Clear all commands
-        this.clearCommands("Connection closed");
+        this.clearCommands(new Error('Connection closed'));
     }
 
     interrupt(): void {
@@ -310,13 +310,13 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
             // The group PID is not known if a script is used to run HOL Light.
             process.kill(this.serverPid, 'SIGINT');
         }
-        this.clearCommands("Interrupted");
+        this.clearCommands(new Error('Interrupted'));
     }
 
     private executeCommand(command: Command) {
         if (!this.socket || !this.readyFlag) {
             console.log('executeCommand: no connection or not ready');
-            command.clear(this.decorations, 'not ready');
+            command.clear(this.decorations, new Error('the server is not ready to execute a command'));
             return;
         }
         if (command.location) {
@@ -352,7 +352,7 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
                 continue;
             }
             if (command instanceof CommandWithResult && command.cancellationToken?.isCancellationRequested) {
-                command.reject('Cancelled');
+                command.reject(new Error('Cancelled'));
                 continue;
             }
             this.executeCommand(command);
@@ -377,14 +377,14 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         this.executeNextCommand();
     }
 
-    private cancelCommands(groupId: object, cancelReason?: string) {
+    private cancelCommands(groupId: object, cancelReason?: Error) {
         this.commandQueue = this.commandQueue.filter(command => {
             if (command.groupId === groupId) {
                 if (command.location) {
                     this.decorations.removeRange(command.location);
                 }
                 if (command instanceof CommandWithResult) {
-                    command.reject(cancelReason ?? 'Group cancelled');
+                    command.reject(cancelReason ?? new Error('Group cancelled'));
                 }
             }
             return command.groupId !== groupId;

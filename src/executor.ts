@@ -55,6 +55,6 @@ export class StandardExecutor implements Executor {
 
     executeForResult(cmd: string, options?: CommandOptions, _token?: vscode.CancellationToken): Promise<string> {
         this.execute(cmd, options);
-        return Promise.reject('Results cannot be returned');
+        return Promise.reject(new Error('Results cannot be returned'));
     }
 }

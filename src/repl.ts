@@ -75,9 +75,12 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
         this.updateStatusBarItem();
     }
 
-    sendText(text: string, addNewLine?: boolean) {
-        this.getActiveTerminal()?.sendText(text, addNewLine);
+    public interrupt() {
+        this.getActiveTerminal()?.sendText(String.fromCharCode(3));
     }
+    // sendText(text: string, addNewLine?: boolean) {
+    //     this.getActiveTerminal()?.sendText(text, addNewLine);
+    // }
 
     execute(cmd: string, options?: CommandOptions): void;
     execute(cmds: { cmd: string, options?: CommandOptions }[]): void;
@@ -107,9 +110,9 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
         return !this.waitingForClient && !!this.holTerminal && !this.holClient && !this.clientTerminal;
     }
 
-    startServer(port: number, debug: boolean = true) {
+    async startServer(port: number, debug: boolean = false): Promise<boolean> {
         if (!this.holTerminal || !this.canStartServer()) {
-            return;
+            return false;
         }
 
         const path = pathLib.join(this.extensionPath, 'ocaml', 'server.ml');
@@ -123,17 +126,22 @@ Server.start ~single_connection:true ${port};;
         this.holTerminal.sendText(serverCode);
 
         // Try to open a client terminal after some delay
-        this.waitingForClient = true;
-        setTimeout(() => {
-            this.waitingForClient = false;
-            if (this.canStartServer()) {
-                this.holClient = new client.HolClient('localhost', port, this.decorations);
-                this.clientTerminal = vscode.window.createTerminal({ name: 'HOL Light (client)', pty: this.holClient });
-                this.clientTerminal.show(true);
-            }
+        return new Promise(resolve => {
+            this.waitingForClient = true;
+            setTimeout(() => {
+                this.waitingForClient = false;
+                if (this.canStartServer()) {
+                    this.holClient = new client.HolClient('localhost', port, this.decorations);
+                    this.clientTerminal = vscode.window.createTerminal({ name: 'HOL Light (client)', pty: this.holClient });
+                    this.clientTerminal.show(true);
+                    resolve(true);
+                } else {
+                    resolve(false);
+                }
 
-            this.updateStatusBarItem();
-        }, 200);
+                this.updateStatusBarItem();
+            }, 200);
+        });
     }
 
     async getTerminalWindow(_workDir: string = ''): Promise<vscode.Terminal | undefined> {
