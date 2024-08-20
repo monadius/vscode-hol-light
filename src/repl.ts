@@ -119,7 +119,9 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
         const serverCode = `
 #directory "+compiler-libs";;
 #load "unix.cma";;
+unset_jrh_lexer;;
 #mod_use "${path}";;
+set_jrh_lexer;;
 Server.debug_flag := ${debug};;
 Server.start ~single_connection:true ${port};;
 `;

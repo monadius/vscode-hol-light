@@ -276,7 +276,7 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
                             if (command.cancellationToken?.isCancellationRequested) {
                                 command.reject(new Error('Cancelled'));
                             } else if (err) {
-                                command.reject(new Error(result));
+                                command.reject(new Error(command.location ? fixErrorLocation(result, command.location) : result));
                             } else {
                                 command.resolve(result);
                             }

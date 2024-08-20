@@ -43,8 +43,9 @@ export function selectStatementSimple(document: vscode.TextDocument, pos: number
     return selectStatementText(document, text, start, end);
 }
 
-type SplitOptionsText = { start?: number, end?: number, parseLastStatement?: boolean };
-type SplitOptionsDocument = { range?: vscode.Range, parseLastStatement?: boolean };
+type SplitOptions = { parseLastStatement?: boolean };
+type SplitOptionsText = { start?: number, end?: number } & SplitOptions;
+type SplitOptionsDocument = { range?: vscode.Range } & SplitOptions;
 export function splitStatements(text: string, options?: SplitOptionsText): Selection[];
 export function splitStatements(document: vscode.TextDocument, options?: SplitOptionsDocument): Selection[];
 

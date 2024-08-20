@@ -8,15 +8,21 @@ import { splitStatements } from './selection';
 export const NOTEBOOK_TYPE = 'hol-light-notebook';
 export const CONTROLLER_ID = 'hol-light-notebook-kernel';
 
+interface CellMetadata {
+}
+
 export class HolNotebookSerializer implements vscode.NotebookSerializer {
     deserializeNotebook(content: Uint8Array, _token: vscode.CancellationToken): vscode.NotebookData | Thenable<vscode.NotebookData> {
         const text = new TextDecoder().decode(content);
         const cells = splitStatements(text).map(({ text }) => {
-            return new vscode.NotebookCellData(
+            const cell = new vscode.NotebookCellData(
                 vscode.NotebookCellKind.Code,
                 text,
                 'hol-light-ocaml'
             );
+            cell.metadata = {
+            } satisfies CellMetadata;
+            return cell;
         });
         return new vscode.NotebookData(cells);
     }
@@ -34,7 +40,7 @@ export class HolNotebookController {
 
     constructor(repl: Repl) {
         this.controller = vscode.notebooks.createNotebookController(CONTROLLER_ID, NOTEBOOK_TYPE, 'HOL Light Kernel');
-        // this.controller.supportedLanguages = ['hol-light-ocaml'];
+        this.controller.supportedLanguages = ['hol-light-ocaml'];
         this.controller.supportsExecutionOrder = true;
         this.controller.executeHandler = this.executeAll.bind(this);
         this.controller.interruptHandler = this.interrupt.bind(this);
@@ -82,7 +88,10 @@ export class HolNotebookController {
         execution.start(Date.now());
 
         try {
-            const result = await this.repl.executeForResult(cell.document.getText());
+            const metadata = cell.metadata as CellMetadata;
+            const result = await this.repl.executeForResult(cell.document.getText(), {
+                location: new vscode.Location(cell.document.uri, new vscode.Position(0, 0))
+            }, execution.token);
             execution.replaceOutput(new vscode.NotebookCellOutput([
                 vscode.NotebookCellOutputItem.text(result)
             ]));
