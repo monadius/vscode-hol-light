@@ -35,6 +35,7 @@ export class HolNotebookSerializer implements vscode.NotebookSerializer {
 export class HolNotebookController {
     private readonly controller: vscode.NotebookController;
     private readonly repl: Repl;
+    private readonly ignoreServerMessage = new WeakSet<vscode.NotebookDocument>();
 
     private executionOrder = 0;
 
@@ -55,21 +56,23 @@ export class HolNotebookController {
         this.repl.interrupt();
     }
 
-    private async executeAll(cells: vscode.NotebookCell[], _notebook: vscode.NotebookDocument, _controller: vscode.NotebookController): Promise<void> {
+    private async executeAll(cells: vscode.NotebookCell[], notebook: vscode.NotebookDocument, _controller: vscode.NotebookController): Promise<void> {
         const terminal = await this.repl.getTerminalWindow();
         if (!terminal) {
             return;
         }
 
-        if (!this.repl.canExecuteForResult()) {
-            const action = await vscode.window.showWarningMessage('A Server is required to read REPL results', 'Start Server');
-            if (action) {
+        if (!this.repl.canExecuteForResult() && !this.ignoreServerMessage.has(notebook)) {
+            const action = await vscode.window.showWarningMessage('A Server is required to read REPL results', 'Start Server', 'Do not show for this notebook');
+            if (action === 'Start Server') {
                 const address = await config.getServerAddress({ portOnly: true });
                 if (address) {
                     if (!await this.repl.startServer(address[1])) {
                         return;
                     }
                 }
+            } else if (action) {
+                this.ignoreServerMessage.add(notebook);
             }
         }
 
