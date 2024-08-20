@@ -88,13 +88,29 @@ export class HolNotebookController {
         execution.start(Date.now());
 
         try {
-            const metadata = cell.metadata as CellMetadata;
             const result = await this.repl.executeForResult(cell.document.getText(), {
                 location: new vscode.Location(cell.document.uri, new vscode.Position(0, 0))
             }, execution.token);
-            execution.replaceOutput(new vscode.NotebookCellOutput([
-                vscode.NotebookCellOutputItem.text(result)
-            ]));
+
+            const output: vscode.NotebookCellOutputItem[] = [];
+
+            const m = result.match(/^(?:val|-) ([^:]*):([^=]*)=(.*)/s);
+            if (m) {
+                const name = m[1].trim();
+                const type = m[2].trim();
+                let body = m[3].trim();
+                output.push(vscode.NotebookCellOutputItem.text(`\`${name} : ${type}\``, 'text/markdown'));
+                if (type === 'thm' || type === 'term') {
+                    body = type === 'thm' ? "```hol-light-ocaml\n`" + body + "`\n```" : "```hol-light-ocaml\n" + body + "\n```";
+                    output.push(vscode.NotebookCellOutputItem.text(body, 'text/markdown'));
+                } else {
+                    output.push(vscode.NotebookCellOutputItem.text(body));
+                }
+            } else {
+                output.push(vscode.NotebookCellOutputItem.text(result));
+            }
+
+            execution.replaceOutput(output.map(out => new vscode.NotebookCellOutput([out])));
             execution.end(true, Date.now());
         } catch (err) {
             execution.replaceOutput(new vscode.NotebookCellOutput([
