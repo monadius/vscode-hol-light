@@ -241,6 +241,7 @@ export function selectTerm(document: vscode.TextDocument, pos: number): Selectio
 export function splitSearchInput(input: string): string[] {
     const result: string[] = [];
     
+    const fixWildcards = (s: string) => s.replace(/(?<!_)_(?!_)/g, (_, i) => '__var' + i);
     const re = /".*?(?:"|$)|`.*?(?:`|$)|[^,`"]+/g;
     let m: RegExpExecArray | null;
     while (m = re.exec(input)) {
@@ -252,10 +253,10 @@ export function splitSearchInput(input: string): string[] {
                 result.push(`name ${m[0]}${m[0].endsWith('"') ? '' : '"'}`);
                 break;
             case '`':
-                result.push(m[0] + (m[0].endsWith('`') ? '' : '`'));
+                result.push(fixWildcards(m[0] + (m[0].endsWith('`') ? '' : '`')));
                 break;
             default:
-                result.push('`' + m[0] + '`');
+                result.push(fixWildcards('`' + m[0] + '`'));
                 break;
         }
     }
