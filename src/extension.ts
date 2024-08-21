@@ -478,6 +478,7 @@ export function activate(context: vscode.ExtensionContext) {
                     const provider = new SearchResultsProvider(result);
                     const items = provider.getChildren();
                     if (items.length) {
+                        vscode.commands.executeCommand('setContext', 'hol-light.searchResultsAvailable', true);
                         const view = vscode.window.createTreeView('searchList', {
                             treeDataProvider: provider
                         });

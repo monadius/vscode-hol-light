@@ -297,7 +297,8 @@
             "search-results": [
                 {
                     "id": "searchList",
-                    "name": "Search List"
+                    "name": "Search List",
+                    "when": "hol-light.searchResultsAvailable"
                 }
             ]
         },
