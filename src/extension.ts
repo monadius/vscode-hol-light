@@ -8,7 +8,7 @@ import { CommandDecorationType, CommandDecorations, createDecorationType } from 
 import * as help from './help';
 import * as notebook from './notebook';
 import { Repl } from './repl';
-import { SearchResultsProvider } from './searchResults';
+import { SearchResults } from './searchResults';
 import * as selection from './selection';
 import * as tactic from './tactic';
 import * as util from './util';
@@ -39,6 +39,9 @@ export function activate(context: vscode.ExtensionContext) {
 
     // A completion, definition, and hover provider for all HOL Light definition
     const database = new data.Database(diagnosticCollection, helpProvider, repl, config.getCustomCommandNames());
+
+    // A view for showing search results
+    const searchResults = new SearchResults(context);
 
     loadHelpItems(config.getConfigOption(config.HOLLIGHT_PATH, ''));
     if (config.getConfigOption(config.AUTO_INDEX, false)) {
@@ -475,17 +478,9 @@ export function activate(context: vscode.ExtensionContext) {
             if (repl.canExecuteForResult()) {
                 try {
                     const result = await repl.executeForResult(cmd);
-                    const provider = new SearchResultsProvider(result);
-                    const items = provider.getChildren();
-                    if (items.length) {
-                        vscode.commands.executeCommand('setContext', 'hol-light.searchResultsAvailable', true);
-                        const view = vscode.window.createTreeView('searchList', {
-                            treeDataProvider: provider
-                        });
-                        view.reveal(items[0], { select: false });
-                    }
+                    searchResults.updateSearchResults(result, { reveal: true });
                 } catch (err) {
-                    console.log(`search error: ${err}`);
+                    // console.log(`search error: ${err}`);
                 }
             } else {
                 repl.execute(cmd);
