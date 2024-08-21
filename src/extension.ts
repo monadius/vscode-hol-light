@@ -8,6 +8,7 @@ import { CommandDecorationType, CommandDecorations, createDecorationType } from 
 import * as help from './help';
 import * as notebook from './notebook';
 import { Repl } from './repl';
+import { SearchResultsProvider } from './searchResults';
 import * as selection from './selection';
 import * as tactic from './tactic';
 import * as util from './util';
@@ -470,7 +471,24 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             const terms = selection.splitSearchInput(result);
-            repl.execute(`search([${terms.join('; ')}]);;`);
+            const cmd = `search([${terms.join('; ')}]);;`;
+            if (repl.canExecuteForResult()) {
+                try {
+                    const result = await repl.executeForResult(cmd);
+                    const provider = new SearchResultsProvider(result);
+                    const items = provider.getChildren();
+                    if (items.length) {
+                        const view = vscode.window.createTreeView('searchList', {
+                            treeDataProvider: provider
+                        });
+                        view.reveal(items[0], { select: false });
+                    }
+                } catch (err) {
+                    console.log(`search error: ${err}`);
+                }
+            } else {
+                repl.execute(cmd);
+            }
         })
     );
 

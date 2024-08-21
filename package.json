@@ -284,6 +284,23 @@
                 ]
             }
         ],
+        "viewsContainers": {
+            "panel": [
+                {
+                    "id": "search-results",
+                    "title": "Search Results",
+                    "icon": "$(list-unordered)"
+                }
+            ]
+        },
+        "views": {
+            "search-results": [
+                {
+                    "id": "searchList",
+                    "name": "Search List"
+                }
+            ]
+        },
         "configuration": {
             "title": "HOL Light configuration",
             "properties": {
