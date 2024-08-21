@@ -43,7 +43,7 @@ export function selectStatementSimple(document: vscode.TextDocument, pos: number
     return selectStatementText(document, text, start, end);
 }
 
-type SplitOptions = { parseLastStatement?: boolean };
+type SplitOptions = { parseLastStatement?: boolean, noTrim?: boolean };
 type SplitOptionsText = { start?: number, end?: number } & SplitOptions;
 type SplitOptionsDocument = { range?: vscode.Range } & SplitOptions;
 export function splitStatements(text: string, options?: SplitOptionsText): Selection[];
@@ -75,11 +75,12 @@ export function splitStatements(document: vscode.TextDocument | string,
         return { text, offset, finalPos };
     }
 
+    const trimSelection = !options.noTrim;
     const { text, offset, finalPos } = getArguments();
     const n = text.length;
     
     const reSkipSpaces = /\S/g;
-    let startPos = text.search(reSkipSpaces);
+    let startPos = trimSelection ? text.search(reSkipSpaces) : 0;
     if (startPos < 0 || startPos > finalPos) {
         return [];
     }
@@ -92,22 +93,27 @@ export function splitStatements(document: vscode.TextDocument | string,
         if (!m || m[0][0] === ';') {
             const endPos = m?.index ?? text.length;
             if (endPos >= startPos) {
+                const end = endPos + (!m ? 0 : m[0].length);
                 statements.push({
-                    text: text.slice(startPos, endPos), 
+                    text: text.slice(startPos, trimSelection ? endPos : end),
                     documentStart: startPos + offset,
-                    documentEnd: endPos + offset + (!m ? 0 : 2)
+                    documentEnd: end + offset,
                 });
             }
             if (!m || endPos + 1 >= finalPos) {
                 break;
             }
-            reSkipSpaces.lastIndex = endPos + m[0].length;
-            const m2 = reSkipSpaces.exec(text);
-            if (!m2 || m2.index > finalPos) {
-                break;
+            if (trimSelection) {
+                reSkipSpaces.lastIndex = endPos + m[0].length;
+                const m2 = reSkipSpaces.exec(text);
+                if (!m2 || m2.index > finalPos) {
+                    break;
+                }
+                startPos = m2.index;
+                re.lastIndex = startPos;
+            } else {
+                startPos = re.lastIndex;
             }
-            startPos = m2.index;
-            re.lastIndex = startPos;
         } else {
             switch (m[0]) {
                 case '(*': {

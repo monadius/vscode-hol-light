@@ -9,26 +9,47 @@ export const NOTEBOOK_TYPE = 'hol-light-notebook';
 export const CONTROLLER_ID = 'hol-light-notebook-kernel';
 
 interface CellMetadata {
+    whitespacesBefore: string,
+    whitespacesAfter: string
 }
 
 export class HolNotebookSerializer implements vscode.NotebookSerializer {
     deserializeNotebook(content: Uint8Array, _token: vscode.CancellationToken): vscode.NotebookData | Thenable<vscode.NotebookData> {
         const text = new TextDecoder().decode(content);
-        const cells = splitStatements(text).map(({ text }) => {
+        const cells = splitStatements(text, { noTrim: true }).map(({ text }) => {
+            const trimmedText = text.trim();
+            if (/^;*$/.test(trimmedText)) {
+                return null;
+            }
             const cell = new vscode.NotebookCellData(
                 vscode.NotebookCellKind.Code,
-                text,
+                trimmedText,
                 'hol-light-ocaml'
             );
+            // Save whitespaces surrounding each cell for serialization
+            const whitespacesBefore = text.slice(0, text.search(/\S/));
             cell.metadata = {
+                whitespacesBefore,
+                whitespacesAfter: text.slice(trimmedText.length + whitespacesBefore.length)
             } satisfies CellMetadata;
             return cell;
-        });
-        return new vscode.NotebookData(cells);
+        }).filter(cell => cell);
+        return new vscode.NotebookData(cells as vscode.NotebookCellData[]);
     }
 
     serializeNotebook(data: vscode.NotebookData, _token: vscode.CancellationToken): Uint8Array | Thenable<Uint8Array> {
-        throw new Error('Method not implemented.');
+        const lines: string[] = [];
+        for (const cell of data.cells) {
+            const metadata = cell.metadata ? cell.metadata as CellMetadata : null;
+            if (metadata) {
+                lines.push(metadata.whitespacesBefore);
+            }
+            lines.push(cell.value);
+            if (metadata) {
+                lines.push(metadata.whitespacesAfter);
+            }
+        }
+        return new TextEncoder().encode(lines.join(''));
     }
 }
 
