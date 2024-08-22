@@ -188,8 +188,9 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         });
         this.socket.on('error', async (err) => {
             console.log(`HolClient: connection error: ${err}`);
-            if (/ECONNREFUSED/.test(err.message)) {
-                const res = await vscode.window.showErrorMessage(`${err}`, 'Change server address...');
+            // (err as any).code is required for AggregateError on Mac
+            if (/ECONNREFUSED/.test(err.message + (err as any).code)) {
+                const res = await vscode.window.showErrorMessage(`Connection error`, 'Change server address...');
                 if (res) {
                     const address = await config.getServerAddress({ showInputBox: true });
                     if (address) {
