@@ -249,6 +249,22 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
+        vscode.commands.registerCommand('hol-light.set_cwd', async () => {
+            const workspacePath = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+            const documentPath = vscode.window.activeTextEditor?.document.uri.fsPath;
+            let path = await vscode.window.showInputBox({
+                title: 'Input the current working directory',
+                value: documentPath ? pathLib.dirname(documentPath) : workspacePath
+            });
+            if (path) {
+                path = path.replace(/"/g, '\"');
+                repl.execute(`Sys.chdir "${path}"`);
+                repl.execute(`#cd "${path}"`);
+            }
+        })
+    );
+
+    context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.associate_ml_files', () => {
             const files = config.getConfigOption<{ [key: string]: string }>('associations', {}, 'files');
             files['*.ml'] = 'hol-light-ocaml';

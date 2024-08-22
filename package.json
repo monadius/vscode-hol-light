@@ -125,6 +125,11 @@
             },
             {
                 "category": "HOL Light",
+                "command": "hol-light.set_cwd",
+                "title": "Set Current Working Directory"
+            },
+            {
+                "category": "HOL Light",
                 "command": "hol-light.associate_ml_files",
                 "title": "Associate .ml Files with HOL Light"
             }

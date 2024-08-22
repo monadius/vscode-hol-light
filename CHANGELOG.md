@@ -4,6 +4,8 @@
 - Completion suggestions for imports (e.g., after `needs`).
 - New command `HOL Light: Send All Statements before the Cursor Position to REPL`:
   evaluate everything up to the cursor position (default shortcut `Alt+a`).
+- New command `HOL Light: Set Current Working Directory`: sets the current working
+  directory of a REPL.
 
 ## 2.0.0
 - All open HOL Light files and their dependencies are parsed and an index of definitions and modules is
