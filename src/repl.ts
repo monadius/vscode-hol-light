@@ -137,6 +137,7 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
             return false;
         }
 
+        // debug = true;
         const serverCode = config.getConfigOption(config.MT_SERVER, true) ?
                                 getMultithreadedServerCode(this.extensionPath, port, debug) :
                                 getServerCode(this.extensionPath, port, debug);

@@ -147,6 +147,7 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
 
     private socket?: net.Socket;
     private serverPid?: number;
+    private canBeInterrupted: boolean = false;
     private readyFlag = false;
 
     private writeEmitter = new vscode.EventEmitter<string>();
@@ -234,6 +235,10 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
                         if (m) {
                             this.serverPid = +m[1];
                         }
+                        m = info.match(/^interrupt:(.+)$/);
+                        if (m) {
+                            this.canBeInterrupted = m[1] === 'true';
+                        }
                     }
                     // console.log(`info: ${line}, pid = ${this.serverPid}`);
                 } else if (line.startsWith('stdout:')) {
@@ -306,7 +311,9 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
     }
 
     interrupt(): void {
-        if (this.serverPid) {
+        if (this.canBeInterrupted && this.socket) {
+            this.socket.write('$interrupt' + LINE_END);
+        } else if (this.serverPid) {
             // Do not use negative PID to kill all processes in a group.
             // The group PID is not known if a script is used to run HOL Light.
             process.kill(this.serverPid, 'SIGINT');
