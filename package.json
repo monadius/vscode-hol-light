@@ -373,6 +373,11 @@
                     "type": "string",
                     "default": "diffEditor.removedTextBackground",
                     "description": "Color for highlighting statements which executed with errors. Could be either a reference to a color theme or a color in the format ##RRGGBBAA. If this value is empty then failed statements are not highlighted"
+                },
+                "hol-light.multithreadedServer": {
+                    "type": "boolean",
+                    "default": "true",
+                    "description": "If true then an advanced multi-threaded HOL Light server is used"
                 }
             }
         },

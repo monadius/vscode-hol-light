@@ -8,6 +8,28 @@ import { Executor, StandardExecutor, CommandOptions } from './executor';
 import * as client from './hol_client';
 import * as util from './util';
 
+const getMultithreadedServerCode = (extensionPath: string, port: number, debug: boolean) =>
+`#directory "+compiler-libs";;
+#directory "+threads";;
+#load "unix.cma";;
+#load "threads.cma";;
+unset_jrh_lexer;;
+#mod_use "${pathLib.join(extensionPath, 'ocaml', 'server2.ml')}";;
+set_jrh_lexer;;
+Server2.debug_flag := ${debug};;
+Server2.start ~single_connection:true ${port};;
+`;
+
+const getServerCode = (extensionPath: string, port: number, debug: boolean) =>
+`#directory "+compiler-libs";;
+#load "unix.cma";;
+unset_jrh_lexer;;
+#mod_use "${pathLib.join(extensionPath, 'ocaml', 'server.ml')}";;
+set_jrh_lexer;;
+Server.debug_flag := ${debug};;
+Server.start ~single_connection:true ${port};;
+`;
+
 export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
     private readonly extensionPath: string;
 
@@ -115,16 +137,9 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
             return false;
         }
 
-        const path = pathLib.join(this.extensionPath, 'ocaml', 'server.ml');
-        const serverCode = `
-#directory "+compiler-libs";;
-#load "unix.cma";;
-unset_jrh_lexer;;
-#mod_use "${path}";;
-set_jrh_lexer;;
-Server.debug_flag := ${debug};;
-Server.start ~single_connection:true ${port};;
-`;
+        const serverCode = config.getConfigOption(config.MT_SERVER, true) ?
+                                getMultithreadedServerCode(this.extensionPath, port, debug) :
+                                getServerCode(this.extensionPath, port, debug);
         this.holTerminal.sendText(serverCode);
 
         // Try to open a client terminal after some delay

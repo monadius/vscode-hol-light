@@ -17,6 +17,7 @@ export const CUSTOM_DEFINITIONS = 'customDefinitions';
 export const CUSTOM_THEOREMS = 'customTheorems';
 export const TACTIC_MAX_LINES = 'tacticMaxLines';
 export const SIMPLE_SELECTION = 'simpleSelection';
+export const MT_SERVER = "multithreadedServer";
 
 export const DEFAULT_SERVER_ADDRESS = 'localhost:2012';
 
