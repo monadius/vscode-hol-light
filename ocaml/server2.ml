@@ -21,12 +21,24 @@ let write_to_string writer =
 
 let ($) f x = f x
 
+(* Bind operators are not supported by HOL Light's Camlp5 *)
+(*
+let (let&) fd f =
+  Fun.protect ~finally:(fun () -> Unix.close fd) (fun () -> f fd)
+
+let (let&&) (fd1, fd2) f =
+  let& fd1 = fd1 in
+  let& fd2 = fd2 in
+  f (fd1, fd2)
+*)
+
 let with_close fd f =
   Fun.protect ~finally:(fun () -> Unix.close fd) (fun () -> f fd)
 
 let with_pipe f =
   let fdin, fdout = Unix.pipe () in
   with_close fdin $ fun fdin -> with_close fdout $ fun fdout -> f fdin fdout
+
 
 let with_blocked ~signals f =
   let old_blocked = Thread.sigmask Unix.SIG_BLOCK signals in
@@ -128,6 +140,9 @@ let monitor_thread socket_ic socket_oc (labelled_fdins : (Unix.file_descr * stri
 let rec mt_service (ic, oc) =
   Format.printf "[START] Connection open@.";
 
+  (* let&& fdin_stdout, fdout_stdout = Unix.pipe () in
+  let&& fdin_stderr, fdout_stderr = Unix.pipe () in
+  let&& fdin_ctrl, fdout_ctrl = Unix.pipe () in *)
   with_pipe $ fun fdin_stdout fdout_stdout ->
   with_pipe $ fun fdin_stderr fdout_stderr ->
   with_pipe $ fun fdin_ctrl fdout_ctrl ->
@@ -182,10 +197,12 @@ let rec mt_service (ic, oc) =
       (* Start a monitor thread *)
       let t = Thread.create (monitor_thread ic oc) labelled_fdins in
       let stop_monitor () =
+        (* prerr_endline "Stopping monitor"; *)
         ignore (Unix.single_write fdout_ctrl bytes 0 1);
         Thread.join t;
+        (* prerr_endline "Thread joined"; *)
         (* If the thread is already stopped, we don't want to keep any data in the control pipe *)
-        ignore (drain fdin_ctrl);
+        ignore (drain fdin_ctrl)
       in
       (* Evaluate the input *)
       let ok, result = Fun.protect ~finally:stop_monitor (fun () -> eval_input input) in
