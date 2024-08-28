@@ -386,7 +386,7 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
-    const tacticRe = /^\s*(?:THEN\b|THENL\b(\s*\[)?)|\b(?:THEN|THENL(\s*\[)?)\s*$/g;
+    const tacticRe = /^\s*(?:THEN\b|THENL\b(\s*\[)?)|\b(?:THEN|THENL(\s*\[)?)\s*$|\)\s*;;+\s*$/g;
 
     async function replSendTactic(editor: vscode.TextEditor, multiline: boolean, newline: boolean) {
         const terminal = await repl.getTerminalWindow(pathLib.dirname(editor.document.uri.fsPath));
@@ -398,7 +398,8 @@ export function activate(context: vscode.ExtensionContext) {
             // If the selection is not empty then use it
             let text = editor.document.getText(editor.selection);
             text = text.replace(tacticRe, '').trim();
-            repl.execute(`e(${text});;\n`);
+            const location = new vscode.Location(editor.document.uri, editor.selection);
+            repl.execute(`e(${text});;\n`, { location });
             return;
         }
         const maxLines = multiline ? config.getConfigOption(config.TACTIC_MAX_LINES, 30) : 1;
