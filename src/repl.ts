@@ -276,7 +276,7 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
 
             if (standardTerminal) {
                 // replTerm = vscode.window.createTerminal('HOL Light', path);
-                this.holTerminal = vscode.window.createTerminal('HOL Light');
+                this.holTerminal = vscode.window.createTerminal({ name: 'HOL Light', isTransient: true });
                 this.holTerminal.sendText(path);
                 this.holExecutor = new StandardExecutor(this.holTerminal, this.decorations);
             } else {
@@ -286,7 +286,7 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
                     return;
                 }
                 this.holClient = new client.HolClient(address[0], address[1], this.decorations);
-                this.clientTerminal = vscode.window.createTerminal({ name: 'HOL Light (client)', pty: this.holClient });
+                this.clientTerminal = vscode.window.createTerminal({ name: 'HOL Light (client)', pty: this.holClient, isTransient: true });
             }
         }
 
@@ -305,13 +305,16 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
                 return null;
             }
             const type = m[1].trim();
-            let body = m[2].trim().replace(/`/g, '\\`').replace(/</g, '&lt;');
+            let body = m[2].trim();
             switch (type) {
                 case 'thm':
                     body = "```\n`" + body + "`\n```";
                     break;
                 case 'term':
                     body = "```\n" + body + "\n```";
+                    break;
+                default:
+                    body = body.replace(/`/g, '\\`').replace(/</g, '&lt;');
                     break;
             }
             // Use double `` to display potential ` inside the type correctly
