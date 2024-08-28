@@ -305,11 +305,17 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
                 return null;
             }
             const type = m[1].trim();
-            let body = m[2].trim();
-            if (type === 'thm' || type === 'term') {
-                body = "```\n`" + body + "`\n```";
+            let body = m[2].trim().replace(/`/g, '\\`').replace(/</g, '&lt;');
+            switch (type) {
+                case 'thm':
+                    body = "```\n`" + body + "`\n```";
+                    break;
+                case 'term':
+                    body = "```\n" + body + "\n```";
+                    break;
             }
-            return new vscode.MarkdownString(`### \`${word} : ${type}\`\n\n${body}`);
+            // Use double `` to display potential ` inside the type correctly
+            return new vscode.MarkdownString(`### \`\`${word} : ${type}\`\`\n\n${body}`);
         } catch {
             return null;
         }
