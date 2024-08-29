@@ -4,6 +4,7 @@ import { TextDecoder, TextEncoder } from 'node:util';
 import * as config from './config';
 import { Repl } from './repl';
 import { splitStatements } from './selection';
+import { filterMap } from './util';
 
 export const NOTEBOOK_TYPE = 'hol-light-notebook';
 export const CONTROLLER_ID = 'hol-light-notebook-kernel';
@@ -16,7 +17,7 @@ interface CellMetadata {
 export class HolNotebookSerializer implements vscode.NotebookSerializer {
     deserializeNotebook(content: Uint8Array, _token: vscode.CancellationToken): vscode.NotebookData | Thenable<vscode.NotebookData> {
         const text = new TextDecoder().decode(content);
-        const cells = splitStatements(text, { noTrim: true }).map(({ text }) => {
+        const cells = filterMap(splitStatements(text, { noTrim: true }), ({ text }) => {
             const trimmedText = text.trim();
             if (/^;*$/.test(trimmedText)) {
                 return null;
@@ -33,8 +34,8 @@ export class HolNotebookSerializer implements vscode.NotebookSerializer {
                 whitespacesAfter: text.slice(trimmedText.length + whitespacesBefore.length)
             } satisfies CellMetadata;
             return cell;
-        }).filter(cell => cell);
-        return new vscode.NotebookData(cells as vscode.NotebookCellData[]);
+        });
+        return new vscode.NotebookData(cells);
     }
 
     serializeNotebook(data: vscode.NotebookData, _token: vscode.CancellationToken): Uint8Array | Thenable<Uint8Array> {
