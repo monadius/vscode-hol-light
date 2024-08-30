@@ -38,6 +38,12 @@ All commands can be invoked from the command palette or by pressing the correspo
     
     Sends selected text to HOL Light. If no text is selected, then text at the cursor position separated by `;;` is sent to HOL Light and the cursor position is moved to the next statement.
 
+1) **HOL Light: Send All Statements before the Cursor Position to REPL**
+
+    Default shortcut: `Alt + A`
+
+    Sends all statements before the cursor position (including a statement at the cursor position) to a HOL Light REPL.
+
 1) **HOL Light: Set Current Term as a Goal**
 
     Default shortcut: `Alt + G`
@@ -48,7 +54,7 @@ All commands can be invoked from the command palette or by pressing the correspo
 
     Default shortcut: `Alt + M`
 
-    Sends a tactic at the cursor line to HOL Light. If the tactic occupies several lines, all these lines are sent to HOL Light (the maximum number of lines is limited by the configuration parameter `tacticMaxLines` which is 30 by default). This command also moves the cursor to the next line after the tactic.
+    Sends a tactic at the cursor line to HOL Light. If the tactic occupies several lines, all these lines are sent to HOL Light (the maximum number of lines is limited by the configuration parameter `tacticMaxLines` which is `30` by default). This command also moves the cursor to the next line after the tactic.
 
     Alternatively, it is possible to select arbitrary text with tactics and use this command to sent it to HOL Light.
 
@@ -70,7 +76,7 @@ All commands can be invoked from the command palette or by pressing the correspo
 
     Default shortcut: `Alt + P`
 
-    Prints the current goal in the HOL Light terminal.
+    Prints the current goal in a HOL Light terminal.
 
 1) **HOL Light: Rotate Subgoals**
 
@@ -82,13 +88,15 @@ All commands can be invoked from the command palette or by pressing the correspo
 
     Default shortcut: `Alt + C`
 
-    Sends `^C` to HOL Light.
+    Sends `^C` to HOL Light. It interrupts all currently executing commands.
 
 1) **HOL Light: Search Theorems**
 
     Default shortcut: `Alt + S`
 
-    Creates an input dialog where HOL Light theorems could be searched (all results will appear in a HOL Light REPL). Inputs in this dialog are either term patterns (with `_` wildcards; e.g., `_ + _ = _`) or names in double quotes (e.g., "ARITH"). Several search terms separated by a comma can be given (e.g., `_ + _ = _, "ARITH"`).
+    Creates an input dialog where HOL Light theorems could be searched (all results will appear in a HOL Light REPL). Inputs in this dialog are either term patterns (with `_` wildcards; e.g., `_ + _ = _`) or names in double quotes (e.g., "ARITH"). Several search terms separated by a comma can be given (e.g., `_ + _ = _, "ARITH"`). If a search term includes a comma, then enclose this search term inside backticks.
+
+    Search results are printed in a HOL Light REPL. If a HOL Light server is used then a new view with all search results is also shown.
 
 1) **HOL Light: Remove Highlighting**
 
@@ -109,6 +117,10 @@ All commands can be invoked from the command palette or by pressing the correspo
 1) **HOL Light: Set HOL Light Path**
 
     Opens a dialog where a path to HOL Light should be selected. This path is required for enabling autocompletion for items defined in the HOL Light `Help` directory.
+
+1) **HOL Light: Set Current Working Directory**
+
+    Shows an input dialog for setting the working directory of a HOL Light REPL.
 
 1) **HOL Light: Associate .ml Files with HOL Light**
 
@@ -138,6 +150,9 @@ The extension adds the `HOL Light configuration` group to settings.
 
     If this option is `true` then all open files and their dependencies are automatically parsed and all definitions are added to a global index. If this option is `false` then it is still possible to index a file by invoking the `HOL Light: Index File and its Dependencies` command.
 
+1) `hol-light.server`: string. Default `""`.
+    A default HOL Light server address. The empty string corresponds to `localhost:2012`.
+
 1) `hol-light.customImports`: string. Default `""`.
 
     By default, the extension parser recongnizes `needs`, `loads`, and `loadt` as import statements. Some projects may have other import statements. They can be specified in this option as statement names separated by commas or spaces.
@@ -160,9 +175,17 @@ The extension adds the `HOL Light configuration` group to settings.
 
     A number which specifies how many lines could be selected when a multiple line tactic is sent to HOL Light.
 
-1) `hol-light.highlightColor`: string. Default: `editor.wordHighlightStrongBackground`
+1) `hol-light.highlightColor`: string. Default: `"editor.wordHighlightStrongBackground"`.
 
     Color for highlighting text sent to a HOL Light REPL. Could be either a reference to a color theme (see https://code.visualstudio.com/api/references/theme-color) or a color in the format ##RRGGBBAA. If this value is empty then the text is not highlighted.
+
+1) `hol-light.highlightColorSuccess`: string. Default: `"diffEditor.insertedTextBackground"`.
+
+    Color for highlighting successfully executed statements. This color is shown when a HOL Light server executes statements.
+
+1) `hol-light.highlightColorSuccess`: string. Default: `"diffEditor.removedTextBackground"`.
+
+    Color for highlighting statements which executed with an error. This color is shown when a HOL Light server executes statements.
 
 ## Known Issues
 
