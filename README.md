@@ -1,6 +1,6 @@
 # HOL Light Extension for VS Code
 
-A simple HOL Light extension for Visual Studio Code. It supports basic syntax highlighting and interaction with a HOL Light REPL in a terminal window. Autocompletion, hover messages, and Go to Definition features are also partially supported.
+A HOL Light extension for Visual Studio Code. It supports basic syntax highlighting and interaction with a HOL Light REPL in a terminal window. Autocompletion, hover messages, and Go to Definition features are also partially supported.
 
 ## Requirements
 
@@ -159,10 +159,6 @@ The extension adds the `HOL Light configuration` group to settings.
 1) `hol-light.tacticMaxLines`: number. Default: `30`.
 
     A number which specifies how many lines could be selected when a multiple line tactic is sent to HOL Light.
-
-1) `hol-light.simpleSelection`: boolean. Default: `false`.
-
-    A boolean flag which indicates whether to use a simple algorithm for selecting statements with the command *Send selected text to HOL Light REPL*. In general, this flag should be `false`. But if you notice any slowdown for very large HOL Light files, then it could be because the standard statement selection algorithm is too slow and a less accurate simple algorithm could be used to improve performance.
 
 1) `hol-light.highlightColor`: string. Default: `editor.wordHighlightStrongBackground`
 

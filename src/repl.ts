@@ -20,16 +20,6 @@ Server2.debug_flag := ${debug};;
 Server2.start ~single_connection:true ${port};;
 `;
 
-const getServerCode = (extensionPath: string, port: number, debug: boolean) =>
-`#directory "+compiler-libs";;
-#load "unix.cma";;
-unset_jrh_lexer;;
-#mod_use "${pathLib.join(extensionPath, 'ocaml', 'server.ml')}";;
-set_jrh_lexer;;
-Server.debug_flag := ${debug};;
-Server.start ~single_connection:true ${port};;
-`;
-
 export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
     private readonly extensionPath: string;
 
@@ -138,9 +128,7 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
         }
 
         // debug = true;
-        const serverCode = config.getConfigOption(config.MT_SERVER, true) ?
-                                getMultithreadedServerCode(this.extensionPath, port, debug) :
-                                getServerCode(this.extensionPath, port, debug);
+        const serverCode = getMultithreadedServerCode(this.extensionPath, port, debug);
         this.holTerminal.sendText(serverCode);
 
         // Try to open a client terminal after some delay

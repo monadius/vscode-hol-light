@@ -7,42 +7,6 @@ interface Selection {
     newPos?: vscode.Position;
 }
 
-function selectStatementText(document: vscode.TextDocument, text: string, start: number, end: number): Selection {
-    const textStart = start >= 0 ? start + 2 : 0;
-    const textEnd = end >= 0 ? end : Infinity;
-    const selectedText = text.slice(textStart, textEnd).trim();
-
-    let nextIndex = 0;
-    let newPos: vscode.Position;
-    if (end >= 0) {
-        const re = /[^\s;]/m;
-        nextIndex = text.slice(end + 2).search(re);
-        if (nextIndex < 0) {
-            nextIndex = 0;
-        }
-        newPos = document.positionAt(end + 2 + nextIndex);
-    }
-    else {
-        newPos = document.positionAt(text.length);
-    }
-
-    return { documentStart: textStart, documentEnd: textEnd, text: selectedText, newPos };
-}
-
-export function selectStatementSimple(document: vscode.TextDocument, pos: number): Selection {
-    const text = document.getText();
-    let start = text.lastIndexOf(';;', pos - 1);
-    let end: number;
-    const start0 = start >= 0 ? start : 0;
-    if (text.slice(start0, pos + 1).trimEnd().endsWith(';;')) {
-        end = start0;
-        start = text.lastIndexOf(';;', start0 - 1);
-    } else {
-        end = text.indexOf(';;', pos);
-    }
-    return selectStatementText(document, text, start, end);
-}
-
 type SplitOptions = { parseLastStatement?: boolean, noTrim?: boolean };
 type SplitOptionsText = { start?: number, end?: number } & SplitOptions;
 type SplitOptionsDocument = { range?: vscode.Range } & SplitOptions;
@@ -187,13 +151,6 @@ export function selectStatement(document: vscode.TextDocument, pos: number): Sel
     const newPos = document.positionAt(m ? m.index : Infinity);
 
     return {...s, newPos };
-}
-
-export function selectTermSimple(document: vscode.TextDocument, pos: number): Selection | null {
-    const text = document.getText();
-    let start = text.lastIndexOf('`', pos - 1);
-    let end = text.indexOf('`', pos);
-    return start < 0 || end < 0 ? null : { documentStart: start, documentEnd: end + 1, text: text.slice(start, end + 1) };
 }
 
 export function selectTerm(document: vscode.TextDocument, pos: number): Selection | null {

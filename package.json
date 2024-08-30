@@ -327,6 +327,7 @@
                 },
                 "hol-light.server": {
                     "type": "string",
+                    "default": "",
                     "description": "Address of a HOL Light server. If not specified, then localhost:2012 is used."
                 },
                 "hol-light.autoIndex": {
@@ -354,11 +355,6 @@
                     "default": 30,
                     "description": "Maximum number of lines which can be selected by the multiline tactic command"
                 },
-                "hol-light.simpleSelection": {
-                    "type": "boolean",
-                    "default": false,
-                    "description": "Use a simple text selection algorithm for statements and HOL terms. Could be enabled if the standard selection algorithm is too slow for large files"
-                },
                 "hol-light.highlightColor": {
                     "type": "string",
                     "default": "editor.wordHighlightStrongBackground",
@@ -373,11 +369,6 @@
                     "type": "string",
                     "default": "diffEditor.removedTextBackground",
                     "description": "Color for highlighting statements which executed with errors. Could be either a reference to a color theme or a color in the format ##RRGGBBAA. If this value is empty then failed statements are not highlighted"
-                },
-                "hol-light.multithreadedServer": {
-                    "type": "boolean",
-                    "default": "true",
-                    "description": "If true then an advanced multi-threaded HOL Light server is used"
                 }
             }
         },

@@ -304,10 +304,7 @@ export function activate(context: vscode.ExtensionContext) {
             }
 
             const pos = editor.document.offsetAt(editor.selection.active);
-            const statementSelection = 
-                config.getConfigOption(config.SIMPLE_SELECTION, false) ?
-                    selection.selectStatementSimple(editor.document, pos) :
-                    selection.selectStatement(editor.document, pos);
+            const statementSelection = selection.selectStatement(editor.document, pos);
 
             // console.time('select statement');
             // for (let i = 0; i < 100; i++) {
@@ -373,9 +370,7 @@ export function activate(context: vscode.ExtensionContext) {
             terminal.show(true);
             const pos = editor.document.offsetAt(editor.selection.active);
 
-            const term = config.getConfigOption(config.SIMPLE_SELECTION, false) ?
-                selection.selectTermSimple(editor.document, pos) :
-                selection.selectTerm(editor.document, pos);
+            const term = selection.selectTerm(editor.document, pos);
             if (!term) {
                 vscode.window.showWarningMessage('Not inside a term');
                 return;
