@@ -18,19 +18,39 @@ Other file types can be associated with HOL Light by adding the corresponding li
 
 The extension does not start a HOL Light REPL automatically. Whenever any command which interacts with HOL Light is invoked, a dialog will appear where a script for starting a HOL Light session should be selected. One possible choice is to select `hol.sh` from the HOL Light directory. Any other script can also be selected (e.g., `dmtcp_restart_script.sh` if DMTCP checkpointing is used).
 
+## HOL Light Server
+
+A special HOL Light server can be used to execute all HOL Light statements. This server enhances the extension capabilities by providing execution results to the extension. A HOL Light server must be started manually inside a HOL Light REPL. OCaml 4.14 is required to start a HOL Light server.
+
+The easiest way to start it is to open a HOL Light REPL inside the extension and then use the command `HOL Light: Start Server` which starts the server inside this REPL (it will also open a new HOL Light client terminal). This command can be invoked directly from the status bar by clicking the `Start Server` text which appears in the bottom right corner whenever a HOL Light terminal window is open. A server can only be started when the active HOL Light REPL is not executing any other commands (more precisely, a server will be started after executing all other commands but the client will not be able to connect to this server and an error message will be shown). A server will automatically stop when the client terminal is closed.
+
+Alternatively, a server can be started manually inside any HOL Light REPL (even running on a remote machine). The server code and instructions for running a server are in the [`hol_server` repository](https://github.com/monadius/hol_server/). After starting a server, it is required to select `Connect to a HOL Light Server` in the list of HOL Light startup scripts (which appears whenever any HOL Light command is executed without an active REPL or when the command `HOL Light: New HOL Light REPL session` is invoked).
+
+When a HOL Light server is active, a feedback is provided for all executed HOL Light statements: Failed statements are colored with light red color and successfully executed statements are colored with light green color (these colors can be changed by editing the corresponding configuration options). When multiple statements are executed (for example by selecting multiple statements and sending them to REPL) then the execution will stop automatically after the first failure.
+
 ## Code Completion, Hover Info Messages, and Go to Definition
 
 This extension provides autocompletion, hover info messages, and Go to Definition features for all  definitions and modules. These feature use a global index of definitions of all open HOL Light files and their dependencies. This index is automatically created and updated if the option `hol-light.autoIndex` is enabled (it is enabled by default). Alternatively, the index may be created (or updated) by invoking the command `HOL Light: Index File and its Dependencies`. Note that the exetension parsing algorithm is not perfect and it works for files where definitions are separated by `;;`.
 
-Only explicitly imported dependencies are recongnized. That is, dependencies should be imported with `needs`, `loads`, or `loadt` commands followed by a string literal with a dependency path. Dependency files are searched relative to paths specified in `hol-light.rootPaths`. For example, if HOL Light of a project are located in the `src/proofs` directory then the following path should be added to `hol-light.rootPaths`: `{workspace}/src/proofs`.
+Only explicitly imported dependencies are recongnized. That is, dependencies should be imported with `needs`, `loads`, or `loadt` commands followed by a string literal with a dependency path. Dependency files are searched relative to paths specified in `hol-light.rootPaths`. For example, if HOL Light files of a project are located in the `src/proofs` directory then the following path should be added to `hol-light.rootPaths`: `{workspace}/src/proofs`.
 
 If a project uses special commands for importing dependencies or for proving theorems, then it is possible to inform the parser about these commands by editing `hol-light.customImports`, `hol-light.customDefinitions`, or `hol-light.customTheorems` options.
 
 Completion suggestions are also provided for imports after `needs`, `loads`, `loadt` and custom import commands. By default, suggestions do not appear automatically inside strings. One needs to trigger completion suggestions with `Ctrl + Space` after typing `needs "` (or other import commands). It is also possible to enable completion suggestions for all strings by changing the configuration option `Editor: Quick Suggestions` (`"editor.quickSuggestions": { "strings": "on" }`).
 
+If a HOL Light server is active then hover messages are provided for all global definitions which are available in the current HOL Light session.
+
+## Interactive Notebooks
+
+It is possible to open HOL Light files as interactive notebooks by right cliking a HOL Light file and selecting `Open with...` and then selecting `HOL Light Notebook`. Notebook cells contain statements separated by `;;`. In order to execute notebook cells, it is required to start a HOL Light server.
+
 ## Commands
 
 All commands can be invoked from the command palette or by pressing the corresponding keyboard shortcuts.
+
+1) **HOL Light: New HOL Light REPL Session**
+
+    Starts a new HOL Light REPL. This command is automatically invoked whenever any HOL Light command is executed without an active HOL Light REPL.
 
 1) **HOL Light: Send selected text to HOL Light REPL** 
 
@@ -44,7 +64,7 @@ All commands can be invoked from the command palette or by pressing the correspo
 
     Default shortcut: `Alt + A`
 
-    Sends all statements before the cursor position (including a statement at the cursor position) to a HOL Light REPL.
+    Sends all statements before the cursor position (including the statement at the cursor position) to a HOL Light REPL.
 
 1) **HOL Light: Set Current Term as a Goal**
 
@@ -118,11 +138,11 @@ All commands can be invoked from the command palette or by pressing the correspo
 
 1) **HOL Light: Set HOL Light Path**
 
-    Opens a dialog where a path to HOL Light should be selected. This path is required for enabling autocompletion for items defined in the HOL Light `Help` directory.
+    Opens a dialog where a path to HOL Light should be selected. This path is required for enabling autocompletion for items defined in the HOL Light `Help` directory and for indexing core HOL Light files.
 
 1) **HOL Light: Set Current Working Directory**
 
-    Shows an input dialog for setting the working directory of a HOL Light REPL.
+    Shows an input dialog for setting the working directory of an active HOL Light REPL.
 
 1) **HOL Light: Associate .ml Files with HOL Light**
 

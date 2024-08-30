@@ -1,6 +1,10 @@
 # Change Log
 
 ## 2.1.0
+- Added a HOL Light server which enhances the extension capabilities.
+- Improved text highlighting and hover messages with a HOL Light server.
+- HOL Light files can be opened as interactive notebooks (a HOL Light server is required).
+- A special view with search results (a HOL Light server is required).
 - Completion suggestions for imports (e.g., after `needs`).
 - New command `HOL Light: Send All Statements before the Cursor Position to REPL`:
   evaluate everything up to the cursor position (default shortcut `Alt+A`).

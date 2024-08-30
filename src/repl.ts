@@ -146,7 +146,7 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
                 }
 
                 this.updateStatusBarItem();
-            }, 200);
+            }, 400);
         });
     }
 
