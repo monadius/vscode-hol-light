@@ -330,6 +330,36 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
+        vscode.commands.registerTextEditorCommand('hol-light.repl_send_raw_statement', async (editor) => {
+            const terminal = await repl.getTerminalWindow(pathLib.dirname(editor.document.uri.fsPath));
+            if (!terminal) {
+                return;
+            }
+            terminal.show(true);
+
+            if (!editor.selection.isEmpty) {
+                const document = editor.document;
+                const statement = document.getText(editor.selection);
+                const location = new vscode.Location(document.uri, editor.selection);
+                repl.execute(statement, { location });
+                return;
+            }
+
+            const pos = editor.document.offsetAt(editor.selection.active);
+            const statementSelection = selection.selectStatement(editor.document, pos, true);
+
+            repl.execute(statementSelection.text, {
+                location: util.locationStartEnd(editor.document, statementSelection.documentStart, statementSelection.documentEnd)
+            });
+            
+            if (statementSelection.newPos) {
+                editor.selection = new vscode.Selection(statementSelection.newPos, statementSelection.newPos);
+                editor.revealRange(editor.selection);
+            }
+        })
+    );
+
+    context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.repl_send_statements_before_cursor', async (editor) => {
             const terminal = await repl.getTerminalWindow(pathLib.dirname(editor.document.uri.fsPath));
             if (!terminal) {

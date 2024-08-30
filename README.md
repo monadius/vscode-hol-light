@@ -38,6 +38,8 @@ All commands can be invoked from the command palette or by pressing the correspo
     
     Sends selected text to HOL Light. If no text is selected, then text at the cursor position separated by `;;` is sent to HOL Light and the cursor position is moved to the next statement.
 
+    A variation of this command is *HOL Light: Send Current Statement to REPL (no preprocessing)* (default shortcut `Ctrl + Alt + E`). This command sends the selected text to HOL Light without any preprocessing. It is useful when a server is used to execute statements and it is required to execute a module definition.
+
 1) **HOL Light: Send All Statements before the Cursor Position to REPL**
 
     Default shortcut: `Alt + A`

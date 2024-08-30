@@ -50,6 +50,11 @@
             },
             {
                 "category": "HOL Light",
+                "command": "hol-light.repl_send_raw_statement",
+                "title": "Send Current Statement to REPL (no preprocessing)"
+            },
+            {
+                "category": "HOL Light",
                 "command": "hol-light.repl_send_statements_before_cursor",
                 "title": "Send All Statements before the Cursor Position to REPL"
             },
@@ -160,6 +165,11 @@
             {
                 "key": "alt+e",
                 "command": "hol-light.repl_send_statement",
+                "when": "editorTextFocus && editorLangId == hol-light-ocaml"
+            },
+            {
+                "key": "ctrl+alt+e",
+                "command": "hol-light.repl_send_raw_statement",
                 "when": "editorTextFocus && editorLangId == hol-light-ocaml"
             },
             {

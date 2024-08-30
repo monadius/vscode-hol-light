@@ -131,14 +131,14 @@ export function splitStatements(document: vscode.TextDocument | string,
     return statements;
 }
 
-export function selectStatement(document: vscode.TextDocument, pos: number): Selection {
+export function selectStatement(document: vscode.TextDocument, pos: number, noTrim = false): Selection {
     const text = document.getText();
     const startPos = text.search(/\S/);
     if (pos < startPos) {
         // Skip whitespaces at the start of the document
         pos = startPos;
     }
-    const selections = splitStatements(text, { start: 0, end: pos, parseLastStatement: true });
+    const selections = splitStatements(text, { start: 0, end: pos, parseLastStatement: true, noTrim });
     const s = selections.pop();
     if (!s) {
         // This can only happen for empty documents (containing whitespaces only)
