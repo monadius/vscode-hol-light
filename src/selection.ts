@@ -7,6 +7,32 @@ interface Selection {
     newPos?: vscode.Position;
 }
 
+/**
+ * Skips comments in the text. It is assumed that pos is at the start of a comment.
+ * @param text
+ * @param pos 
+ */
+function skipComments(text: string, pos: number): number {
+    const n = text.length;
+    let level = 1, i = pos + 1;
+    while (i < n) {
+        i = text.indexOf('*', i + 1);
+        if (i < 0) {
+            i = n;
+            break;
+        }
+        if (text[i - 1] === '(') {
+            level += 1;
+        } else if (text[i + 1] === ')') {
+            if (--level <= 0) {
+                return i + 2;
+            }
+            i += 1;
+        }
+    }
+    return n;
+}
+
 type SplitOptions = { parseLastStatement?: boolean, noTrim?: boolean };
 type SplitOptionsText = { start?: number, end?: number } & SplitOptions;
 type SplitOptionsDocument = { range?: vscode.Range } & SplitOptions;
@@ -81,23 +107,7 @@ export function splitStatements(document: vscode.TextDocument | string,
         } else {
             switch (m[0]) {
                 case '(*': {
-                    let level = 1, i = m.index + 2;
-                    while (i < n) {
-                        i = text.indexOf('*', i + 1);
-                        if (i < 0) {
-                            i = n;
-                            break;
-                        }
-                        if (text[i - 1] === '(') {
-                            ++level;
-                        } else if (text[i + 1] === ')') {
-                            if (--level <= 0) {
-                                break;
-                            }
-                            i++;
-                        }
-                    }
-                    re.lastIndex = i + 2;
+                    re.lastIndex = skipComments(text, m.index);
                     break;
                 }
                 case '"': {
