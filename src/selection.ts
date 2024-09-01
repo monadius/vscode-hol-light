@@ -186,7 +186,7 @@ export function selectStatement(document: vscode.TextDocument, pos: number, noTr
 }
 
 export function selectTerm(document: vscode.TextDocument, pos: number): Selection | null {
-    const text = document.getText(), n = text.length;
+    const text = document.getText();
     const re = /\(\*|["`]/g;
     let m: RegExpExecArray | null;
     while (m = re.exec(text)) {

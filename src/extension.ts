@@ -101,7 +101,12 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Register notebook classes
     context.subscriptions.push(
-        vscode.workspace.registerNotebookSerializer(notebook.NOTEBOOK_TYPE, new notebook.HolNotebookSerializer())
+        vscode.workspace.registerNotebookSerializer(
+            notebook.NOTEBOOK_TYPE, 
+            new notebook.HolNotebookSerializer(),
+            // Output is not saved
+            { transientOutputs: true }
+        )
     );
 
     context.subscriptions.push(new notebook.HolNotebookController(repl));
