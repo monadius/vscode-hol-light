@@ -45,7 +45,11 @@ export class HolNotebookSerializer implements vscode.NotebookSerializer {
             if (metadata) {
                 lines.push(metadata.whitespacesBefore);
             }
-            lines.push(cell.value);
+            if (cell.kind === vscode.NotebookCellKind.Markup) {
+                lines.push('\n(*\n', cell.value, '\n*)\n');
+            } else {
+                lines.push(cell.value);
+            }
             if (metadata) {
                 lines.push(metadata.whitespacesAfter);
             }
