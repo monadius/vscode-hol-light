@@ -400,6 +400,12 @@ export function activate(context: vscode.ExtensionContext) {
             terminal.show(true);
             const pos = editor.document.offsetAt(editor.selection.active);
 
+            // console.time('select goal');
+            // for (let i = 0; i < 100; i++) {
+            //     const select = selection.selectTerm(editor.document, pos);
+            // }
+            // console.timeEnd('select goal');
+
             const term = selection.selectTerm(editor.document, pos);
             if (!term) {
                 vscode.window.showWarningMessage('Not inside a term');

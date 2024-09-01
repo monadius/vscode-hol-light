@@ -8,6 +8,30 @@ interface Selection {
 }
 
 /**
+ * Skips a string literal in the text. It is assumed that pos is at the starting "
+ * @param text
+ * @param pos 
+ */
+function skipString(text: string, pos: number): number {
+    // Faster than using stringRe = /\\.|"/sg (tested on hypermap.hl)
+    const n = text.length;
+    let i = pos;
+    while (i < n) {
+        i = text.indexOf('"', i + 1);
+        if (i < 0) {
+            return n;
+        }
+        let j = i;
+        for (; j > 0 && text[j - 1] === '\\'; j--) {}
+        // Return if we have an even number of \ before "
+        if ((i - j) % 2 === 0) {
+            return i + 1;
+        }
+    }
+    return n;
+}
+
+/**
  * Skips comments in the text. It is assumed that pos is at the start of a comment.
  * @param text
  * @param pos 
@@ -129,22 +153,7 @@ export function splitStatements(document: vscode.TextDocument | string,
                     break;
                 }
                 case '"': {
-                    // Faster than using stringRe = /\\.|"/sg (for hypermap.hl)
-                    let i = m.index;
-                    while (i < n) {
-                        i = text.indexOf('"', i + 1);
-                        if (i < 0) {
-                            i = n;
-                            break;
-                        }
-                        let j = i;
-                        for (; j > 0 && text[j - 1] === '\\'; j--) {}
-                        // Break if we have an even number of \ before "
-                        if ((i - j) % 2 === 0) {
-                            break;
-                        }
-                    }
-                    re.lastIndex = i + 1;
+                    re.lastIndex = skipString(text, m.index);
                     break;
                 }
                 case '`': {
@@ -178,37 +187,29 @@ export function selectStatement(document: vscode.TextDocument, pos: number, noTr
 
 export function selectTerm(document: vscode.TextDocument, pos: number): Selection | null {
     const text = document.getText(), n = text.length;
-    for (let i = 0; i < n; i++) {
-        const ch = text[i];
-        if (ch === '`') {
-            const j = text.indexOf('`', i + 1);
-            if (j < 0) {
+    const re = /\(\*|["`]/g;
+    let m: RegExpExecArray | null;
+    while (m = re.exec(text)) {
+        switch (m[0]) {
+            case '`': {
+                const i = m.index;
+                const j = text.indexOf('`', i + 1);
+                if (j < 0) {
+                    return null;
+                }
+                if (i <= pos && pos <= j) {
+                    return { documentStart: m.index, documentEnd: j + 1, text: text.slice(i, j + 1) };
+                }
+                re.lastIndex = j + 1;
                 break;
             }
-            if (i <= pos && pos <= j) {
-                return { documentStart: i, documentEnd: j + 1, text: text.slice(i, j + 1) };
+            case '"': {
+                re.lastIndex = skipString(text, m.index);
+                break;
             }
-            i = j;
-        } else if (ch === '"') {
-            // Skip strings
-            for (i++; i < n; i++) {
-                if (text[i] === '\\') {
-                    i++;
-                } else if (text[i] === '"') {
-                    break;
-                }
-            }
-        } else if (ch === '(' && text[i + 1] === '*') {
-            // Skip comments
-            let level = 1;
-            for (i += 2; i < n; i++) {
-                if (text[i] === '*' && text[i + 1] === ')') {
-                    if (--level <= 0) {
-                        break;
-                    }
-                } else if (text[i] === '(' && text[i + 1] === '*') {
-                    ++level;
-                }
+            case '(*': {
+                re.lastIndex = skipComments(text, m.index);
+                break;
             }
         }
     }
