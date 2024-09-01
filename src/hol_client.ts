@@ -5,6 +5,7 @@ import * as net from 'node:net';
 import * as config from './config';
 import { CommandDecorations, CommandDecorationType } from './decoration';
 import { Executor, CommandOptions } from './executor';
+import { Repl } from './repl';
 
 const LINE_END = '\n';
 
@@ -135,6 +136,8 @@ class CommandWithResult extends Command {
 }
 
 export class HolClient implements vscode.Pseudoterminal, Executor {
+    private repl: Repl;
+
     private host: string;
     private port: number;
 
@@ -156,10 +159,11 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
     onDidWrite: vscode.Event<string> = this.writeEmitter.event;
     onDidClose?: vscode.Event<void | number> = this.closeEmitter.event;
 
-    constructor(host: string, port: number, decorations: CommandDecorations) {
+    constructor(host: string, port: number, decorations: CommandDecorations, repl: Repl) {
         this.host = host;
         this.port = port;
         this.decorations = decorations;
+        this.repl = repl;
     }
 
     canExecuteForResult(): boolean {
@@ -191,8 +195,12 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
             console.log(`HolClient: connection error: ${err}`);
             // (err as any).code is required for AggregateError on Mac
             if (/ECONNREFUSED/.test(err.message + (err as any).code)) {
-                const res = await vscode.window.showErrorMessage(`Connection error`, 'Change server address...');
-                if (res) {
+                const tryAgain = 'Try again';
+                const changeAddress = 'Change server address...';
+                const res = await vscode.window.showErrorMessage(`Connection error`, tryAgain, changeAddress);
+                if (res === tryAgain) {
+                    this.repl.createHolClientTerminal(this.host, this.port, true);
+                } else if (res === changeAddress) {
                     const address = await config.getServerAddress({ showInputBox: true });
                     if (address) {
                         config.updateConfigOption(config.SERVER_ADDRESS, address.join(':'));

@@ -137,9 +137,7 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
             setTimeout(() => {
                 this.waitingForClient = false;
                 if (this.canStartServer()) {
-                    this.holClient = new client.HolClient('localhost', port, this.decorations);
-                    this.clientTerminal = vscode.window.createTerminal({ name: 'HOL Light (client)', pty: this.holClient });
-                    this.clientTerminal.show(true);
+                    this.createHolClientTerminal('localhost', port, true);
                     resolve(true);
                 } else {
                     resolve(false);
@@ -148,6 +146,19 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
                 this.updateStatusBarItem();
             }, 400);
         });
+    }
+
+    createHolClientTerminal(address: string, port: number, show: boolean) {
+        this.clientTerminal?.dispose();
+        this.clientTerminal = undefined;
+        this.holClient = undefined;
+        
+        this.holClient = new client.HolClient(address, port, this.decorations, this);
+        this.clientTerminal = vscode.window.createTerminal({ name: 'HOL Light (client)', pty: this.holClient, isTransient: true });
+
+        if (show) {
+            this.clientTerminal.show(true);
+        }
     }
 
     async getTerminalWindow(_workDir: string = ''): Promise<vscode.Terminal | undefined> {
@@ -273,8 +284,7 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
                 if (!address) {
                     return;
                 }
-                this.holClient = new client.HolClient(address[0], address[1], this.decorations);
-                this.clientTerminal = vscode.window.createTerminal({ name: 'HOL Light (client)', pty: this.holClient, isTransient: true });
+                this.createHolClientTerminal(address[0], address[1], false);
             }
         }
 
