@@ -1,5 +1,9 @@
 # Change Log
 
+## 2.1.1
+- Bug fixes.
+- Strip leading comments when executing HOL Light commands.
+
 ## 2.1.0
 - Added a HOL Light server which enhances the extension capabilities.
 - Improved text highlighting and hover messages with a HOL Light server.
