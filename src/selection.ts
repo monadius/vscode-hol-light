@@ -18,8 +18,7 @@ function skipComments(text: string, pos: number): number {
     while (i < n) {
         i = text.indexOf('*', i + 1);
         if (i < 0) {
-            i = n;
-            break;
+            return n;
         }
         if (text[i - 1] === '(') {
             level += 1;
@@ -28,6 +27,21 @@ function skipComments(text: string, pos: number): number {
                 return i + 2;
             }
             i += 1;
+        }
+    }
+    return n;
+}
+
+function skipWhitespacesAndComments(text: string, pos: number): number {
+    const n = text.length;
+    const re = /\(\*|\S/g;
+    re.lastIndex = pos;
+    let m: RegExpExecArray | null;
+    while (m = re.exec(text)) {
+        if (m[0] === '(*') {
+            re.lastIndex = skipComments(text, m.index);
+        } else {
+            return m.index;
         }
     }
     return n;
@@ -69,11 +83,11 @@ export function splitStatements(document: vscode.TextDocument | string,
     const { text, offset, finalPos } = getArguments();
     const n = text.length;
     
-    const reSkipSpaces = /\S/g;
-    let startPos = trimSelection ? text.search(reSkipSpaces) : 0;
-    if (startPos < 0 || startPos > finalPos) {
+    let startPos = trimSelection ? skipWhitespacesAndComments(text, 0) : 0;
+    if (startPos < 0 || startPos >= n) {
         return [];
     }
+    const reSkipSpaces = /\S/g;
     // Adding $ slows down the regex matching
     const re = /\(\*|["`]|;;+/g;
     re.lastIndex = startPos;
@@ -94,12 +108,16 @@ export function splitStatements(document: vscode.TextDocument | string,
                 break;
             }
             if (trimSelection) {
+                // Skip spaces: we consider that spaces belong to the current statement
                 reSkipSpaces.lastIndex = endPos + m[0].length;
                 const m2 = reSkipSpaces.exec(text);
-                if (!m2 || m2.index > finalPos) {
+                if (!m2 || m2.index >= finalPos) {
                     break;
                 }
-                startPos = m2.index;
+                startPos = skipWhitespacesAndComments(text, m2.index);
+                if (startPos >= n) {
+                    break;
+                }
                 re.lastIndex = startPos;
             } else {
                 startPos = re.lastIndex;
@@ -143,15 +161,10 @@ export function splitStatements(document: vscode.TextDocument | string,
 
 export function selectStatement(document: vscode.TextDocument, pos: number, noTrim = false): Selection {
     const text = document.getText();
-    const startPos = text.search(/\S/);
-    if (pos < startPos) {
-        // Skip whitespaces at the start of the document
-        pos = startPos;
-    }
-    const selections = splitStatements(text, { start: 0, end: pos, parseLastStatement: true, noTrim });
+    const selections = splitStatements(text, { start: 0, end: pos + 1, parseLastStatement: true, noTrim });
     const s = selections.pop();
     if (!s) {
-        // This can only happen for empty documents (containing whitespaces only)
+        // This can only happen for empty documents (containing whitespaces and comments only)
         return { text: '', documentStart: 0, documentEnd: 0, newPos: document.positionAt(Infinity) };
     }
 
