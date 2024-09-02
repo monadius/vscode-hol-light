@@ -297,7 +297,7 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
             return null;
         }
         try {
-            const res = await this.executeForResult(word, { silent: true }, token);
+            const res = await this.executeForResult('( ' + word + ' )', { silent: true }, token);
             const m = res.match(/^.*:([^=]*)=(.*)/s);
             if (!m) {
                 return null;

@@ -2,6 +2,7 @@
 
 ## 2.1.1
 - Bug fixes.
+- Add operators and all number literals to recognized word patterns.
 - Strip leading comments when executing HOL Light commands.
 
 ## 2.1.0
