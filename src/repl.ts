@@ -338,9 +338,7 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
             return null;
         }
         const hover = new vscode.Hover(res);
-        if (range) {
-            hover.range = range;
-        }
+        hover.range = range;
         return hover;
     }
 

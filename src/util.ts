@@ -4,7 +4,7 @@ import * as vscode from 'vscode';
 
 /**
  * Returns a word (or null) and its range (or undefined) in the document.
- * Ranges are returned for words which are not defined in wordPattern.
+ * Ranges need to be computed for words which are not defined by wordPattern.
  * For example, a hover needs a word range to highlight it in the document.
  * @param document
  * @param position 
@@ -20,12 +20,12 @@ export function getWordAtPosition(document: vscode.TextDocument, position: vscod
         const re = /[-+$&*/=>@^\\|~!?%<:.]/;
         const line = document.lineAt(position.line).text;
         let i = position.character, j = i;
-        while (re.test(line[j])) { j++; }
+        while (j < line.length && re.test(line[j])) { j++; }
         while (i > 0 && re.test(line[i - 1])) { i--; }
         const range = new vscode.Range(position.with({ character: i }), position.with({ character: j }));
         return i < j ? [line.slice(i, j), range] : [null, undefined];
     }
-    return [document.getText(range), undefined];
+    return [document.getText(range), range];
 }
 
 export function locationStartEnd(document: vscode.TextDocument, start: number | vscode.Position, end: number | vscode.Position): vscode.Location {
