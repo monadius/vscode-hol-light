@@ -2,12 +2,30 @@ import { Dirent } from 'fs';
 import * as fs from 'fs/promises';
 import * as vscode from 'vscode';
 
-export function getWordAtPosition(document: vscode.TextDocument, position: vscode.Position): string | null {
+/**
+ * Returns a word (or null) and its range (or undefined) in the document.
+ * Ranges are returned for words which are not defined in wordPattern.
+ * For example, a hover needs a word range to highlight it in the document.
+ * @param document
+ * @param position 
+ * @returns 
+ */
+export function getWordAtPosition(document: vscode.TextDocument, position: vscode.Position): [string | null, vscode.Range | undefined] {
     const range = document.getWordRangeAtPosition(position);
     if (!range) {
-        return null;
+        // Test for operator characters here.
+        // They are not included in wordPattern (in language-configuration.json)
+        // because the trigger character for completing imported files is '/'
+        // and it should not be included in wordPattern.
+        const re = /[-+$&*/=>@^\\|~!?%<:.]/;
+        const line = document.lineAt(position.line).text;
+        let i = position.character, j = i;
+        while (re.test(line[j])) { j++; }
+        while (i > 0 && re.test(line[i - 1])) { i--; }
+        const range = new vscode.Range(position.with({ character: i }), position.with({ character: j }));
+        return i < j ? [line.slice(i, j), range] : [null, undefined];
     }
-    return document.getText(range);
+    return [document.getText(range), undefined];
 }
 
 export function locationStartEnd(document: vscode.TextDocument, start: number | vscode.Position, end: number | vscode.Position): vscode.Location {

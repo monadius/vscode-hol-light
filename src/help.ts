@@ -60,7 +60,7 @@ class HelpItem {
         return this.completionItem;
     }
 
-    toHoverItem(): vscode.Hover {
+    toHoverItem(range?: vscode.Range): vscode.Hover {
         if (!this.hoverItem) {
             const header = `### ${this.sections['TYPE']}`;
             // slice(2) to skip \DOC and \TYPE sections
@@ -69,6 +69,7 @@ class HelpItem {
             }).join('\n').replace(/^[{}]/gm, '```');
             this.hoverItem = new vscode.Hover(new vscode.MarkdownString(header + '\n' + text));
         }
+        this.hoverItem.range = range;
         return this.hoverItem;
     }
 }
@@ -130,7 +131,7 @@ export class HelpProvider implements vscode.HoverProvider, vscode.CompletionItem
 
     provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken, _context: vscode.CompletionContext) {
         // TODO: special symbols (e.g., ++, |||) are not words
-        const word = getWordAtPosition(document, position);
+        const [word] = getWordAtPosition(document, position);
         if (!word) {
             return [];
         }
@@ -144,10 +145,10 @@ export class HelpProvider implements vscode.HoverProvider, vscode.CompletionItem
     }
 
     provideHover(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken) {
-        const word = getWordAtPosition(document, position);
+        const [word, range] = getWordAtPosition(document, position);
         if (!word || !this.helpIndex.has(word)) {
             return null;
         }
-        return this.helpIndex.get(word)?.toHoverItem();
+        return this.helpIndex.get(word)?.toHoverItem(range);
     }
 }

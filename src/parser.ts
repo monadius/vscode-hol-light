@@ -74,9 +74,11 @@ export class Definition {
         return text;
     }
 
-    toHoverItem(): vscode.Hover {
+    toHoverItem(range?: vscode.Range): vscode.Hover {
         const text = this.toString();
-        return new vscode.Hover(new vscode.MarkdownString(text));
+        const hover = new vscode.Hover(new vscode.MarkdownString(text));
+        hover.range = range;
+        return hover;
     }
 
     toCompletionItem(useFullName: boolean): vscode.CompletionItem {
@@ -139,9 +141,11 @@ export class Module {
         return this.uri ? new vscode.Location(this.uri, this.position) : null;
     }
 
-    toHoverItem(): vscode.Hover {
+    toHoverItem(range?: vscode.Range): vscode.Hover {
         const text = `Module \`${this.fullName}\``;
-        return new vscode.Hover(new vscode.MarkdownString(text));
+        const hover = new vscode.Hover(new vscode.MarkdownString(text));
+        hover.range = range;
+        return hover;
     }
 
     toCompletionItem(useFullName: boolean): vscode.CompletionItem {

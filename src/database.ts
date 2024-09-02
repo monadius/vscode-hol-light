@@ -687,18 +687,27 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
                 const dep = this.findDependency(document.uri.fsPath, m[1]);
                 const loc = dep?.getLocation();
                 const originSelectionRange = new vscode.Range(position.line, i1 + 1, position.line, i2);
-                return loc ? [<vscode.LocationLink>{ targetUri: loc.uri, targetRange: loc.range, originSelectionRange }] : null;
+                return loc ? [{ targetUri: loc.uri, targetRange: loc.range, originSelectionRange } satisfies vscode.LocationLink] : null;
             }
         }
-        const word = util.getWordAtPosition(document, position);
+        const [word, range] = util.getWordAtPosition(document, position);
         if (!word) {
             return null;
         }
 
         const { defs, mods } = this.findDefinitionsAndModules(word, document.uri.fsPath, position);
-        const defLocs = <vscode.Location[]>defs.map(def => def.getLocation()).filter(loc => loc);
-        const modLocs = <vscode.Location[]>[...mods].map(mod => mod.getLocation()).filter(loc => loc);
-        return defLocs.length || modLocs.length ? [...defLocs, ...modLocs] : null;
+        const defLocs = util.filterMap(defs, def => def.getLocation());
+        const modLocs = util.filterMap(mods, mod => mod.getLocation());
+        if (!defLocs.length && !modLocs.length) {
+            return null;
+        }
+        const locs = [...defLocs, ...modLocs];
+        if (range) {
+            // TODO: This code is not useful because the definition provider for operators
+            //       is not triggered when CTRL is pressed.
+            return locs.map(loc => ({ targetUri: loc.uri, targetRange: loc.range, originSelectionRange: range } satisfies vscode.LocationLink));
+        }
+        return locs;
     }
 
     /**
@@ -709,7 +718,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
      * @returns 
      */
     provideHover(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken) {
-        const word = util.getWordAtPosition(document, position);
+        const [word, range] = util.getWordAtPosition(document, position);
         if (!word) {
             return null;
         }
@@ -718,12 +727,12 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         if (defs[0]) {
             if (defs[0].type === DefinitionType.other && this.replProvider) {
                 return this.replProvider.provideHover(document, position, token)
-                            .then(r => r ?? defs[0].toHoverItem())
-                            .catch(() => defs[0].toHoverItem());
+                            .then(r => r ?? defs[0].toHoverItem(range))
+                            .catch(() => defs[0].toHoverItem(range));
             }
-            return defs[0].toHoverItem();
+            return defs[0].toHoverItem(range);
         }
-        return (mods.values().next().value as Module | undefined)?.toHoverItem();
+        return (mods.values().next().value as Module | undefined)?.toHoverItem(range);
     }
 
     /**
@@ -748,7 +757,7 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
             }
         }
 
-        const word = util.getWordAtPosition(document, position);
+        const [word] = util.getWordAtPosition(document, position);
         if (!word /*|| word.length < 2*/) {
             return null;
         }

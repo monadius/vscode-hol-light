@@ -329,12 +329,19 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
         if (!this.canExecuteForResult()) {
             return null;
         }
-        const word = util.getWordAtPosition(document, position);
+        const [word, range] = util.getWordAtPosition(document, position);
         if (!word) {
             return null;
         }
         const res = await this.getInfo(word, token);
-        return res ? new vscode.Hover(res) : null;
+        if (!res) {
+            return null;
+        }
+        const hover = new vscode.Hover(res);
+        if (range) {
+            hover.range = range;
+        }
+        return hover;
     }
 
 }

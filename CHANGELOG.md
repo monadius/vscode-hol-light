@@ -2,7 +2,9 @@
 
 ## 2.1.1
 - Bug fixes.
-- Add operators and all number literals to recognized word patterns.
+- Autocompletion, hover messages, and Go to Definition support for operators
+  (completion suggestions for operators should be triggered with `CTRL+Space`).
+- Add all number literals to recognized word patterns.
 - Strip leading comments when executing HOL Light commands.
 
 ## 2.1.0
