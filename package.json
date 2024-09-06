@@ -110,6 +110,11 @@
             },
             {
                 "category": "HOL Light",
+                "command": "hol-light.show_proof_view",
+                "title": "Show Proof View"
+            },
+            {
+                "category": "HOL Light",
                 "command": "hol-light.search",
                 "title": "Search Theorems"
             },

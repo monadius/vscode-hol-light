@@ -7,6 +7,7 @@ import * as data from './database';
 import { CommandDecorationType, CommandDecorations, createDecorationType } from './decoration';
 import * as help from './help';
 import * as notebook from './notebook';
+import { ProofViewPanel } from './proofView';
 import { Repl } from './repl';
 import { SearchResults } from './searchResults';
 import * as selection from './selection';
@@ -221,6 +222,12 @@ export function activate(context: vscode.ExtensionContext) {
     if (vscode.window.activeTextEditor && config.getConfigOption(config.AUTO_INDEX, false)) {
         indexDocument(vscode.window.activeTextEditor.document);
     }
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('hol-light.show_proof_view', () => {
+            ProofViewPanel.createOrShow(context.extensionUri);
+        })
+    );
 
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.repl', async () => {
