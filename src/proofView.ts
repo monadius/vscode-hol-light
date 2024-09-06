@@ -22,14 +22,14 @@ export class ProofViewPanel {
     public static createOrShow(extensionUri: vscode.Uri) {
         const column = vscode.window.activeTextEditor ? vscode.ViewColumn.Beside : vscode.ViewColumn.Two;
         if (ProofViewPanel.currentPanel) {
-            ProofViewPanel.currentPanel.panel.reveal(column);
+            ProofViewPanel.currentPanel.panel.reveal(column, true);
             return;
         }
 
         const panel = vscode.window.createWebviewPanel(
             VIEW_TYPE,
             'Proof View',
-            column,
+            { viewColumn: column, preserveFocus: true },
             getWebviewOptions(extensionUri),
         );
 

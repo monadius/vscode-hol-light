@@ -111,7 +111,8 @@
             {
                 "category": "HOL Light",
                 "command": "hol-light.show_proof_view",
-                "title": "Show Proof View"
+                "title": "Show Proof View",
+                "icon": "$(book)"
             },
             {
                 "category": "HOL Light",
@@ -470,6 +471,13 @@
                     "command": "hol-light.search",
                     "when": "editorLangId == hol-light-ocaml",
                     "group": "navigation@6"
+                }
+            ],
+            "editor/title": [
+                {
+                    "command": "hol-light.show_proof_view",
+                    "group": "navigation",
+                    "when": "editorLangId == hol-light-ocaml"
                 }
             ]
         }
