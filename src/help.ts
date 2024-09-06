@@ -130,7 +130,6 @@ export class HelpProvider implements vscode.HoverProvider, vscode.CompletionItem
     }
 
     provideCompletionItems(document: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken, _context: vscode.CompletionContext) {
-        // TODO: special symbols (e.g., ++, |||) are not words
         const [word] = getWordAtPosition(document, position);
         if (!word) {
             return [];
