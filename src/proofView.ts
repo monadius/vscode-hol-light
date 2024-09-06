@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { Repl } from './repl';
 
 const VIEW_TYPE = 'proofView';
 
@@ -36,13 +37,23 @@ export class ProofViewPanel {
         ProofViewPanel.currentPanel = new ProofViewPanel(panel, extensionUri);
     }
 
+    public static async updateProofState(repl: Repl) {
+        if (!repl.canExecuteForResult() || !this.currentPanel) {
+            return false;
+        }
+        const panel = this.currentPanel;
+        const res = await repl.executeForResult('p()', { silent: true });
+        panel.update(res);
+        return true;
+    }
+
     private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
         this.panel = panel;
         this.extensionUri = extensionUri;
 
         this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
 
-        this.panel.webview.html = this.getHtmlForWebview(this.panel.webview);
+        this.update('');
     }
 
     public dispose() {
@@ -52,7 +63,11 @@ export class ProofViewPanel {
         this.disposables = [];
     }
 
-    private getHtmlForWebview(webview: vscode.Webview) {
+    public update(proofState: string) {
+        this.panel.webview.html = this.getHtmlForWebview(this.panel.webview, proofState);
+    }
+
+    private getHtmlForWebview(webview: vscode.Webview, proofState: string) {
         return `<!DOCTYPE html>
             <html lang="en">
             <head>
@@ -62,6 +77,7 @@ export class ProofViewPanel {
             </head>
             <body>
                 <h1 id="title">Current Proof</h1>
+                <div id="proof">${proofState}</div>
             </body>
             </html>`;
     }

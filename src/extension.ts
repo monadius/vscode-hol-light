@@ -426,6 +426,7 @@ export function activate(context: vscode.ExtensionContext) {
             repl.execute(`g(${term.text});;`, {
                 location: util.locationStartEnd(editor.document, term.documentStart, term.documentEnd)
             });
+            ProofViewPanel.updateProofState(repl);
         })
     );
 
@@ -443,6 +444,7 @@ export function activate(context: vscode.ExtensionContext) {
             text = text.replace(tacticRe, '').trim();
             const location = new vscode.Location(editor.document.uri, editor.selection);
             repl.execute(`e(${text});;\n`, { location });
+            ProofViewPanel.updateProofState(repl);
             return;
         }
         const maxLines = multiline ? config.getConfigOption(config.TACTIC_MAX_LINES, 30) : 1;
@@ -453,6 +455,7 @@ export function activate(context: vscode.ExtensionContext) {
             repl.execute(`e(${editor.document.getText(selection.range)});;\n`, {
                 location: new vscode.Location(editor.document.uri, selection.range)
             });
+            ProofViewPanel.updateProofState(repl);
             newPos = selection.newline ? 
                 new vscode.Position(selection.range.end.line + 1, pos.character) :
                 new vscode.Position(selection.range.end.line, selection.range.end.character + 1);
@@ -495,6 +498,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             repl.execute('b();;');
+            ProofViewPanel.updateProofState(repl);
             decorations.clearAll(editor.document.uri);
         })
     );
@@ -506,6 +510,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             repl.execute('p();;');
+            ProofViewPanel.updateProofState(repl);
         })
     );
 
@@ -516,6 +521,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             repl.execute('r(1);;');
+            ProofViewPanel.updateProofState(repl);
         })
     );
 
