@@ -263,6 +263,16 @@
             {
                 "id": "hol-light-term",
                 "configuration": "./language-configuration.json"
+            },
+            {
+                "id": "hol-light-ssreflect",
+                "aliases": [
+                    "HOL Light/SSReflect"
+                ],
+                "extensions": [
+                    ".vhl"
+                ],
+                "configuration": "./language-configuration.json"
             }
         ],
         "grammars": [
@@ -275,6 +285,18 @@
                 "language": "hol-light-ocaml",
                 "scopeName": "source.hol-light-ocaml",
                 "path": "./syntaxes/hol-light-ocaml.tmLanguage.json",
+                "embeddedLanguages": {
+                    "meta.embedded.block.hol-light-term": "hol-light-term",
+                    "string.quoted.single.hol-light-term": "hol-light-term"
+                },
+                "tokenTypes": {
+                    "string.quoted.single.hol-light-term": "other"
+                }
+            },
+            {
+                "language": "hol-light-ssreflect",
+                "scopeName": "source.hol-light-ssreflect",
+                "path": "./syntaxes/hol-light-ssreflect.tmLanguage.json",
                 "embeddedLanguages": {
                     "meta.embedded.block.hol-light-term": "hol-light-term",
                     "string.quoted.single.hol-light-term": "hol-light-term"

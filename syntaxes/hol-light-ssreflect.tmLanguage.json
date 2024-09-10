@@ -1,0 +1,83 @@
+{
+    "name": "HOL Light/SSReflect",
+    "scopeName": "source.hol-light-ssreflect",
+    "fileTypes": ["vhl"],
+    "repository": {
+        "comments": {
+            "patterns": [
+                {
+                    "begin": "\\(\\*",
+                    "end": "\\*\\)",
+                    "beginCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.comment.begin.ocaml"
+                        }
+                    },
+                    "endCaptures": {
+                        "0": {
+                            "name": "punctuation.definition.comment.end.ocaml"
+                        }
+                    },
+                    "patterns": [
+                        {
+                            "include": "#comments"
+                        }
+                    ],
+                    "name": "comment.block.ocaml"
+                }
+            ]
+        }
+    },
+    "patterns": [
+        {
+            "include": "#comments"
+        },
+        {
+            "begin": "`",
+            "end": "`",
+            "patterns": [
+                {
+                    "include": "source.hol-light-term"
+                }
+            ],
+            "--name": "meta.embedded.block.hol-light-term",
+            "name": "string.quoted.single.hol-light-term",
+            "contentName": "strong"
+        },
+        {
+            "begin": "\"",
+            "end": "\"",
+            "beginCaptures": {
+                "0": {
+                    "name": "punctuation.definition.string.begin.ocaml"
+                }
+            },
+            "endCaptures": {
+                "0": {
+                    "name": "punctuation.definition.string.end.ocaml"
+                }
+            },
+            "patterns": [
+                {
+                    "match": "\\\\(x[a-fA-F0-9][a-fA-F0-9]|o[0-3][0-7][0-7]|[0-2]\\d\\d|[ bnrt'\"\\\\])",
+                    "name": "constant.character.string.escape.ocaml"
+                }
+            ],
+            "name": "string.quoted.double.ocaml"
+        },
+        {
+            "match": "\\b(rewrite|move|case|elim|exists|rewr|have|set|suff|right|apply|split|left)\\b",
+            "name": "keyword.tactic.hol-light-ssreflect"
+        },
+        {
+            "match": "\\b(done|by|first|last|exact|do|arith|try)\\b",
+            "--name": "keyword.other.hol-light markup.bold",
+            "name": "keyword.final-tactic.hol-light-ssreflect"
+        },
+        {
+            "match": "\\b(Section|Variable|Hypothesis|Lemma|Qed|Proof|Abort|End|Module)\\b",
+            "name": "keyword.command.hol-light-ssreflect"
+        }
+        
+    ]
+}
