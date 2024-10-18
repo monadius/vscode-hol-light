@@ -1,5 +1,8 @@
 # Change Log
 
+## 2.1.2
+- Bug fixes.
+
 ## 2.1.1
 - Bug fixes.
 - Autocompletion, hover messages, and Go to Definition support for operators
