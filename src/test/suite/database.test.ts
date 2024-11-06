@@ -16,7 +16,7 @@ suite('Database Test Suite', () => {
         const database = new db.Database(vscode.languages.createDiagnosticCollection("diagnostic"));
         await database.indexDocumentWithDependencies(document, '', ['.'], true);
 
-        assert.equal((database as any).definitionIndex.size, 36, 'Defition index size');
+        assert.equal((database as any).definitionIndex.size, 38, 'Defition index size');
         assert.equal((database as any).moduleIndex.size, 6, 'Module index size');
 
         const depPath = path.join(path.dirname(document.uri.fsPath), 'modules.hl');

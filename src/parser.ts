@@ -553,8 +553,8 @@ export class Parser {
                 token = this.expect(TokenType.identifier);
                 result = "'" + token.value;
             }
-            if (token = this.match1(TokenType.identifier)) {
-                // type constructor
+            // parse postfix type constructors
+            while (token = this.match1(TokenType.identifier)) {
                 result = result + ' ' + token.value;
             }
             return result;
