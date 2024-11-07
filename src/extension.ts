@@ -243,7 +243,9 @@ export function activate(context: vscode.ExtensionContext) {
             } else {
                 const address = await config.getServerAddress({ portOnly: true });
                 if (address) {
-                    repl.startServer(address[1]);
+                    if (await repl.startServer(address[1])) {
+                        decorations.removeAllDecorations();
+                    }
                 }
             }
         })

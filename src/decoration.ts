@@ -74,6 +74,11 @@ export class Decorations {
         this.documentRanges.delete(uri);
         this.updateDecorations();
     }
+
+    removeAllDecorations() {
+        this.documentRanges = new WeakMap();
+        this.updateDecorations();
+    }
 }
 
 
@@ -122,6 +127,10 @@ class DecorationCollection {
 
     clearAll(uri: vscode.Uri) {
         this.decorations.forEach(ds => ds.clear(uri));
+    }
+
+    removeAllDecorations() {
+        this.decorations.forEach(ds => ds.removeAllDecorations());
     }
 
     getLatestHighlightedRange(decorationIndex: number | number[], uri: vscode.Uri): vscode.Range | undefined {
