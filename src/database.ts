@@ -41,12 +41,12 @@ interface PathParameters {
 
 async function resolveDependencyPath(dep: ParserDependency, pp: PathParameters): Promise<string | undefined> {
     if (path.isAbsolute(dep.name)) {
-        return await util.isFileExists(dep.name, false) ? dep.name : undefined;
+        return await util.fileExists(dep.name, false) ? dep.name : undefined;
     }
     if (dep.holLightRelative) {
         // holPath is only used if dep.holLightRelative == true
         const p = path.join(pp.holPath, dep.name);
-        return await util.isFileExists(p, false) ? p : undefined;
+        return await util.fileExists(p, false) ? p : undefined;
     }
     for (const root of pp.rootPaths) {
         if (!root) {
@@ -54,7 +54,7 @@ async function resolveDependencyPath(dep: ParserDependency, pp: PathParameters):
             continue;
         }
         const p = path.join(root === '.' ? pp.basePath : root, dep.name);
-        if (await util.isFileExists(p, false)) {
+        if (await util.fileExists(p, false)) {
             return p;
         }
     }
@@ -478,12 +478,12 @@ export class Database implements vscode.DefinitionProvider, vscode.HoverProvider
         progress?.report({increment: 0, message: `Indexing HOL Light files: ${holPath}`});
 
         try {
-            if (!await util.isFileExists(holPath, true)) {
+            if (!await util.fileExists(holPath, true)) {
                 console.error(`Not a directory: ${holPath}`);
                 return false;
             }
             // Verify that the directory contains HOL Light files
-            if (!await util.isFileExists(path.join(holPath, 'hol.ml'), false)) {
+            if (!await util.fileExists(path.join(holPath, 'hol.ml'), false)) {
                 console.error(`hol.ml does not exists: ${holPath}`);
                 return false;
             }

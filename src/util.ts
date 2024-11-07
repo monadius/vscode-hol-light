@@ -28,6 +28,18 @@ export function getWordAtPosition(document: vscode.TextDocument, position: vscod
     return [document.getText(range), range];
 }
 
+/**
+ * Escapes special markdown characters in the given string
+ * @param text
+ */
+export function escapeMarkdown(text: string, preserveLineBreaks = false): string {
+    text = text.replace(/[`~*]/g, '\\$&').replace(/</g, '&lt;');
+    if (preserveLineBreaks) {
+        text = text.replace(/\r?\n/g, '  $&');
+    }
+    return text;
+}
+
 export function locationStartEnd(document: vscode.TextDocument, start: number | vscode.Position, end: number | vscode.Position): vscode.Location {
     const pos1 = typeof start === 'number' ? document.positionAt(start) : start;
     const pos2 = typeof end === 'number' ? document.positionAt(end) : end;
@@ -50,7 +62,7 @@ export function filterMap<T, R>(xs: Iterable<T>, f: (x: T) => R | null | undefin
     return res;
 }
 
-export async function isFileExists(filePath: string, checkDir: boolean): Promise<boolean> {
+export async function fileExists(filePath: string, checkDir: boolean): Promise<boolean> {
     try {
         const stats = await fs.stat(filePath);
         return checkDir ? stats.isDirectory() : stats.isFile();

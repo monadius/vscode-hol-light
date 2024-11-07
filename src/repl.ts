@@ -312,7 +312,7 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
                     body = "```\n" + body + "\n```";
                     break;
                 default:
-                    body = body.replace(/`/g, '\\`').replace(/</g, '&lt;');
+                    body = util.escapeMarkdown(body, true);
                     break;
             }
             // Use double `` to display potential ` inside the type correctly

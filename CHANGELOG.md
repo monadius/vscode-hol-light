@@ -1,5 +1,10 @@
 # Change Log
 
+## 2.1.3
+- Add `ring` and `option` to the list of known HOL Light type constructors (for
+  highlighting type definitions).
+- Bug fixes.
+
 ## 2.1.2
 - Bug fixes.
 
