@@ -298,7 +298,9 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
         }
         try {
             const res = await this.executeForResult('( ' + word + ' )', { silent: true }, token);
-            const m = res.match(/^[^:]*:([^=]*)=(.*)/s);
+            // Make sure that res is not too long.
+            // vscode.MarkdownString may freeze for long inputs.
+            const m = (res.length > 50000 ? res.slice(0, 50000) + '...' : res).match(/^[^:]*:([^=]*)=(.*)/s);
             if (!m) {
                 return null;
             }

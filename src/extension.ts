@@ -244,7 +244,9 @@ export function activate(context: vscode.ExtensionContext) {
                 const address = await config.getServerAddress({ portOnly: true });
                 if (address) {
                     if (await repl.startServer(address[1])) {
-                        decorations.removeAllDecorations();
+                        // Decorations are cleared in HolClient after a connection to
+                        // a server is established
+                        // decorations.removeAllDecorations();
                     }
                 }
             }

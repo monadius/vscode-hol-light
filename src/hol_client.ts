@@ -185,6 +185,7 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         this.socket = net.connect(this.port, this.host);
         this.socket.on('connect', () => {
             console.log('client connected');
+            this.decorations.removeAllDecorations();
         });
         this.socket.on('close', (hadError) => {
             console.log('HolClient: connection closed');
