@@ -302,7 +302,7 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
             if (!m) {
                 return null;
             }
-            const type = m[1].trim();
+            let type = m[1].trim();
             let body = m[2].trim();
             switch (type) {
                 case 'thm':
@@ -313,6 +313,8 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
                     break;
                 default:
                     body = util.escapeMarkdown(body, true);
+                    // Remove all new line characters from the type
+                    type = type.replace(/\r?\n/g, ' ');
                     break;
             }
             // Use double `` to display potential ` inside the type correctly

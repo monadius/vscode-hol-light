@@ -33,7 +33,7 @@ export function getWordAtPosition(document: vscode.TextDocument, position: vscod
  * @param text
  */
 export function escapeMarkdown(text: string, preserveLineBreaks = false): string {
-    text = text.replace(/[`~*]/g, '\\$&').replace(/</g, '&lt;');
+    text = text.replace(/[`~*#]/g, '\\$&').replace(/</g, '&lt;');
     if (preserveLineBreaks) {
         text = text.replace(/\r?\n/g, '  $&');
     }
