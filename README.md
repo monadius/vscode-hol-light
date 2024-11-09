@@ -213,6 +213,8 @@ The extension adds the `HOL Light configuration` group to settings.
 
 - Commands which select tactics may not work correctly for all possible tactics. Workaround: It is always possible to select tactic text manually and send it to HOL Light.
 
-- Type annotations inside HOL terms which occupy several lines are not correctly highlighted. The only recognized type constructors for highlighting are `list`, `group`, `finite_sum`, `word`.
+- Type annotations inside HOL terms which occupy several lines are not correctly
+  highlighted. The only recognized type constructors for highlighting are
+  `list`, `group`, `ring`, `finite_sum`, `word`, `option`.
 
 - The extension parser is not perfect and it may miss or incorrectly parse some definitions. In general, all definitions should be separated by `;;`.
