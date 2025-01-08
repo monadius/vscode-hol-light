@@ -70,7 +70,7 @@ All commands can be invoked from the command palette or by pressing the correspo
 
     Default shortcut: `Alt + G`
 
-    Sets the term at the current cursor position as a new goal. This command works when the cursor is inside a HOL Light term (a text inside back quotes). If the cursor is a selected text, the text is interpreted as an OCaml expression and passed as a parameter to the goal command.
+    Sets the term at the current cursor position as a new goal. This command works when the cursor is inside a HOL Light term (a text inside back quotes). If the selected text is not empty, the text is interpreted as an OCaml expression and passed as a parameter to the goal command.
 
 1) **HOL Light: Execute Current Tactic (Multiple Lines)**
 
