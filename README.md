@@ -6,7 +6,7 @@ A HOL Light extension for Visual Studio Code. It supports basic syntax highlight
 
 HOL Light should be installed separately. See [HOL Light repository](https://github.com/jrh13/hol-light/) for installation instructions. The path to a HOL Light installation should be manually set by modifying the `hol-light.path` option (it could be done by invoking the command `HOL Light: Set HOL Light Path` from the command palette).
 
-The extension is automatically activated for `.hl` files. If a HOL Light file has a different file type (e.g., `.ml`) then it is required to activate the HOL Light extension manually by selecting `HOL Light` language mode. 
+The extension is automatically activated for `.hl` files. If a HOL Light file has a different file type (e.g., `.ml`) then it is required to activate the HOL Light extension manually by selecting `HOL Light` language mode.
 
 It is also possible to associate `.ml` files with the HOL Light extension by executing the command `HOL Light: Associate .ml Files with HOL Light`. This command adds the following lines to the workspace settings file:
 ```
@@ -52,10 +52,10 @@ All commands can be invoked from the command palette or by pressing the correspo
 
     Starts a new HOL Light REPL. This command is automatically invoked whenever any HOL Light command is executed without an active HOL Light REPL.
 
-1) **HOL Light: Send selected text to HOL Light REPL** 
+1) **HOL Light: Send selected text to HOL Light REPL**
 
     Default shortcut: `Alt + E`
-    
+
     Sends selected text to HOL Light. If no text is selected, then text at the cursor position separated by `;;` is sent to HOL Light and the cursor position is moved to the next statement.
 
     A variation of this command is *HOL Light: Send Current Statement to REPL (no preprocessing)* (default shortcut `Ctrl + Alt + E`). This command sends the selected text to HOL Light without any preprocessing. It is useful when a server is used to execute statements and it is required to execute a module definition.
@@ -70,7 +70,7 @@ All commands can be invoked from the command palette or by pressing the correspo
 
     Default shortcut: `Alt + G`
 
-    Sets the term at the current cursor position as a new goal. This command works when the cursor is inside a HOL Light term (a text inside back quotes).
+    Sets the term at the current cursor position as a new goal. This command works when the cursor is inside a HOL Light term (a text inside back quotes). If the cursor is a selected text, the text is interpreted as an OCaml expression and passed as a parameter to the goal command.
 
 1) **HOL Light: Execute Current Tactic (Multiple Lines)**
 
