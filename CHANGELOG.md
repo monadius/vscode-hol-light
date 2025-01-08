@@ -1,5 +1,8 @@
 # Change Log
 
+## 2.1.4
+- `hol-light.repl_send_goal` sends the selected text to a HOL Light REPL as a new goal (thanks to @aqjune).
+
 ## 2.1.3
 - Add `ring` and `option` to the list of known HOL Light type constructors (for
   highlighting type definitions).
