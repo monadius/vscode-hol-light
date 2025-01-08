@@ -51,7 +51,7 @@ export function activate(context: vscode.ExtensionContext) {
     async function chooseHOLLightPath() {
         const uri = await vscode.window.showOpenDialog({
             canSelectFiles: false,
-            canSelectFolders: true, 
+            canSelectFolders: true,
             canSelectMany: false
         });
         if (!uri || !uri.length || !uri[0].fsPath) {
@@ -89,7 +89,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.languages.registerHoverProvider(LANG_ID, util.combineHoverProviders(helpProvider, database, repl))
     );
-    
+
     context.subscriptions.push(
         vscode.languages.registerDefinitionProvider(LANG_ID, database)
     );
@@ -102,7 +102,7 @@ export function activate(context: vscode.ExtensionContext) {
     // Register notebook classes
     context.subscriptions.push(
         vscode.workspace.registerNotebookSerializer(
-            notebook.NOTEBOOK_TYPE, 
+            notebook.NOTEBOOK_TYPE,
             new notebook.HolNotebookSerializer(),
             // Output is not saved
             { transientOutputs: true }
@@ -186,7 +186,7 @@ export function activate(context: vscode.ExtensionContext) {
             await vscode.window.withProgress({
                     location: vscode.ProgressLocation.Notification,
                     cancellable: false
-            }, (progress, _token) => 
+            }, (progress, _token) =>
                 database.indexDocumentWithDependencies(
                     editor.document, holPath, rootPaths, true, progress));
         })
@@ -305,7 +305,7 @@ export function activate(context: vscode.ExtensionContext) {
                 const document = editor.document;
                 const selections = selection.splitStatements(document, { range: editor.selection });
                 const statements = selections.map(({ text, documentStart, documentEnd }) => ({
-                    cmd: text.trim(), 
+                    cmd: text.trim(),
                     options: { location: util.locationStartEnd(document, documentStart, documentEnd) }
                 })).filter(cmd => cmd.cmd);
                 repl.execute(statements);
@@ -320,7 +320,7 @@ export function activate(context: vscode.ExtensionContext) {
             //     const select = selection.selectStatement(editor.document, pos);
             // }
             // console.timeEnd('select statement');
-        
+
             // console.time('select statement2');
             // for (let i = 0; i < 100; i++) {
             //     const select = selection.selectStatement2(editor.document, pos);
@@ -330,7 +330,7 @@ export function activate(context: vscode.ExtensionContext) {
             repl.execute(statementSelection.text, {
                 location: util.locationStartEnd(editor.document, statementSelection.documentStart, statementSelection.documentEnd)
             });
-            
+
             if (statementSelection.newPos) {
                 editor.selection = new vscode.Selection(statementSelection.newPos, statementSelection.newPos);
                 editor.revealRange(editor.selection);
@@ -360,7 +360,7 @@ export function activate(context: vscode.ExtensionContext) {
             repl.execute(statementSelection.text, {
                 location: util.locationStartEnd(editor.document, statementSelection.documentStart, statementSelection.documentEnd)
             });
-            
+
             if (statementSelection.newPos) {
                 editor.selection = new vscode.Selection(statementSelection.newPos, statementSelection.newPos);
                 editor.revealRange(editor.selection);
@@ -377,7 +377,7 @@ export function activate(context: vscode.ExtensionContext) {
             terminal.show(true);
 
             const document = editor.document;
-            const selections = selection.splitStatements(document, { 
+            const selections = selection.splitStatements(document, {
                 range: new vscode.Range(document.positionAt(0), editor.selection.active),
                 parseLastStatement: true,
             });
@@ -415,6 +415,14 @@ export function activate(context: vscode.ExtensionContext) {
             // }
             // console.timeEnd('select goal');
 
+            if (!editor.selection.isEmpty) {
+              // Use the selected text as the goal.
+              let text = editor.document.getText(editor.selection)
+              const location = new vscode.Location(editor.document.uri, editor.selection);
+              repl.execute(`g(${text});;\n`, { location });
+              return;
+            }
+
             const term = selection.selectTerm(editor.document, pos);
             if (!term) {
                 vscode.window.showWarningMessage('Not inside a term');
@@ -450,7 +458,7 @@ export function activate(context: vscode.ExtensionContext) {
             repl.execute(`e(${editor.document.getText(selection.range)});;\n`, {
                 location: new vscode.Location(editor.document.uri, selection.range)
             });
-            newPos = selection.newline ? 
+            newPos = selection.newline ?
                 new vscode.Position(selection.range.end.line + 1, pos.character) :
                 new vscode.Position(selection.range.end.line, selection.range.end.character + 1);
         } else {
@@ -465,11 +473,11 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     context.subscriptions.push(
-        vscode.commands.registerTextEditorCommand('hol-light.repl_send_tactic_multline', 
+        vscode.commands.registerTextEditorCommand('hol-light.repl_send_tactic_multline',
                 editor => replSendTactic(editor, true, true)),
-        vscode.commands.registerTextEditorCommand('hol-light.repl_send_tactic_multline_no_newline', 
+        vscode.commands.registerTextEditorCommand('hol-light.repl_send_tactic_multline_no_newline',
                 editor => replSendTactic(editor, true, false)),
-        vscode.commands.registerTextEditorCommand('hol-light.repl_send_tactic', 
+        vscode.commands.registerTextEditorCommand('hol-light.repl_send_tactic',
                 editor => replSendTactic(editor, false, true)),
         vscode.commands.registerTextEditorCommand('hol-light.repl_send_tactic_no_newline',
                 editor => replSendTactic(editor, false, false))
