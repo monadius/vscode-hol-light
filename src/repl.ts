@@ -55,6 +55,13 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
         context.subscriptions.push(this.startServerItem);
     }
 
+    // The main purpose of the defaultExecutor is to provide an executor for tests
+    private static defaultExecutor?: Executor;
+
+    static setDefaultExecutor(executor?: Executor) {
+        this.defaultExecutor = executor;
+    }
+
     private updateStatusBarItem() {
         if (this.canStartServer()) {
             this.startServerItem.show();
@@ -162,7 +169,7 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
     }
 
     async getTerminalWindow(_workDir: string = ''): Promise<vscode.Terminal | undefined> {
-        if (!this.getActiveTerminal()) {
+        if (!this.getActiveTerminal() && !Repl.defaultExecutor) {
             // let standardTerminal = false;
             const paths = config.getConfigOption<string[]>(config.EXE_PATHS, []);
             const serverDetail = `Address: ${config.getConfigOption(config.SERVER_ADDRESS, config.DEFAULT_SERVER_ADDRESS) || config.DEFAULT_SERVER_ADDRESS}`;
@@ -286,6 +293,9 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
                 }
                 this.createHolClientTerminal(address[0], address[1], false);
             }
+        } else if (!this.getActiveTerminal() && Repl.defaultExecutor) {
+            this.holTerminal = vscode.window.createTerminal({ name: 'HOL Light', isTransient: true });
+            this.holExecutor = Repl.defaultExecutor;
         }
 
         this.updateStatusBarItem();
