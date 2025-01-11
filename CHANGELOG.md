@@ -1,7 +1,9 @@
 # Change Log
 
-## 2.1.4
+## 2.2.0
 - `hol-light.repl_send_goal` sends the selected text to a HOL Light REPL as a new goal (thanks to @aqjune).
+- `hol-light.repl_back_proof` highlights the previous successful tactic (thanks to @aqjune). 
+   Note: works with a HOL Light server only.
 
 ## 2.1.3
 - Add `ring` and `option` to the list of known HOL Light type constructors (for
