@@ -68,7 +68,7 @@ const COLORS: { [key: string]: number } = {
 function colorText(s: string, color: string): string {
     const n = COLORS[color];
     if (!n) {
-        // Return an unmodified string for unknown colors and for the default color 
+        // Return an unmodified string for unknown colors and for the default color
         return s;
     }
     return `\x1b[${n}m${s}\x1b[0m`;
@@ -90,6 +90,10 @@ class Command {
 
     // Location for providing feedback
     readonly location?: vscode.Location;
+    // If this command manipulates the goal state, holCommand stores the
+    // corresponding command. Should be one of ["g", "e", "r", "b"] or none.
+    // Used for recovering text highlights of the previous tactics when b()ed.
+    readonly holCommand?: string;
 
     progressResolve?: () => void;
 
@@ -99,6 +103,7 @@ class Command {
         this.location = options?.location;
         this.silent = options?.silent ?? false;
         this.interactive = options?.interactive ?? false;
+        this.holCommand = options?.holCommand;
     }
 
     clear(decorations: CommandDecorations, _reason?: Error) {
@@ -148,6 +153,9 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
     private commandQueue: Command[] = [];
     private currentCommand?: Command;
 
+    // A history of locations of executed tactic strings for text highlighting
+    private tacticLocHistory: Array<vscode.Location | undefined> = [];
+
     private socket?: net.Socket;
     private serverPid?: number;
     private canBeInterrupted: boolean = false;
@@ -174,6 +182,7 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         this.currentCommand?.clear(this.decorations, rejectReason);
         this.commandQueue.forEach(command => command.clear(this.decorations, rejectReason));
         this.commandQueue.length = 0;
+        this.tacticLocHistory = [];
         this.currentCommand = undefined;
     }
 
@@ -287,6 +296,35 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
                             // this.decorations.addRange(this.decorations.success, command.location);
                             this.decorations.setRange(err ? CommandDecorationType.failure : CommandDecorationType.success, command.location);
                         }
+                        // If the command manipulates the goal state, let's properly update the
+                        // history of tactic. Also, if the command is "b();;", let's highlight
+                        // the previous tactic.
+                        if (command.holCommand && !err) {
+                            if (command.holCommand === 'g') {
+                                // Reset tactic queue
+                                this.tacticLocHistory = [];
+                            } else if (command.holCommand === 'e') {
+                                this.tacticLocHistory.push(command.location);
+                            } else if (command.holCommand === 'b') {
+                                this.tacticLocHistory.pop();
+                                // lastTacticLoc is undefined if there is no more tactic
+                                // to backtrace or the tactic was not associated with any
+                                // actual text in the editor
+                                let lastTacticLoc = this.tacticLocHistory.at(-1);
+                                // If this "b();;" also had a location, this will cause
+                                // doubly highlighting "b();;" as well as the previous
+                                // tactic text. Avoid this because it will look
+                                // ugly.
+                                if (lastTacticLoc && !command.location) {
+                                    this.decorations.addRange(
+                                        CommandDecorationType.success,
+                                        lastTacticLoc);
+                                }
+                            } else if (command.holCommand === "r") {
+                                // There is nothing that needs to be done for highlighting.
+                            }
+                        }
+
                         if (command instanceof CommandWithResult) {
                             if (command.cancellationToken?.isCancellationRequested) {
                                 command.reject(new Error('Cancelled'));
@@ -345,7 +383,7 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
                     location: vscode.ProgressLocation.Window,
                     title: command.cmd,
                     cancellable: true
-                }, 
+                },
                 (_progress, token) => {
                     token.onCancellationRequested(() => this.interrupt());
                     return new Promise<void>((resolve) => command.progressResolve = resolve);

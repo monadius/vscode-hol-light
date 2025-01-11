@@ -7,6 +7,9 @@ export interface CommandOptions {
     silent?: boolean;
     // This flag is true for commands entered in the terminal window directly
     interactive?: boolean;
+    // If this command manipulates the goal state, holCommand stores the
+    // corresponding command. Should be one of ["g", "e", "r", "b"]
+    holCommand?: string;
 }
 
 export interface Executor {

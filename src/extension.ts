@@ -417,9 +417,9 @@ export function activate(context: vscode.ExtensionContext) {
 
             if (!editor.selection.isEmpty) {
               // Use the selected text as the goal.
-              let text = editor.document.getText(editor.selection)
+              let text = editor.document.getText(editor.selection);
               const location = new vscode.Location(editor.document.uri, editor.selection);
-              repl.execute(`g(${text});;\n`, { location });
+              repl.execute(`g(${text});;\n`, { location, holCommand: "g" });
               return;
             }
 
@@ -429,7 +429,8 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             repl.execute(`g(${term.text});;`, {
-                location: util.locationStartEnd(editor.document, term.documentStart, term.documentEnd)
+                location: util.locationStartEnd(editor.document, term.documentStart, term.documentEnd),
+                holCommand: "g"
             });
         })
     );
@@ -447,7 +448,7 @@ export function activate(context: vscode.ExtensionContext) {
             let text = editor.document.getText(editor.selection);
             text = text.replace(tacticRe, '').trim();
             const location = new vscode.Location(editor.document.uri, editor.selection);
-            repl.execute(`e(${text});;\n`, { location });
+            repl.execute(`e(${text});;\n`, { location, holCommand: "e" });
             return;
         }
         const maxLines = multiline ? config.getConfigOption(config.TACTIC_MAX_LINES, 30) : 1;
@@ -456,7 +457,8 @@ export function activate(context: vscode.ExtensionContext) {
         let newPos: vscode.Position;
         if (selection && !selection.range.isEmpty) {
             repl.execute(`e(${editor.document.getText(selection.range)});;\n`, {
-                location: new vscode.Location(editor.document.uri, selection.range)
+                location: new vscode.Location(editor.document.uri, selection.range),
+                holCommand: "e"
             });
             newPos = selection.newline ?
                 new vscode.Position(selection.range.end.line + 1, pos.character) :
@@ -499,7 +501,7 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.window.showErrorMessage('No HOL Light REPL');
                 return;
             }
-            repl.execute('b();;');
+            repl.execute('b();;', { holCommand: "b" });
             decorations.clearAll(editor.document.uri);
         })
     );
@@ -520,7 +522,7 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.window.showErrorMessage('No HOL Light REPL');
                 return;
             }
-            repl.execute('r(1);;');
+            repl.execute('r(1);;', { holCommand: "r" });
         })
     );
 
