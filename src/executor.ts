@@ -15,11 +15,7 @@ export interface CommandOptions {
 }
 
 export function classifyProofCommand(cmd: string): ProofCommand | undefined {
-    let m = cmd.match(/^\s*([rb])\s*\(\s*\)/);
-    if (m) {
-        return m[1] as ProofCommand;
-    }
-    m = cmd.match(/^\s*([ge])\s*[\(a-zA-Z_`]/);
+    const m = cmd.match(/^\s*([gerb])(?=[\(`]|\s+[\(\w`])/);
     if (m) {
         return m[1] as ProofCommand;
     }
