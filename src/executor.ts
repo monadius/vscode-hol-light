@@ -2,14 +2,16 @@ import * as vscode from 'vscode';
 
 import { CommandDecorations, CommandDecorationType } from './decoration';
 
+export type ProofCommand = 'g' | 'e' | 'r' | 'b';
+
 export interface CommandOptions {
     location?: vscode.Location;
     silent?: boolean;
     // This flag is true for commands entered in the terminal window directly
     interactive?: boolean;
-    // If this command manipulates the goal state, holCommand stores the
-    // corresponding command. Should be one of ["g", "e", "r", "b"]
-    holCommand?: string;
+    // If this command manipulates the goal state, proofCommand stores the
+    // corresponding command. Should be one of "g" | "e" | "r" | "b"
+    proofCommand?: ProofCommand;
 }
 
 export interface Executor {

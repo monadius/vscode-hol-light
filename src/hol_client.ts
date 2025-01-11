@@ -4,7 +4,7 @@ import * as net from 'node:net';
 
 import * as config from './config';
 import { CommandDecorations, CommandDecorationType } from './decoration';
-import { Executor, CommandOptions } from './executor';
+import { Executor, CommandOptions, ProofCommand } from './executor';
 import { Repl } from './repl';
 
 const LINE_END = '\n';
@@ -90,10 +90,10 @@ class Command {
 
     // Location for providing feedback
     readonly location?: vscode.Location;
-    // If this command manipulates the goal state, holCommand stores the
+    // If this command manipulates the goal state, proofCommand stores the
     // corresponding command. Should be one of ["g", "e", "r", "b"] or none.
     // Used for recovering text highlights of the previous tactics when b()ed.
-    readonly holCommand?: string;
+    readonly proofCommand?: ProofCommand;
 
     progressResolve?: () => void;
 
@@ -103,7 +103,7 @@ class Command {
         this.location = options?.location;
         this.silent = options?.silent ?? false;
         this.interactive = options?.interactive ?? false;
-        this.holCommand = options?.holCommand;
+        this.proofCommand = options?.proofCommand;
     }
 
     clear(decorations: CommandDecorations, _reason?: Error) {
@@ -296,32 +296,38 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
                             // this.decorations.addRange(this.decorations.success, command.location);
                             this.decorations.setRange(err ? CommandDecorationType.failure : CommandDecorationType.success, command.location);
                         }
+
                         // If the command manipulates the goal state, let's properly update the
                         // history of tactic. Also, if the command is "b();;", let's highlight
                         // the previous tactic.
-                        if (command.holCommand && !err) {
-                            if (command.holCommand === 'g') {
-                                // Reset tactic queue
-                                this.tacticLocHistory = [];
-                            } else if (command.holCommand === 'e') {
-                                this.tacticLocHistory.push(command.location);
-                            } else if (command.holCommand === 'b') {
-                                this.tacticLocHistory.pop();
-                                // lastTacticLoc is undefined if there is no more tactic
-                                // to backtrace or the tactic was not associated with any
-                                // actual text in the editor
-                                let lastTacticLoc = this.tacticLocHistory.at(-1);
-                                // If this "b();;" also had a location, this will cause
-                                // doubly highlighting "b();;" as well as the previous
-                                // tactic text. Avoid this because it will look
-                                // ugly.
-                                if (lastTacticLoc && !command.location) {
-                                    this.decorations.addRange(
-                                        CommandDecorationType.success,
-                                        lastTacticLoc);
-                                }
-                            } else if (command.holCommand === "r") {
-                                // There is nothing that needs to be done for highlighting.
+                        if (command.proofCommand && !err) {
+                            switch (command.proofCommand) {
+                                case 'g':
+                                    // Reset tactic queue
+                                    this.tacticLocHistory = [];
+                                    break;
+                                case 'e':
+                                    this.tacticLocHistory.push(command.location);
+                                    break;
+                                case 'b':
+                                    this.tacticLocHistory.pop();
+                                    // lastTacticLoc is undefined if there is no more tactic
+                                    // to backtrace or the tactic was not associated with any
+                                    // actual text in the editor
+                                    const lastTacticLoc = this.tacticLocHistory.at(-1);
+                                    // If this "b();;" also had a location, this will cause
+                                    // doubly highlighting "b();;" as well as the previous
+                                    // tactic text. Avoid this because it will look
+                                    // ugly.
+                                    if (lastTacticLoc && !command.location) {
+                                        this.decorations.addRange(
+                                            CommandDecorationType.success,
+                                            lastTacticLoc);
+                                    }
+                                    break;
+                                case 'r':
+                                    // There is nothing that needs to be done for highlighting.
+                                    break;
                             }
                         }
 
