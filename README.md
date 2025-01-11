@@ -92,7 +92,7 @@ All commands can be invoked from the command palette or by pressing the correspo
 
     Default shortcut: `Alt + B`
 
-    Reverts one proof step.
+    Reverts one proof step. If a HOL Light server is active then the previous successful tactic is highlighted after executing this command.
 
 1) **HOL Light: Print Current Goal**
 
