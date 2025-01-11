@@ -12,6 +12,7 @@ import { SearchResults } from './searchResults';
 import * as selection from './selection';
 import * as tactic from './tactic';
 import * as util from './util';
+import { classifyProofCommand } from './executor';
 
 const LANG_ID = 'hol-light-ocaml';
 
@@ -306,7 +307,10 @@ export function activate(context: vscode.ExtensionContext) {
                 const selections = selection.splitStatements(document, { range: editor.selection });
                 const statements = selections.map(({ text, documentStart, documentEnd }) => ({
                     cmd: text.trim(),
-                    options: { location: util.locationStartEnd(document, documentStart, documentEnd) }
+                    options: { 
+                        location: util.locationStartEnd(document, documentStart, documentEnd),
+                        proofCommand: classifyProofCommand(text),
+                    }
                 })).filter(cmd => cmd.cmd);
                 repl.execute(statements);
                 return;
@@ -328,7 +332,8 @@ export function activate(context: vscode.ExtensionContext) {
             // console.timeEnd('select statement2');
 
             repl.execute(statementSelection.text, {
-                location: util.locationStartEnd(editor.document, statementSelection.documentStart, statementSelection.documentEnd)
+                location: util.locationStartEnd(editor.document, statementSelection.documentStart, statementSelection.documentEnd),
+                proofCommand: classifyProofCommand(statementSelection.text),
             });
 
             if (statementSelection.newPos) {
@@ -345,6 +350,9 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             terminal.show(true);
+
+            // Do not attempt to set the proofCommand option because
+            // the statement text may contain several commands.
 
             if (!editor.selection.isEmpty) {
                 const document = editor.document;
@@ -383,7 +391,10 @@ export function activate(context: vscode.ExtensionContext) {
             });
             const statements = selections.map(({ text, documentStart, documentEnd }) => ({
                 cmd: text.trim(),
-                options: { location: util.locationStartEnd(document, documentStart, documentEnd) },
+                options: { 
+                    location: util.locationStartEnd(document, documentStart, documentEnd),
+                    proofCommand: classifyProofCommand(text),
+                },
             })).filter(cmd => cmd.cmd);
 
             repl.execute(statements);

@@ -10,8 +10,19 @@ export interface CommandOptions {
     // This flag is true for commands entered in the terminal window directly
     interactive?: boolean;
     // If this command manipulates the goal state, proofCommand stores the
-    // corresponding command. Should be one of "g" | "e" | "r" | "b"
+    // corresponding command. Should be one of 'g' | 'e' | 'r' | 'b'
     proofCommand?: ProofCommand;
+}
+
+export function classifyProofCommand(cmd: string): ProofCommand | undefined {
+    let m = cmd.match(/^\s*([rb])\s*\(\s*\)/);
+    if (m) {
+        return m[1] as ProofCommand;
+    }
+    m = cmd.match(/^\s*([ge])\s*[\(a-zA-Z_`]/);
+    if (m) {
+        return m[1] as ProofCommand;
+    }
 }
 
 export interface Executor {
