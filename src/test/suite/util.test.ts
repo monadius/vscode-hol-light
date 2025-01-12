@@ -1,7 +1,6 @@
 import * as assert from 'assert';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { before } from 'mocha';
 
 import { cancelPreviousCall, difference, escapeMarkdown, filterMap, getWordAtPosition } from '../../util'; // Adjust the path as necessary
 
@@ -142,7 +141,7 @@ suite('util', () => {
     suite('getWordAtPosition Tests', () => {
         let document: vscode.TextDocument;
 
-        before(async () => {
+        setup(async () => {
             const docPath = path.join(__dirname, '../../../src/test/examples', 'definitions.hl');
             document = await vscode.workspace.openTextDocument(docPath);
         });

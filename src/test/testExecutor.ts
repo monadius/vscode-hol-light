@@ -8,7 +8,11 @@ export class TestExecutor implements Executor {
     }
 
     getLog(): { cmd: string, options?: CommandOptions }[] {
-        return this.log;
+        return [...this.log];
+    }
+
+    clearLog(): void {
+        this.log = [];
     }
 
     canExecuteForResult(): boolean {
