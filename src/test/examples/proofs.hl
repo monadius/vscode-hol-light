@@ -1,9 +1,5 @@
 let CARD_IMAGE_LT2 = prove
-    (`!(f:A->B) (g:A->C) s.
-           FINITE s /\
-           (!x y. x IN s /\ y IN s /\ g x = g y ==> f x = f y) /\
-           ~(!x y. x IN s /\ y IN s /\ f x = f y ==> g x = g y)
-           ==> CARD(IMAGE f s) < CARD(IMAGE g s)`,
+    (`!(f:A->B) (g:A->C) s. FINITE s /\ (!x y. x IN s /\ y IN s /\ g x = g y ==> f x = f y) /\ ~(!x y. x IN s /\ y IN s /\ f x = f y ==> g x = g y) ==> CARD(IMAGE f s) < CARD(IMAGE g s)`,
      REPEAT STRIP_TAC THEN FIRST_X_ASSUM(X_CHOOSE_TAC `h:C->B` o
        GEN_REWRITE_RULE I [FUNCTION_FACTORS_LEFT_GEN]) THEN
      SUBGOAL_THEN `IMAGE f s = IMAGE (h:C->B) (IMAGE (g:A->C) s)` SUBST1_TAC THENL
@@ -21,3 +17,5 @@ e  ONCE_REWRITE_TAC[MESON[] `(!t. p t) <=> ~(?t. ~p t)`];;
     e
 
 REWRITE_TAC[NOT_IMP; EXISTS_SMALL_SUBSET_IMAGE_INJ; GSYM CONJ_ASSOC];;
+r(2);;
+b();;

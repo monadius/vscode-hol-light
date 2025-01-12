@@ -11,6 +11,14 @@ export class TestExecutor implements Executor {
         return [...this.log];
     }
 
+    getLogWithoutLocations(): { cmd: string, options?: CommandOptions }[] {
+        return this.log.map(({ cmd, options }) => {
+            const res = { cmd, options: { ...options } };
+            delete res.options.location;
+            return res;
+        });
+    }
+
     clearLog(): void {
         this.log = [];
     }
@@ -22,6 +30,7 @@ export class TestExecutor implements Executor {
     execute(cmd: string, options?: CommandOptions): void;
     execute(cmds: { cmd: string, options?: CommandOptions }[]): void;
     execute(cmd: string | { cmd: string, options?: CommandOptions }[], options?: CommandOptions): void {
+        // console.log('Executing: ' + cmd);
         (typeof cmd === 'string' ? [{ cmd, options }] : cmd).forEach(({ cmd, options }) => {
             this.log.push({ cmd, options: { ...options } });
         });
