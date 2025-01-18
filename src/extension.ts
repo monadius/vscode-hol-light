@@ -100,6 +100,52 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.languages.registerCompletionItemProvider(LANG_ID, database, '/')
     );
 
+    // Experimental semantic tokens provider
+    const tokenTypes = ['class', 'interface', 'enum', 'function', 'variable', 'constant'];
+    const tokenModifiers = ['declaration', 'documentation'];
+    const legend = new vscode.SemanticTokensLegend(tokenTypes, tokenModifiers);
+
+    const provider: vscode.DocumentSemanticTokensProvider = {
+        provideDocumentSemanticTokens(
+          document: vscode.TextDocument
+        ): vscode.ProviderResult<vscode.SemanticTokens> {
+            console.log('semantic tokens provider invoked');
+            const tokensBuilder = new vscode.SemanticTokensBuilder(legend);
+            const text = document.getText();
+            const re = /\b[A-Z_]+\b/g;
+            let m: RegExpExecArray | null;
+            while (m = re.exec(text)) {
+                const i = m.index;
+                const start = document.positionAt(i), end = start.translate(0, m[0].length);
+                tokensBuilder.push(
+                    new vscode.Range(start, end),
+                    'variable',
+                    ['declaration']
+                );
+            }
+            return tokensBuilder.build();
+        }
+      };
+
+    const provider2: vscode.DocumentRangeSemanticTokensProvider = {
+        provideDocumentRangeSemanticTokens(
+            document: vscode.TextDocument, 
+            range: vscode.Range, 
+            token: vscode.CancellationToken): vscode.ProviderResult<vscode.SemanticTokens> {
+            console.log(`semantic range: (${range.start.line}, ${range.start.character}) - (${range.end.line}, ${range.end.character})`);
+            return null;
+        }
+      };
+
+      
+    // context.subscriptions.push(
+    //     vscode.languages.registerDocumentSemanticTokensProvider(LANG_ID, provider, legend)
+    // );
+
+    // context.subscriptions.push(
+    //     vscode.languages.registerDocumentRangeSemanticTokensProvider(LANG_ID, provider2, legend)
+    // );
+
     // Register notebook classes
     context.subscriptions.push(
         vscode.workspace.registerNotebookSerializer(
