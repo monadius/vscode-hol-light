@@ -101,7 +101,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     // Experimental semantic tokens provider
-    const tokenTypes = ['class', 'interface', 'enum', 'function', 'variable', 'constant'];
+    const tokenTypes = ['class', 'interface', 'enum', 'function', 'variable', 'constant', 'comment'];
     const tokenModifiers = ['declaration', 'documentation'];
     const legend = new vscode.SemanticTokensLegend(tokenTypes, tokenModifiers);
 
@@ -111,16 +111,11 @@ export function activate(context: vscode.ExtensionContext) {
         ): vscode.ProviderResult<vscode.SemanticTokens> {
             console.log('semantic tokens provider invoked');
             const tokensBuilder = new vscode.SemanticTokensBuilder(legend);
-            const text = document.getText();
-            const re = /\b[A-Z_]+\b/g;
-            let m: RegExpExecArray | null;
-            while (m = re.exec(text)) {
-                const i = m.index;
-                const start = document.positionAt(i), end = start.translate(0, m[0].length);
+            const terms = selection.selectTerms(document);
+            for (const { documentStart: start, documentEnd: end} of terms) {
                 tokensBuilder.push(
-                    new vscode.Range(start, end),
-                    'variable',
-                    ['declaration']
+                    new vscode.Range(document.positionAt(start), document.positionAt(end)),
+                    'comment'
                 );
             }
             return tokensBuilder.build();
@@ -131,9 +126,20 @@ export function activate(context: vscode.ExtensionContext) {
         provideDocumentRangeSemanticTokens(
             document: vscode.TextDocument, 
             range: vscode.Range, 
-            token: vscode.CancellationToken): vscode.ProviderResult<vscode.SemanticTokens> {
+            token: vscode.CancellationToken
+        ): vscode.ProviderResult<vscode.SemanticTokens> {
             console.log(`semantic range: (${range.start.line}, ${range.start.character}) - (${range.end.line}, ${range.end.character})`);
-            return null;
+            const tokensBuilder = new vscode.SemanticTokensBuilder(legend);
+            const terms = selection.selectTerms(document, range);
+            console.log(`|terms| = ${terms.length}`);
+            for (const { documentStart: start, documentEnd: end, text } of terms) {
+                const pos = document.positionAt(start);
+                tokensBuilder.push(
+                    new vscode.Range(pos, pos.translate(0, 10)),
+                    'comment'
+                );
+            }
+            return tokensBuilder.build();
         }
       };
 
@@ -142,9 +148,9 @@ export function activate(context: vscode.ExtensionContext) {
     //     vscode.languages.registerDocumentSemanticTokensProvider(LANG_ID, provider, legend)
     // );
 
-    // context.subscriptions.push(
-    //     vscode.languages.registerDocumentRangeSemanticTokensProvider(LANG_ID, provider2, legend)
-    // );
+    context.subscriptions.push(
+        vscode.languages.registerDocumentRangeSemanticTokensProvider(LANG_ID, provider2, legend)
+    );
 
     // Register notebook classes
     context.subscriptions.push(

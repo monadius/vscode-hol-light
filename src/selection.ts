@@ -189,7 +189,7 @@ export function selectTerm(document: vscode.TextDocument, pos: number): Selectio
     const text = document.getText();
     const re = /\(\*|["`]/g;
     let m: RegExpExecArray | null;
-    while (m = re.exec(text)) {
+    while ((m = re.exec(text)) && m.index <= pos) {
         switch (m[0]) {
             case '`': {
                 const i = m.index;
@@ -215,6 +215,49 @@ export function selectTerm(document: vscode.TextDocument, pos: number): Selectio
     }
     return null;
 }
+
+/**
+ * Returns selections for all terms within the given range (or for all terms if range is undefined)
+ * @param document
+ * @param range 
+ * @returns 
+ */
+export function selectTerms(document: vscode.TextDocument, range?: vscode.Range): Selection[] {
+    const text = document.getText();
+    const startIndex = range ? document.offsetAt(range.start) : 0;
+    const endIndex = range ? document.offsetAt(range.end) : text.length;
+    const terms: Selection[] = [];
+    const re = /\(\*|["`]/g;
+    let m: RegExpExecArray | null;
+    loop:
+    while ((m = re.exec(text)) && m.index < endIndex) {
+        switch (m[0]) {
+            case '`': {
+                const i = m.index;
+                const j = text.indexOf('`', i + 1);
+                if (j < 0) {
+                    // We can also set j = text.length and continue
+                    break loop;
+                }
+                if (startIndex <= i && i < endIndex) {
+                    terms.push({ documentStart: i, documentEnd: j + 1, text: text.slice(i, j + 1) });
+                }
+                re.lastIndex = j + 1;
+                break;
+            }
+            case '"': {
+                re.lastIndex = skipString(text, m.index);
+                break;
+            }
+            case '(*': {
+                re.lastIndex = skipComments(text, m.index);
+                break;
+            }
+        }
+    }
+    return terms;
+}
+
 
 /**
  * Splits a string input for using with the HOL Light `search` command
