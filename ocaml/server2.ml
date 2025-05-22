@@ -95,6 +95,20 @@ let restore redirected =
 let toploop_eval input =
   write_to_string Toploop.use_input (Toploop.String input)
 
+(* Returns (# total subgoals, # subgoals). Does what print_goalstate of HOL Light does *)
+let hol_get_num_subgoals () =
+  match !current_goalstack with
+  | [] -> ""
+  | (_,gl,_)::[] ->
+    if List.length gl = 0 then ""
+    else Format.sprintf "1,%d" (List.length gl)
+  | (_,gl,_)::(_,glprev,_)::_ ->
+    if List.length gl = 0 then ""
+    else
+      let p = length gl - length glprev in
+      let p' = if p < 1 then 1 else p + 1 in
+      Format.sprintf "%d,%d" p' (List.length gl)
+
 let monitor_thread socket_ic socket_oc (labelled_fdins : (Unix.file_descr * string) list) =
   ignore (Thread.sigmask Unix.SIG_BLOCK [Sys.sigint]);
   let bytes_size = 16 * 1024 in
@@ -185,7 +199,7 @@ let rec mt_service (ic, oc) =
   while !connected do
     try
       (* Wait for the input *)
-      send_string ~flush_output:true "ready" "";
+      send_string ~flush_output:true "ready:" (Printf.sprintf "subgoals:%s" $ hol_get_num_subgoals ());
       let raw_input = input_line ic in
       let input = 
         try String.trim (Scanf.unescaped raw_input)

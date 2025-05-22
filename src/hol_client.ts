@@ -6,6 +6,7 @@ import * as config from './config';
 import { CommandDecorations, CommandDecorationType } from './decoration';
 import { Executor, CommandOptions, ProofCommand } from './executor';
 import { Repl } from './repl';
+import { stringify } from 'node:querystring';
 
 const LINE_END = '\n';
 
@@ -237,9 +238,16 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
             // Process complete lines
             for (let i = 0; i < output.length - 1; i++) {
                 const line = output[i];
-                if (line === 'ready') {
+                if (line.startsWith('ready:')) {
+                    const readyInfo = unescapeString(line.slice(6));
                     if (!suppressPrompt) {
-                        this.writeEmitter.fire('# ');
+                        const subgoalsInfo = readyInfo.slice("subgoals:".length);
+                        var msg = '';
+                        if (!(subgoalsInfo === '')) {
+                          const ns = subgoalsInfo.split(',');
+                          msg = ns[0] + " subgoal" + (ns[0] === "1" ? "" : "s") + " (" + ns[1] + " total) ";
+                        }
+                        this.writeEmitter.fire(colorText(msg, 'blue') + '# ');
                     }
                     suppressPrompt = false;
                     this.currentCommand?.clear(this.decorations);
