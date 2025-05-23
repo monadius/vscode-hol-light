@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import stripAnsi from 'strip-ansi';
 
 import * as pathLib from 'node:path';
 
@@ -90,7 +91,7 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
         this.holTerminal?.dispose();
         this.holTerminal = undefined;
         this.holExecutor = undefined;
-        
+
         this.updateStatusBarItem();
     }
 
@@ -103,7 +104,7 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
 
     execute(cmd: string, options?: CommandOptions): void;
     execute(cmds: { cmd: string, options?: CommandOptions }[]): void;
-    
+
     execute(cmd: string | { cmd: string; options?: CommandOptions; }[], options?: CommandOptions): void {
         const executor = this.getActiveExecutor();
         if (executor) {
@@ -159,7 +160,7 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
         this.clientTerminal?.dispose();
         this.clientTerminal = undefined;
         this.holClient = undefined;
-        
+
         this.holClient = new client.HolClient(address, port, this.decorations, this);
         this.clientTerminal = vscode.window.createTerminal({ name: 'HOL Light (client)', pty: this.holClient, isTransient: true });
 
@@ -174,7 +175,7 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
             const paths = config.getConfigOption<string[]>(config.EXE_PATHS, []);
             const serverDetail = `Address: ${config.getConfigOption(config.SERVER_ADDRESS, config.DEFAULT_SERVER_ADDRESS) || config.DEFAULT_SERVER_ADDRESS}`;
             const serverLabel = 'Connect to a HOL Light server';
-            const serverItem: vscode.QuickPickItem = { 
+            const serverItem: vscode.QuickPickItem = {
                 label: serverLabel,
                 detail: serverDetail,
                 buttons: [{ iconPath: new vscode.ThemeIcon('settings-gear'), tooltip: 'Change the address' }],
@@ -195,11 +196,11 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
                 items.push({ label: 'Choose a script file...', detail: 'Select a file in a file open dialog' });
 
                 let resolveOnHide = true;
-                
+
                 const input = vscode.window.createQuickPick();
                 input.items = items;
                 input.placeholder = 'Select a HOL Light startup script';
-                
+
                 // const updateInput = () => {
                 //     if (standardTerminal) {
                 //         input.title = 'Run in a standard terminal (click the button to switch)';
@@ -240,7 +241,7 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
                 //     updateInput();
                 // });
 
-                // TODO: try checkboxes for each item. 
+                // TODO: try checkboxes for each item.
                 // It will be necessary to update input.items every time when the corresponding
                 // item button is clicked.
 
@@ -261,8 +262,8 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
                     path = '';
                 } else if (result.detail) {
                     const uri = await vscode.window.showOpenDialog({
-                        canSelectFiles: true, 
-                        canSelectFolders: false, 
+                        canSelectFiles: true,
+                        canSelectFolders: false,
                         canSelectMany: false
                     });
                     if (!uri || !uri.length || !uri[0].fsPath) {
@@ -315,7 +316,7 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
                 return null;
             }
             let type = m[1].trim();
-            let body = m[2].trim();
+            let body = stripAnsi(m[2].trim());
             switch (type) {
                 case 'thm':
                     body = "```\n`" + body + "`\n```";
