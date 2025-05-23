@@ -2,7 +2,7 @@
     "name": "hol-light-simple",
     "displayName": "HOL Light",
     "description": "An extension for VS Code which provides support for HOL Light",
-    "version": "2.3.0",
+    "version": "2.3.1",
     "license": "SEE LICENSE IN LICENSE",
     "publisher": "monadius",
     "engines": {
@@ -481,6 +481,9 @@
         "lint": "eslint src --ext ts",
         "test": "node ./out/test/runTest.js"
     },
+    "dependencies": {
+        "strip-ansi": "^7.1.0"
+    },
     "devDependencies": {
         "@types/glob": "^8.1.0",
         "@types/mocha": "^10.0.10",
@@ -493,7 +496,6 @@
         "eslint": "^8.39.0",
         "glob": "^8.1.0",
         "mocha": "^10.8.2",
-        "strip-ansi": "^7.1.0",
         "typescript": "^5.0.4"
     }
 }
