@@ -6,7 +6,6 @@ import * as config from './config';
 import { CommandDecorations, CommandDecorationType } from './decoration';
 import { Executor, CommandOptions, ProofCommand } from './executor';
 import { Repl } from './repl';
-import { stringify } from 'node:querystring';
 
 const LINE_END = '\n';
 
