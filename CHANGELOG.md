@@ -1,5 +1,8 @@
 # Change Log
 
+## 2.3.0
+- The HOL Light Server prints the number of subgoals (thanks to @aqjune).
+
 ## 2.2.0
 - `hol-light.repl_send_goal` sends the selected text to a HOL Light REPL as a new goal (thanks to @aqjune).
 - `hol-light.repl_back_proof` highlights the previous successful tactic (thanks to @aqjune). 
