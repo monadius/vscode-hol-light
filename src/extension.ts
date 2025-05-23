@@ -100,6 +100,8 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.languages.registerCompletionItemProvider(LANG_ID, database, '/')
     );
 
+
+
     // Experimental semantic tokens provider
     const tokenTypes = ['class', 'interface', 'enum', 'function', 'variable', 'constant', 'comment'];
     const tokenModifiers = ['declaration', 'documentation'];
@@ -132,13 +134,21 @@ export function activate(context: vscode.ExtensionContext) {
             const tokensBuilder = new vscode.SemanticTokensBuilder(legend);
             const terms = selection.selectTerms(document, range);
             console.log(`|terms| = ${terms.length}`);
+            // It is very slow to process terms one after another
+            // const results: Promise<string>[] = [];
+            const commands: string[] = [];
             for (const { documentStart: start, documentEnd: end, text } of terms) {
+                commands.push(text);
                 const pos = document.positionAt(start);
                 tokensBuilder.push(
                     new vscode.Range(pos, pos.translate(0, 10)),
                     'comment'
                 );
             }
+            if (repl.canExecuteForResult()) {
+                Promise.allSettled([repl.executeForResult('[' + commands.join(';') + ']', { silent: true }, token)]);
+            }
+            // Promise.allSettled(results);
             return tokensBuilder.build();
         }
       };
@@ -387,6 +397,12 @@ export function activate(context: vscode.ExtensionContext) {
                 location: util.locationStartEnd(editor.document, statementSelection.documentStart, statementSelection.documentEnd),
                 proofCommand: classifyProofCommand(statementSelection.text),
             });
+
+            // vscode.commands.executeCommand(
+            //     'vscode.provideDocumentRangeSemanticTokens', 
+            //     editor.document.uri, 
+            //     util.locationStartEnd(editor.document, statementSelection.documentStart, statementSelection.documentEnd).range
+            // );
 
             if (statementSelection.newPos) {
                 editor.selection = new vscode.Selection(statementSelection.newPos, statementSelection.newPos);
