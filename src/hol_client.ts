@@ -91,7 +91,7 @@ class Command {
     // Location for providing feedback
     readonly location?: vscode.Location;
     // If this command manipulates the goal state, proofCommand stores the
-    // corresponding command. Should be one of ["g", "e", "r", "b"] or none.
+    // corresponding command.
     // Used for recovering text highlights of the previous tactics when b()ed.
     readonly proofCommand?: ProofCommand;
 
@@ -299,8 +299,10 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
                         command.progressResolve?.();
 
                         if (command.location) {
-                            this.decorations.clear(err ? CommandDecorationType.success : CommandDecorationType.failure, command.location.uri);
-                            // this.decorations.addRange(this.decorations.success, command.location);
+                            if (!err) {
+                                // If there is no error, remove the previous failure highlight.
+                                this.decorations.clear(CommandDecorationType.failure, command.location.uri);
+                            }
                             this.decorations.setRange(err ? CommandDecorationType.failure : CommandDecorationType.success, command.location);
                         }
 
@@ -314,6 +316,9 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
                                     this.tacticLocHistory = [];
                                     break;
                                 case 'e':
+                                    this.tacticLocHistory.push(command.location);
+                                    break;
+                                case 'er':
                                     this.tacticLocHistory.push(command.location);
                                     break;
                                 case 'b':

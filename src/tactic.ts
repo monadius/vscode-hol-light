@@ -5,7 +5,7 @@ enum TokenType {
     bracket,
     comment,
     string,
-    separator,
+    semicolon,  // ';' for the list separator
     terminator,
     then,
     eol,
@@ -17,7 +17,7 @@ class Token extends vscode.Range {
     public readonly value: string;
 
     public constructor(type: TokenType, value: string,
-                       startLine: number, startChar: number, 
+                       startLine: number, startChar: number,
                        endLine: number, endChar: number) {
         super(startLine, startChar, endLine, endChar);
         this.type = type;
@@ -149,7 +149,7 @@ class Tokenizer {
             this.cachedTokens.push(token);
             this.re.lastIndex = token.end.character;
         } else if (val[0] === ';') {
-            this.cacheToken(val.length > 1 ? TokenType.terminator : TokenType.separator, 
+            this.cacheToken(val.length > 1 ? TokenType.terminator : TokenType.semicolon,
                 start, start + val.length, val);
         } else {
             this.cacheToken(Tokenizer.tokenTypes[val], start, start + val.length, val);
@@ -183,7 +183,8 @@ function oppositeBracket(bracket: string): string {
 }
 
 export function selectTactic(editor: vscode.TextEditor, maxLines: number,
-        characterOffset: boolean = false): {range: vscode.Range, newline: boolean} | null {
+        characterOffset: boolean = false):
+        {range: vscode.Range, newline: boolean, endsWithSemicolon: boolean} | null {
     const firstLine = editor.selection.active.line;
     let firstCharacter = 0;
     if (characterOffset) {
@@ -194,7 +195,7 @@ export function selectTactic(editor: vscode.TextEditor, maxLines: number,
             firstCharacter = editor.selection.active.character;
         }
     }
-    
+
     const toks = new Tokenizer(n => {
         if (n < 0 || n >= maxLines || n + firstLine >= editor.document.lineCount) {
             return null;
@@ -228,6 +229,7 @@ export function selectTactic(editor: vscode.TextEditor, maxLines: number,
         }
     }
 
+    let endsWithSemicolon = false;
     loop:
     while (true) {
         const tok = toks.next();
@@ -274,9 +276,10 @@ export function selectTactic(editor: vscode.TextEditor, maxLines: number,
                     break loop;
                 }
                 break;
-            case TokenType.separator:
+            case TokenType.semicolon:
                 if (bracketStack.length === 0) {
                     newline = checkNewline();
+                    endsWithSemicolon = true;
                     break loop;
                 }
                 break;
@@ -302,7 +305,7 @@ export function selectTactic(editor: vscode.TextEditor, maxLines: number,
         const last = tokens[tokens.length - 1];
         if (last.type === TokenType.then || last.type === TokenType.eol) {
             tokens.pop();
-        } else if (last.type === TokenType.bracket && 
+        } else if (last.type === TokenType.bracket &&
                  (last.value === '(' || last.value === '[')) {
             tokens.pop();
         } else {
@@ -328,6 +331,7 @@ export function selectTactic(editor: vscode.TextEditor, maxLines: number,
 //    editor.selection = new vscode.Selection(startLine, startChar, endLine, endChar);
     return {
         range: new vscode.Range(startLine, startChar, endLine, endChar),
-        newline: newline
+        newline: newline,
+        endsWithSemicolon: endsWithSemicolon
     };
 }

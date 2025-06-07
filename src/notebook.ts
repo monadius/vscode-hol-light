@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import stripAnsi from 'strip-ansi';
 import { TextDecoder, TextEncoder } from 'node:util';
 
 import * as config from './config';
@@ -127,7 +128,7 @@ export class HolNotebookController {
             if (m) {
                 const name = m[1].trim();
                 const type = m[2].trim();
-                let body = m[3].trim();
+                let body = stripAnsi(m[3].trim());
                 output.push(vscode.NotebookCellOutputItem.text(`\`${name} : ${type}\``, 'text/markdown'));
                 if (type === 'thm' || type === 'term') {
                     body = type === 'thm' ? "```hol-light-ocaml\n`" + body + "`\n```" : "```hol-light-ocaml\n" + body + "\n```";
