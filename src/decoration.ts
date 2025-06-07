@@ -84,7 +84,7 @@ export class Decorations {
 
 class DecorationCollection {
     private decorations: Decorations[];
-    
+
     constructor(decorations: Decorations[]) {
         this.decorations = decorations;
     }
@@ -121,6 +121,7 @@ class DecorationCollection {
         this.decorations.forEach(ds => ds.removeRange(location));
     }
 
+    // Remove all decorations in the file pointed by uri.
     clear(decorationIndex: number, uri: vscode.Uri) {
         this.decorations[decorationIndex]?.clear(uri);
     }

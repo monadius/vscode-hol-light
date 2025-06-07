@@ -307,7 +307,7 @@ export function activate(context: vscode.ExtensionContext) {
                 const selections = selection.splitStatements(document, { range: editor.selection });
                 const statements = selections.map(({ text, documentStart, documentEnd }) => ({
                     cmd: text.trim(),
-                    options: { 
+                    options: {
                         location: util.locationStartEnd(document, documentStart, documentEnd),
                         proofCommand: classifyProofCommand(text),
                     }
@@ -391,7 +391,7 @@ export function activate(context: vscode.ExtensionContext) {
             });
             const statements = selections.map(({ text, documentStart, documentEnd }) => ({
                 cmd: text.trim(),
-                options: { 
+                options: {
                     location: util.locationStartEnd(document, documentStart, documentEnd),
                     proofCommand: classifyProofCommand(text),
                 },
@@ -467,10 +467,20 @@ export function activate(context: vscode.ExtensionContext) {
         const pos = editor.selection.active;
         let newPos: vscode.Position;
         if (selection && !selection.range.isEmpty) {
-            repl.execute(`e(${editor.document.getText(selection.range)});;\n`, {
-                location: new vscode.Location(editor.document.uri, selection.range),
-                proofCommand: 'e'
-            });
+            if (selection.endsWithSemicolon && repl.erSupportedByHOL()) {
+                // If the selected tactic ends with ';', this is a part of the tactic
+                // list after THENL. Use 'er' which rotates to the next subgoal after
+                // 'e tac'.
+                repl.execute(`er(${editor.document.getText(selection.range)});;\n`, {
+                    location: new vscode.Location(editor.document.uri, selection.range),
+                    proofCommand: 'er'
+                });
+            } else {
+                repl.execute(`e(${editor.document.getText(selection.range)});;\n`, {
+                    location: new vscode.Location(editor.document.uri, selection.range),
+                    proofCommand: 'e'
+                });
+            }
             newPos = selection.newline ?
                 new vscode.Position(selection.range.end.line + 1, pos.character) :
                 new vscode.Position(selection.range.end.line, selection.range.end.character + 1);

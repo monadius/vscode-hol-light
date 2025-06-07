@@ -30,6 +30,9 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
     private clientTerminal?: vscode.Terminal;
     private holClient?: client.HolClient;
 
+    // Is the 'er' command available in this version of HOL Light?
+    private erAvailable: boolean = false;
+
     private readonly startServerItem: vscode.StatusBarItem;
 
     constructor(context: vscode.ExtensionContext, private decorations: CommandDecorations) {
@@ -124,6 +127,10 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
         return this.getActiveExecutor()?.executeForResult(cmd, options, token) ?? Promise.reject("Uninitialized HOL terminal");
     }
 
+    erSupportedByHOL(): boolean {
+        return this.erAvailable;
+    }
+
     private waitingForClient = false;
 
     canStartServer(): boolean {
@@ -140,7 +147,7 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
         this.holTerminal.sendText(serverCode);
 
         // Try to open a client terminal after some delay
-        return new Promise(resolve => {
+        const serverStarted:boolean = await new Promise(resolve => {
             this.waitingForClient = true;
             setTimeout(() => {
                 this.waitingForClient = false;
@@ -154,6 +161,14 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
                 this.updateStatusBarItem();
             }, 400);
         });
+        if (serverStarted) {
+            // Check availability of 'er tac'.
+            const erRes = await this.executeForResult('er;;', { silent: true });
+            if (erRes.trim() === '- : tactic -> goalstack = <fun>') {
+                this.erAvailable = true;
+            }
+        }
+        return new Promise(resolve => {resolve(serverStarted);});
     }
 
     createHolClientTerminal(address: string, port: number, show: boolean) {
