@@ -147,7 +147,7 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
         this.holTerminal.sendText(serverCode);
 
         // Try to open a client terminal after some delay
-        const serverStarted:boolean = await new Promise(resolve => {
+        return new Promise(resolve => {
             this.waitingForClient = true;
             setTimeout(() => {
                 this.waitingForClient = false;
@@ -161,27 +161,31 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
                 this.updateStatusBarItem();
             }, 400);
         });
-        if (serverStarted) {
-            // Check availability of 'er tac'.
-            const erRes = await this.executeForResult('er;;', { silent: true });
-            if (erRes.trim() === '- : tactic -> goalstack = <fun>') {
-                this.erAvailable = true;
-            }
-        }
-        return new Promise(resolve => {resolve(serverStarted);});
     }
 
     createHolClientTerminal(address: string, port: number, show: boolean) {
         this.clientTerminal?.dispose();
         this.clientTerminal = undefined;
         this.holClient = undefined;
-
+        this.erAvailable = false;
+        
         this.holClient = new client.HolClient(address, port, this.decorations, this);
         this.clientTerminal = vscode.window.createTerminal({ name: 'HOL Light (client)', pty: this.holClient, isTransient: true });
 
         if (show) {
             this.clientTerminal.show(true);
         }
+
+        // Check availability of 'er tac'.
+        // This check is done here because createHolClientTerminal could be called
+        // from HolClient.open if there is a connection error.
+        this.executeForResult('er;;', { silent: true }).then(output => {
+            if (/\btactic -> goalstack\b/.test(output)) {
+                this.erAvailable = true;
+            }
+        }).catch(_err => {
+            // ignore errors
+        });
     }
 
     async getTerminalWindow(_workDir: string = ''): Promise<vscode.Terminal | undefined> {
