@@ -1,5 +1,11 @@
 # Change Log
 
+## 2.4.0
+- Use `er` (if it is available) when the tactic statement finishes with `;` (thanks to @aqjune).
+- Keep the last successful statements highlighted even if subsequent statements fail (thanks to @aqjune).
+- Bug fixes.
+
+
 ## 2.3.0
 - The HOL Light Server prints the number of subgoals (thanks to @aqjune).
 
