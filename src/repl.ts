@@ -168,7 +168,7 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
         this.clientTerminal = undefined;
         this.holClient = undefined;
         this.erAvailable = false;
-        
+
         this.holClient = new client.HolClient(address, port, this.decorations, this);
         this.clientTerminal = vscode.window.createTerminal({ name: 'HOL Light (client)', pty: this.holClient, isTransient: true });
 
@@ -316,6 +316,74 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
         } else if (!this.getActiveTerminal() && Repl.defaultExecutor) {
             this.holTerminal = vscode.window.createTerminal({ name: 'HOL Light', isTransient: true });
             this.holExecutor = Repl.defaultExecutor;
+        }
+
+        this.updateStatusBarItem();
+        return this.getActiveTerminal();
+    }
+
+    async connectServer(_workDir: string = ''): Promise<vscode.Terminal | undefined> {
+        if (!this.getActiveTerminal() && !Repl.defaultExecutor) {
+            // let standardTerminal = false;
+            const paths = config.getConfigOption<string[]>(config.EXE_PATHS, []);
+            const serverDetail = `Address: ${config.getConfigOption(config.SERVER_ADDRESS, config.DEFAULT_SERVER_ADDRESS) || config.DEFAULT_SERVER_ADDRESS}`;
+            const serverLabel = 'Connect to a HOL Light server';
+            const serverItem: vscode.QuickPickItem = {
+                label: serverLabel,
+                detail: serverDetail,
+                buttons: [{ iconPath: new vscode.ThemeIcon('settings-gear'), tooltip: 'Change the address' }],
+            };
+
+            const result = await new Promise<vscode.QuickPickItem | null>((resolve, _reject) => {
+                const items: vscode.QuickPickItem[] = [];
+                items.push(serverItem);
+
+                let resolveOnHide = true;
+
+                const input = vscode.window.createQuickPick();
+                input.items = items;
+                input.placeholder = 'Connect to a HOL Light Server';
+
+                input.onDidHide(() => {
+                    if (resolveOnHide) {
+                        resolve(null);
+                        input.dispose();
+                    }
+                });
+
+                input.onDidTriggerItemButton(async (event) => {
+                    if (event.item === serverItem) {
+                        resolveOnHide = false;
+                        input.hide();
+                        const address = await config.getServerAddress({ showInputBox: true });
+                        if (address) {
+                            config.updateConfigOption(config.SERVER_ADDRESS, address.join(':'));
+                            serverItem.detail = `Address: ${address.join(':')}`;
+                        }
+                        resolveOnHide = true;
+                        input.items = items;
+                        input.show();
+                    }
+                });
+
+                input.onDidChangeSelection(items => {
+                    const item = items[0];
+                    resolve(item);
+                    input.hide();
+                });
+
+                input.show();
+            });
+
+            if (!result) {
+                return;
+            }
+
+            const address = await config.getServerAddress();
+            if (!address) {
+                return;
+            }
+            this.createHolClientTerminal(address[0], address[1], false);
         }
 
         this.updateStatusBarItem();
