@@ -84,7 +84,7 @@ export class HolNotebookController {
     }
 
     private async executeAll(cells: vscode.NotebookCell[], notebook: vscode.NotebookDocument, _controller: vscode.NotebookController): Promise<void> {
-        const terminal = await this.repl.getTerminalWindow();
+        const terminal = await this.repl.getTerminalWindow({});
         if (!terminal) {
             return;
         }

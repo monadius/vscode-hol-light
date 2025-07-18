@@ -226,7 +226,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.repl', async () => {
             repl.dispose();
-            (await repl.getTerminalWindow())?.show(true);
+            (await repl.getTerminalWindow({}))?.show(true);
         })
     );
 
@@ -257,7 +257,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.connect_server', async () => {
             repl.dispose();
-            (await repl.connectServer())?.show(true);
+            (await repl.getTerminalWindow({ serverOnly: true }))?.show(true);
         })
     );
 
@@ -303,7 +303,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.repl_send_statement', async (editor) => {
-            const terminal = await repl.getTerminalWindow(pathLib.dirname(editor.document.uri.fsPath));
+            const terminal = await repl.getTerminalWindow({ workDir: pathLib.dirname(editor.document.uri.fsPath) });
             if (!terminal) {
                 return;
             }
@@ -352,7 +352,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.repl_send_raw_statement', async (editor) => {
-            const terminal = await repl.getTerminalWindow(pathLib.dirname(editor.document.uri.fsPath));
+            const terminal = await repl.getTerminalWindow({ workDir: pathLib.dirname(editor.document.uri.fsPath) });
             if (!terminal) {
                 return;
             }
@@ -385,7 +385,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.repl_send_statements_before_cursor', async (editor) => {
-            const terminal = await repl.getTerminalWindow(pathLib.dirname(editor.document.uri.fsPath));
+            const terminal = await repl.getTerminalWindow({ workDir: pathLib.dirname(editor.document.uri.fsPath) });
             if (!terminal) {
                 return;
             }
@@ -420,7 +420,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.repl_send_goal', async (editor) => {
-            const terminal = await repl.getTerminalWindow(pathLib.dirname(editor.document.uri.fsPath));
+            const terminal = await repl.getTerminalWindow({ workDir: pathLib.dirname(editor.document.uri.fsPath) });
             if (!terminal) {
                 return;
             }
@@ -456,7 +456,7 @@ export function activate(context: vscode.ExtensionContext) {
     const tacticRe = /^\s*(?:THEN\b|THENL\b(\s*\[)?)|\b(?:THEN|THENL(\s*\[)?)\s*$|\)\s*;;+\s*$/g;
 
     async function replSendTactic(editor: vscode.TextEditor, multiline: boolean, newline: boolean) {
-        const terminal = await repl.getTerminalWindow(pathLib.dirname(editor.document.uri.fsPath));
+        const terminal = await repl.getTerminalWindow({ workDir: pathLib.dirname(editor.document.uri.fsPath) });
         if (!terminal) {
             return;
         }
@@ -556,7 +556,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.search', async () => {
-            const terminal = await repl.getTerminalWindow();
+            const terminal = await repl.getTerminalWindow({});
             if (!terminal) {
                 return;
             }
