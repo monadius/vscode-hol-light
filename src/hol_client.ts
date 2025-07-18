@@ -240,11 +240,10 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
                 if (line.startsWith('ready:')) {
                     const readyInfo = unescapeString(line.slice(6));
                     if (!suppressPrompt) {
-                        const subgoalsInfo = readyInfo.slice("subgoals:".length);
-                        var msg = '';
-                        if (!(subgoalsInfo === '')) {
-                          const ns = subgoalsInfo.split(',');
-                          msg = ns[0] + " subgoal" + (ns[0] === "1" ? "" : "s") + " (" + ns[1] + " total) ";
+                        const subgoals = readyInfo.match(/subgoals:(\d+),(\d+)/);
+                        let msg = '';
+                        if (subgoals) {
+                            msg = `${subgoals[1]} subgoal${subgoals[1] === '1' ? '' : 's'} (${subgoals[2]} total) `;
                         }
                         this.writeEmitter.fire(colorText(msg, 'blue') + '# ');
                     }
