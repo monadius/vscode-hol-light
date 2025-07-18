@@ -52,6 +52,16 @@ All commands can be invoked from the command palette or by pressing the correspo
 
     Starts a new HOL Light REPL. This command is automatically invoked whenever any HOL Light command is executed without an active HOL Light REPL.
 
+1) **HOL Light: Start Server**
+
+    Starts a HOL Light server inside the active HOL Light REPL.
+
+1) **HOL Light: Connect to Server**
+
+    Connects to a running HOL Light server. It is possible to edit the server address in the input dialog which appears after invoking this command. The default server address is `localhost:2012`.
+
+    It is also possible to connect to a server by selecting `Connect to a HOL Light Server` in the list of HOL Light startup scripts (which appears whenever any HOL Light command is executed without an active REPL or when the command `HOL Light: New HOL Light REPL session` is invoked).
+
 1) **HOL Light: Send selected text to HOL Light REPL**
 
     Default shortcut: `Alt + E`
