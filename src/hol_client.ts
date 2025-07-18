@@ -395,7 +395,6 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         if (command.location) {
             this.decorations.addRange(CommandDecorationType.pending, command.location);
         }
-        // console.log(`executing: ${command.cmd}`);
         if (!command.silent) {
             vscode.window.withProgress({
                     location: vscode.ProgressLocation.Window,
@@ -414,7 +413,17 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         }
         this.readyFlag = false;
         this.currentCommand = command;
-        this.socket.write(escapeString(command.cmd));
+
+        // Add the line number directive, to save
+        let cmd = command.cmd;
+        if (command.location) {
+          const filepath = command.location.uri.fsPath;
+          const linenum = command.location.range.start.line + 1;
+          // There is no way to pass column to the line number directive of
+          // OCaml. :/
+          cmd = `#${linenum} "${filepath}"\n` + cmd;
+        }
+        this.socket.write(escapeString(cmd));
         this.socket.write(LINE_END);
     }
 

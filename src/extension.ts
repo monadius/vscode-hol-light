@@ -255,6 +255,13 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
+        vscode.commands.registerCommand('hol-light.connect_server', async () => {
+            repl.dispose();
+            (await repl.connectServer())?.show(true);
+        })
+    );
+
+    context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.set_path', chooseHOLLightPath)
     );
 
