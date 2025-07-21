@@ -502,47 +502,137 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         return command.result;
     }
 
+    // handleInput(data: string): void {
+    //     console.log(`handleInput("${data}")`);
+    //     if (data[0] === '\x1b') {
+    //         // https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences
+    //         console.log('special: ' + data.slice(1));
+    //         this.writeEmitter.fire('\x1b[D');
+    //         return;
+    //     }
+    //     if (data === '\b' || data === '\x7f') {
+    //         const n = this.buffer.length;
+    //         if (n) {
+    //             this.writeEmitter.fire('\x1b[D\x1b[P');
+    //         }
+    //         if (this.buffer[n - 1].length > 1) {
+    //             this.buffer[n - 1] = this.buffer[n - 1].slice(0, -1);
+    //         } else {
+    //             this.buffer.pop();
+    //         }
+    //         return;
+    //     }
+    //     this.writeEmitter.fire(fixLineBreaks(data));
+    //     if (data.charCodeAt(0) === 3) {
+    //         this.writeEmitter.fire('^C\r\n');
+    //         this.interrupt();
+    //         this.buffer = [];
+    //     } else if (data.endsWith('\r') || data.endsWith('\r\n')) {
+    //         if (data.endsWith('\r')) {
+    //             data += '\n';
+    //             this.writeEmitter.fire('\n');
+    //         }
+    //         this.buffer.push(data);
+    //         const s = this.buffer.join('');
+    //         if (s.trimEnd().endsWith(';;')) {
+    //             this.buffer = [];
+    //             this.execute(s, { interactive: true });
+    //         } else {
+    //             this.buffer = [s];
+    //         }
+    //     } else {
+    //         this.buffer.push(data);
+    //     }
+    // }
+
+    private dimensions: vscode.TerminalDimensions = { columns: 80, rows: 24 };
     private buffer: string[] = [];
+    private cursorPosition = 0;
+
+    setDimensions(dimensions: vscode.TerminalDimensions): void {
+        console.log(`terminal dimensions: cols = ${dimensions.columns}, rows = ${dimensions.rows}`);
+        this.dimensions = dimensions;
+    }
 
     handleInput(data: string): void {
-        // console.log(`handleInput("${data}")`);
+        if (!data) {
+            return;
+        }
+        console.log(`handleInput("${data}")`);
         if (data[0] === '\x1b') {
             // https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences
             console.log('special: ' + data.slice(1));
+            switch (data.slice(1)) {
+                // Right arrow
+                case '[C':
+                    if (this.cursorPosition < this.buffer.length) {
+                        this.writeEmitter.fire('\x1b[C');
+                        this.cursorPosition += 1;
+                    }
+                    break;
+                // Left arrow
+                case '[D':
+                    if (this.cursorPosition > 0) {
+                        this.writeEmitter.fire('\x1b[D');
+                        this.cursorPosition -= 1;
+                    }
+                    break;
+                // Home
+                case '[H':
+                    break;
+                // End
+                case '[F':
+                    break;
+                // Up arrow
+                case '[A':
+                    break;
+            }
             return;
         }
         if (data === '\b' || data === '\x7f') {
-            const n = this.buffer.length;
-            if (n) {
+            // Backspace
+            const n = this.cursorPosition;
+            if (n > 0) {
                 this.writeEmitter.fire('\x1b[D\x1b[P');
-            }
-            if (this.buffer[n - 1].length > 1) {
-                this.buffer[n - 1] = this.buffer[n - 1].slice(0, -1);
-            } else {
-                this.buffer.pop();
+                this.buffer.splice(n - 1, 1);
+                this.cursorPosition -= 1;
             }
             return;
         }
-        this.writeEmitter.fire(fixLineBreaks(data));
-        if (data.charCodeAt(0) === 3) {
+        const text = fixLineBreaks(data);
+        this.writeEmitter.fire(`\x1b[${text.length}@${text}`);
+        if (data[0] === '\x03') {
             this.writeEmitter.fire('^C\r\n');
             this.interrupt();
             this.buffer = [];
+            this.cursorPosition = 0;
         } else if (data.endsWith('\r') || data.endsWith('\r\n')) {
             if (data.endsWith('\r')) {
                 data += '\n';
                 this.writeEmitter.fire('\n');
             }
-            this.buffer.push(data);
+            this.buffer.push(...data);
             const s = this.buffer.join('');
             if (s.trimEnd().endsWith(';;')) {
                 this.buffer = [];
+                this.cursorPosition = 0;
                 this.execute(s, { interactive: true });
-            } else {
-                this.buffer = [s];
             }
         } else {
-            this.buffer.push(data);
+            const chars = [...data];
+            this.buffer.push(...chars);
+            this.cursorPosition += chars.length;
         }
     }
+
+
+    // private refreshLine(): void {
+    //     // Clear current line and rewrite
+    //     this.write(`\x1b[2K\r> ${this.inputBuffer}`);
+    //     // Move cursor to correct position
+    //     const moveCursor = this.inputBuffer.length - this.cursorPosition;
+    //     if (moveCursor > 0) {
+    //         this.write(`\x1b[${moveCursor}D`);
+    //     }
+    // }
 }
