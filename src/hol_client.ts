@@ -245,6 +245,7 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
                         if (subgoals) {
                             msg = `${subgoals[1]} subgoal${subgoals[1] === '1' ? '' : 's'} (${subgoals[2]} total) `;
                         }
+                        this.promptLength = msg.length + 2;
                         this.writeEmitter.fire(colorText(msg, 'blue') + '# ');
                     }
                     suppressPrompt = false;
@@ -502,55 +503,21 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         return command.result;
     }
 
-    // handleInput(data: string): void {
-    //     console.log(`handleInput("${data}")`);
-    //     if (data[0] === '\x1b') {
-    //         // https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences
-    //         console.log('special: ' + data.slice(1));
-    //         this.writeEmitter.fire('\x1b[D');
-    //         return;
-    //     }
-    //     if (data === '\b' || data === '\x7f') {
-    //         const n = this.buffer.length;
-    //         if (n) {
-    //             this.writeEmitter.fire('\x1b[D\x1b[P');
-    //         }
-    //         if (this.buffer[n - 1].length > 1) {
-    //             this.buffer[n - 1] = this.buffer[n - 1].slice(0, -1);
-    //         } else {
-    //             this.buffer.pop();
-    //         }
-    //         return;
-    //     }
-    //     this.writeEmitter.fire(fixLineBreaks(data));
-    //     if (data.charCodeAt(0) === 3) {
-    //         this.writeEmitter.fire('^C\r\n');
-    //         this.interrupt();
-    //         this.buffer = [];
-    //     } else if (data.endsWith('\r') || data.endsWith('\r\n')) {
-    //         if (data.endsWith('\r')) {
-    //             data += '\n';
-    //             this.writeEmitter.fire('\n');
-    //         }
-    //         this.buffer.push(data);
-    //         const s = this.buffer.join('');
-    //         if (s.trimEnd().endsWith(';;')) {
-    //             this.buffer = [];
-    //             this.execute(s, { interactive: true });
-    //         } else {
-    //             this.buffer = [s];
-    //         }
-    //     } else {
-    //         this.buffer.push(data);
-    //     }
-    // }
-
     private dimensions: vscode.TerminalDimensions = { columns: 80, rows: 24 };
+    // Prompt length is used to compute the cursor position relative to the input buffer start.
+    private promptLength: number = 0;
+    private inputCommand: string = '';
     private buffer: string[] = [];
     private cursorPosition = 0;
 
+    private resetInput(): void {
+        this.inputCommand = '';
+        this.buffer = [];
+        this.cursorPosition = 0;
+    }
+    
     setDimensions(dimensions: vscode.TerminalDimensions): void {
-        console.log(`terminal dimensions: cols = ${dimensions.columns}, rows = ${dimensions.rows}`);
+        // console.log(`terminal dimensions: cols = ${dimensions.columns}, rows = ${dimensions.rows}`);
         this.dimensions = dimensions;
     }
 
@@ -558,10 +525,10 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         if (!data) {
             return;
         }
-        console.log(`handleInput("${data}")`);
+        // console.log(`handleInput("${data}")`);
         if (data[0] === '\x1b') {
             // https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences
-            console.log('special: ' + data.slice(1));
+            // console.log('special: ' + data.slice(1));
             switch (data.slice(1)) {
                 // Right arrow
                 case '[C':
@@ -586,11 +553,11 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
                     break;
                 // Up arrow
                 case '[A':
-                    this.writeEmitter.fire('\x1b[F');
+                    // this.writeEmitter.fire('\x1b[F');
                     break;
                 // Down arrow
                 case '[B':
-                    this.writeEmitter.fire('\x1b[B');
+                    // this.writeEmitter.fire('\x1b[B');
                     break;
                 // Delete
                 case '[3~':
@@ -610,47 +577,57 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
             }
             return;
         }
-        // const text = fixLineBreaks(data);
-        // this.writeEmitter.fire(`\x1b[${text.length}@${text}`);
+
+        data = fixLineBreaks(data);
+
         if (data[0] === '\x03') {
+            // Ctrl-C
             this.writeEmitter.fire('^C\r\n');
             this.interrupt();
-            this.buffer = [];
-            this.cursorPosition = 0;
+            this.resetInput();
         } else if (data.endsWith('\r') || data.endsWith('\r\n')) {
+            // Enter
             if (data.endsWith('\r')) {
                 data += '\n';
-                this.writeEmitter.fire('\n');
             }
+            this.writeEmitter.fire(data);
             this.buffer.push(...data);
-            const s = this.buffer.join('');
-            if (s.trimEnd().endsWith(';;')) {
+            const line = this.buffer.join('');
+            this.inputCommand += line;
+            if (this.inputCommand.trimEnd().endsWith(';;')) {
+                this.execute(this.inputCommand, { interactive: true });
+                this.resetInput();
+            } else {
                 this.buffer = [];
                 this.cursorPosition = 0;
-                this.execute(s, { interactive: true });
+                // Show '> ' starting from the second input line
+                this.promptLength = 2;
+                this.writeEmitter.fire(colorText('> ', 'blue'));
             }
         } else {
             const chars = [...data];
             this.buffer.splice(this.cursorPosition, 0, ...chars);
             this.refreshCurrentInput(this.cursorPosition + chars.length);
-            // this.cursorPosition += chars.length;
-            // this.writeEmitter.fire(text);
         }
     }
 
+    // Moves the cursor to the specified position (relative to the input buffer start).
     private moveCursor(pos: number): void {
         const delta = pos - this.cursorPosition;
         const cols = this.dimensions.columns;
         if (delta === 0 || cols <= 0) {
             return;
         }
-        const row1 = (this.cursorPosition + 2) / cols | 0;
-        const row2 = (pos + 2) / cols | 0;
+        const shift = this.promptLength;
+        const row1 = (this.cursorPosition + shift) / cols | 0;
+        const row2 = (pos + shift) / cols | 0;
         const dr = Math.abs(row1 - row2);
         if (dr) {
+            // Change the cursor vertical position
             this.writeEmitter.fire(`\x1b[${dr}${row1 > row2 ? 'A' : 'B'}`);
         }
-        this.writeEmitter.fire(`\x1b[${(pos + 2) % cols + 1}G`);
+        // Change the cursor horizontal position
+        this.writeEmitter.fire(`\x1b[${(pos + shift) % cols + 1}G`);
         this.cursorPosition = pos;
     }
 
@@ -667,7 +644,7 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         this.writeEmitter.fire(text);
         // The cursor is not moved to the next line automatically if the input length (+ the prompt length)
         // is a multiple of the number of columns, so we need to move it manually to the next line
-        if ((text.length + 2) % this.dimensions.columns === 0) {
+        if ((text.length + this.promptLength) % this.dimensions.columns === 0) {
             this.writeEmitter.fire(' \x1b[1G');
         }
         // Adjust the current cursor position and then move it to the new position
