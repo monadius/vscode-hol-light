@@ -566,41 +566,52 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
                 // Right arrow
                 case '[C':
                     if (this.cursorPosition < this.buffer.length) {
-                        this.writeEmitter.fire('\x1b[C');
-                        this.cursorPosition += 1;
+                        this.moveCursor(this.cursorPosition + 1);
                     }
                     break;
                 // Left arrow
                 case '[D':
                     if (this.cursorPosition > 0) {
-                        this.writeEmitter.fire('\x1b[D');
-                        this.cursorPosition -= 1;
+                        this.moveCursor(this.cursorPosition - 1);
                     }
                     break;
                 // Home
                 case '[H':
+                    // this.writeEmitter.fire('\x1b[6n');
+                    this.moveCursor(0);
                     break;
                 // End
                 case '[F':
+                    this.moveCursor(this.buffer.length);
                     break;
                 // Up arrow
                 case '[A':
+                    this.writeEmitter.fire('\x1b[F');
+                    break;
+                // Down arrow
+                case '[B':
+                    this.writeEmitter.fire('\x1b[B');
+                    break;
+                // Delete
+                case '[3~':
+                    if (this.cursorPosition < this.buffer.length) {
+                        this.buffer.splice(this.cursorPosition, 1);
+                        this.refreshCurrentInput(this.cursorPosition);
+                    }
                     break;
             }
             return;
         }
         if (data === '\b' || data === '\x7f') {
             // Backspace
-            const n = this.cursorPosition;
-            if (n > 0) {
-                this.writeEmitter.fire('\x1b[D\x1b[P');
-                this.buffer.splice(n - 1, 1);
-                this.cursorPosition -= 1;
+            if (this.cursorPosition > 0) {
+                this.buffer.splice(this.cursorPosition - 1, 1);
+                this.refreshCurrentInput(this.cursorPosition - 1);
             }
             return;
         }
-        const text = fixLineBreaks(data);
-        this.writeEmitter.fire(`\x1b[${text.length}@${text}`);
+        // const text = fixLineBreaks(data);
+        // this.writeEmitter.fire(`\x1b[${text.length}@${text}`);
         if (data[0] === '\x03') {
             this.writeEmitter.fire('^C\r\n');
             this.interrupt();
@@ -620,19 +631,47 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
             }
         } else {
             const chars = [...data];
-            this.buffer.push(...chars);
-            this.cursorPosition += chars.length;
+            this.buffer.splice(this.cursorPosition, 0, ...chars);
+            this.refreshCurrentInput(this.cursorPosition + chars.length);
+            // this.cursorPosition += chars.length;
+            // this.writeEmitter.fire(text);
         }
     }
 
+    private moveCursor(pos: number): void {
+        const delta = pos - this.cursorPosition;
+        const cols = this.dimensions.columns;
+        if (delta === 0 || cols <= 0) {
+            return;
+        }
+        const row1 = (this.cursorPosition + 2) / cols | 0;
+        const row2 = (pos + 2) / cols | 0;
+        const dr = Math.abs(row1 - row2);
+        if (dr) {
+            this.writeEmitter.fire(`\x1b[${dr}${row1 > row2 ? 'A' : 'B'}`);
+        }
+        this.writeEmitter.fire(`\x1b[${(pos + 2) % cols + 1}G`);
+        this.cursorPosition = pos;
+    }
 
-    // private refreshLine(): void {
-    //     // Clear current line and rewrite
-    //     this.write(`\x1b[2K\r> ${this.inputBuffer}`);
-    //     // Move cursor to correct position
-    //     const moveCursor = this.inputBuffer.length - this.cursorPosition;
-    //     if (moveCursor > 0) {
-    //         this.write(`\x1b[${moveCursor}D`);
-    //     }
-    // }
+    private refreshCurrentInput(newCursorPos: number): void {
+        if (this.dimensions.columns <= 0) {
+            return;
+        }
+        // Move the cursor to the first line and the first column of the input
+        this.moveCursor(0);
+        const text = this.buffer.join('');
+        // Clear everything from the cursor to the end of the display
+        this.writeEmitter.fire(`\x1b[0J`);
+        // Display the current input
+        this.writeEmitter.fire(text);
+        // The cursor is not moved to the next line automatically if the input length (+ the prompt length)
+        // is a multiple of the number of columns, so we need to move it manually to the next line
+        if ((text.length + 2) % this.dimensions.columns === 0) {
+            this.writeEmitter.fire(' \x1b[1G');
+        }
+        // Adjust the current cursor position and then move it to the new position
+        this.cursorPosition = this.buffer.length;
+        this.moveCursor(newCursorPos);
+    }
 }
