@@ -503,7 +503,7 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         return command.result;
     }
 
-    private dimensions: vscode.TerminalDimensions = { columns: 80, rows: 24 };
+    private dimensions?: vscode.TerminalDimensions;
     // Prompt length is used to compute the cursor position relative to the input buffer start.
     private promptLength: number = 0;
     private inputCommand: string = '';
@@ -518,7 +518,16 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
     
     setDimensions(dimensions: vscode.TerminalDimensions): void {
         // console.log(`terminal dimensions: cols = ${dimensions.columns}, rows = ${dimensions.rows}`);
+        // Save the current cursor position.
+        const pos = this.cursorPosition;
+        // Move the cursor to the beginning of the first line using old dimensions.
+        // -promptLength is used to make sure that the cursor is moved to the correct line
+        // even if the prompt is longer than the new number of columns.
+        this.moveCursor(-this.promptLength);
+        // Set new dimensions and refresh the current input.
         this.dimensions = dimensions;
+        this.moveCursor(0);
+        this.refreshCurrentInput(pos);
     }
 
     handleInput(data: string): void {
@@ -613,14 +622,13 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
 
     // Moves the cursor to the specified position (relative to the input buffer start).
     private moveCursor(pos: number): void {
-        const delta = pos - this.cursorPosition;
-        const cols = this.dimensions.columns;
-        if (delta === 0 || cols <= 0) {
+        const cols = this.dimensions?.columns;
+        if (pos === this.cursorPosition || !cols) {
             return;
         }
         const shift = this.promptLength;
-        const row1 = (this.cursorPosition + shift) / cols | 0;
-        const row2 = (pos + shift) / cols | 0;
+        const row1 = Math.floor((this.cursorPosition + shift) / cols);
+        const row2 = Math.floor((pos + shift) / cols);
         const dr = Math.abs(row1 - row2);
         if (dr) {
             // Change the cursor vertical position
@@ -632,7 +640,8 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
     }
 
     private refreshCurrentInput(newCursorPos: number): void {
-        if (this.dimensions.columns <= 0) {
+        const cols = this.dimensions?.columns;
+        if (!cols) {
             return;
         }
         // Move the cursor to the first line and the first column of the input
@@ -644,7 +653,7 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         this.writeEmitter.fire(text);
         // The cursor is not moved to the next line automatically if the input length (+ the prompt length)
         // is a multiple of the number of columns, so we need to move it manually to the next line
-        if ((text.length + this.promptLength) % this.dimensions.columns === 0) {
+        if ((text.length + this.promptLength) % cols === 0) {
             this.writeEmitter.fire(' \x1b[1G');
         }
         // Adjust the current cursor position and then move it to the new position
