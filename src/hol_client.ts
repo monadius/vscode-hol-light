@@ -515,6 +515,9 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
     private buffer: string[] = [];
     private cursorPosition = 0;
 
+    private history: string[] = [''];
+    private historyIndex = 0;
+
     private resetInput(): void {
         this.inputCommand = '';
         this.buffer = [];
@@ -566,15 +569,25 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
                     break;
                 // Up arrow
                 case '[A':
-                    this.updateAndRefreshInput(
-                        0, true,
-                        () => this.buffer = []
-                    );
-                    // this.writeEmitter.fire('\x1b[F');
+                    this.history[this.historyIndex] = this.buffer.join('');
+                    if (this.historyIndex > 0) {
+                        this.historyIndex -= 1;
+                        this.updateAndRefreshInput(
+                            0, true,
+                            () => this.buffer = [...this.history[this.historyIndex]]
+                        );
+                    }
                     break;
                 // Down arrow
                 case '[B':
-                    // this.writeEmitter.fire('\x1b[B');
+                    this.history[this.historyIndex] = this.buffer.join('');
+                    if (this.historyIndex < this.history.length - 1) {
+                        this.historyIndex += 1;
+                        this.updateAndRefreshInput(
+                            0, true,
+                            () => this.buffer = [...this.history[this.historyIndex]]
+                        );
+                    }
                     break;
                 // Delete
                 case '[3~':
@@ -629,10 +642,15 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
             this.buffer.push(...data);
             const line = this.buffer.join('');
             this.inputCommand += line;
+            // Update the history
+            this.history[this.history.length - 1] = line.trimEnd();
+            this.historyIndex = this.history.push('') - 1;
             if (this.inputCommand.trimEnd().endsWith(';;')) {
+                // Execute the command if it ends with ';;'.
                 this.execute(this.inputCommand, { interactive: true });
                 this.resetInput();
             } else {
+                // Otherwise, reset the current input and start a new line.
                 this.buffer = [];
                 this.cursorPosition = 0;
                 // Show '> ' for multiline inputs (starting from the second line).
