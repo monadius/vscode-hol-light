@@ -68,7 +68,7 @@ const COLORS: { [key: string]: number } = {
 
 function colorText(s: string, color: string): string {
     const n = COLORS[color];
-    if (!n) {
+    if (!s || !n) {
         // Return an unmodified string for unknown colors and for the default color
         return s;
     }
@@ -532,7 +532,7 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         // Set new dimensions and refresh the current input.
         this.dimensions = dimensions;
         this.moveCursor(0);
-        this.refreshCurrentInput(pos, true);
+        this.updateAndRefreshInput(pos, true, () => {});
     }
 
     handleInput(data: string): void {
@@ -566,6 +566,10 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
                     break;
                 // Up arrow
                 case '[A':
+                    this.updateAndRefreshInput(
+                        0, true,
+                        () => this.buffer = []
+                    );
                     // this.writeEmitter.fire('\x1b[F');
                     break;
                 // Down arrow
@@ -575,8 +579,11 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
                 // Delete
                 case '[3~':
                     if (this.cursorPosition < this.buffer.length) {
-                        this.buffer.splice(this.cursorPosition, 1);
-                        this.refreshCurrentInput(this.cursorPosition, false);
+                        const pos = this.cursorPosition;
+                        this.updateAndRefreshInput(
+                            this.cursorPosition, false,
+                            () => this.buffer.splice(pos, 1)
+                        );
                     }
                     break;
                 // Page Up
@@ -595,8 +602,11 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         if (data === '\b' || data === '\x7f') {
             // Backspace
             if (this.cursorPosition > 0) {
-                this.buffer.splice(this.cursorPosition - 1, 1);
-                this.refreshCurrentInput(this.cursorPosition - 1, false);
+                const pos = this.cursorPosition;
+                this.updateAndRefreshInput(
+                    this.cursorPosition - 1, true,
+                    () => this.buffer.splice(pos - 1, 1)
+                );
             }
             return;
         }
@@ -614,6 +624,7 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
             if (data.endsWith('\r')) {
                 data += '\n';
             }
+            this.moveCursor(this.buffer.length);
             this.writeEmitter.fire(data);
             this.buffer.push(...data);
             const line = this.buffer.join('');
@@ -624,15 +635,18 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
             } else {
                 this.buffer = [];
                 this.cursorPosition = 0;
-                // Show '> ' starting from the second input line
+                // Show '> ' for multiline inputs (starting from the second line).
                 this.promptLength = 2;
                 this.prompt = colorText('> ', 'blue');
                 this.writeEmitter.fire(this.prompt);
             }
         } else {
             const chars = [...data];
-            this.buffer.splice(this.cursorPosition, 0, ...chars);
-            this.refreshCurrentInput(this.cursorPosition + chars.length, false);
+            const pos = this.cursorPosition;
+            this.updateAndRefreshInput(
+                this.cursorPosition + chars.length, false, 
+                () => this.buffer.splice(pos, 0, ...chars)
+            );
         }
     }
 
@@ -664,11 +678,14 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         this.cursorPosition = pos;
     }
 
-    private refreshCurrentInput(newCursorPos: number, refreshPrompt: boolean): void {
+    private updateAndRefreshInput(newCursorPos: number, refreshPrompt: boolean, update: () => void): void {
         const cols = this.dimensions?.columns;
         if (!cols) {
             return;
         }
+        // Erase old input.
+        // It is important to not update the input buffer before erasing the old input because
+        // the cursor position may be computed based on the current input buffer length.
         if (refreshPrompt) {
             const len = this.promptLength;
             // Move the cursor to the position before the prompt
@@ -684,7 +701,9 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
             // Clear everything from the cursor to the end of the display
             this.writeEmitter.fire(`\x1b[0J`);
         }
-        // Display the current input.
+        // Update the input buffer.
+        update();
+        // Display the update input.
         // The cursor position could be different from 0 if the input is too long
         // and does not fit the terminal height.
         const text = this.buffer.slice(this.cursorPosition).join('');
