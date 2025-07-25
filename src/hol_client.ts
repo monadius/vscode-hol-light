@@ -612,8 +612,9 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
             }   
             return;
         }
+
+        // Backspace
         if (data === '\b' || data === '\x7f') {
-            // Backspace
             if (this.cursorPosition > 0) {
                 const pos = this.cursorPosition;
                 this.updateAndRefreshInput(
@@ -623,27 +624,24 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
             }
             return;
         }
-
-        data = fixLineBreaks(data);
-
-        if (data[0] === '\x03') {
-            // Ctrl-C
+        
+        // Ctrl-C
+        if (data.includes('\x03')) {
             this.moveCursor(this.buffer.length);
             this.writeEmitter.fire('^C\r\n');
             this.interrupt();
             this.resetInput();
-        } else if (data.endsWith('\r') || data.endsWith('\r\n')) {
-            // Enter
-            if (data.endsWith('\r')) {
-                data += '\n';
-            }
+            return;
+        }
+
+        // Enter
+        if (data === '\r') {
             this.moveCursor(this.buffer.length);
-            this.writeEmitter.fire(data);
-            this.buffer.push(...data);
+            this.writeEmitter.fire('\r\n');
             const line = this.buffer.join('');
-            this.inputCommand += line;
+            this.inputCommand += line + '\r\n';
             // Update the history
-            this.history[this.history.length - 1] = line.trimEnd();
+            this.history[this.history.length - 1] = line;
             this.historyIndex = this.history.push('') - 1;
             if (this.inputCommand.trimEnd().endsWith(';;')) {
                 // Execute the command if it ends with ';;'.
@@ -658,8 +656,28 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
                 this.prompt = colorText('> ', 'blue');
                 this.writeEmitter.fire(this.prompt);
             }
+            return;
+        }
+
+        const inputLines = data.split(/\r+\n?|\n/);
+        if (inputLines.length > 1) {
+            const beginning = inputLines.slice(0, -1).join('\r\n') + '\r\n';
+            this.writeEmitter.fire(beginning);
+            this.inputCommand += this.buffer.slice(0, this.cursorPosition).join('') + beginning;
+            // TODO: update history with all input lines?
+            // Show a multiline prompt.
+            this.promptLength = 2;
+            this.prompt = colorText('> ', 'blue');
+            this.writeEmitter.fire(this.prompt);
+            // Update the buffer and refresh the input.
+            // Note: the buffer is updated before updateAndRefreshInput is called
+            // because the initial cursor position is known.
+            const chars = [...inputLines.at(-1) ?? ''];
+            this.buffer = [...chars, ...this.buffer.slice(this.cursorPosition)];
+            this.cursorPosition = 0;
+            this.updateAndRefreshInput(chars.length, false, () => {});
         } else {
-            const chars = [...data];
+            const chars = [...inputLines[0]];
             const pos = this.cursorPosition;
             this.updateAndRefreshInput(
                 this.cursorPosition + chars.length, false, 
