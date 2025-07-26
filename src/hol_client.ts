@@ -541,7 +541,10 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         this.moveCursor(-this.promptLength);
         // Set new dimensions and refresh the current input.
         this.dimensions = dimensions;
-        this.restoreInput(pos, false);
+        // Refresh the input after a small delay to avoid glitches:
+        // when there is a lot of existing text in the terminal, it does not
+        // update the input immediately.
+        setTimeout(() => this.restoreInput(pos, false), 100);
     }
 
     handleInput(data: string): void {
