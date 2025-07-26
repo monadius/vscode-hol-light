@@ -141,6 +141,9 @@ class CommandWithResult extends Command {
     }
 }
 
+const MULTILINE_PROMPT = colorText('> ', 'blue');
+const MULTILINE_PROMPT_LENGTH = 2;
+
 export class HolClient implements vscode.Pseudoterminal, Executor {
     private repl: Repl;
 
@@ -255,6 +258,10 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
                     this.currentCommand = undefined;
                     this.readyFlag = true;
                     this.executeNextCommand();
+                    if (this.readyFlag && (this.buffer.length || this.inputCommand)) {
+                        // If there is some input in the terminal then restore it.
+                        this.restoreInput(this.cursorPosition, true);
+                    }
                 } else if (line.startsWith('info:')) {
                     const serverInfo = unescapeString(line.slice(5)).split(';');
                     for (const info of serverInfo) {
@@ -534,8 +541,7 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         this.moveCursor(-this.promptLength);
         // Set new dimensions and refresh the current input.
         this.dimensions = dimensions;
-        this.moveCursor(0);
-        this.updateAndRefreshInput(pos, true, () => {});
+        this.restoreInput(pos, false);
     }
 
     handleInput(data: string): void {
@@ -652,8 +658,8 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
                 this.buffer = [];
                 this.cursorPosition = 0;
                 // Show '> ' for multiline inputs (starting from the second line).
-                this.promptLength = 2;
-                this.prompt = colorText('> ', 'blue');
+                this.promptLength = MULTILINE_PROMPT_LENGTH;
+                this.prompt = MULTILINE_PROMPT;
                 this.writeEmitter.fire(this.prompt);
             }
             return;
@@ -666,8 +672,8 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
             this.inputCommand += this.buffer.slice(0, this.cursorPosition).join('') + beginning;
             // TODO: update history with all input lines?
             // Show a multiline prompt.
-            this.promptLength = 2;
-            this.prompt = colorText('> ', 'blue');
+            this.promptLength = MULTILINE_PROMPT_LENGTH;
+            this.prompt = MULTILINE_PROMPT;
             this.writeEmitter.fire(this.prompt);
             // Update the buffer and refresh the input.
             // Note: the buffer is updated before updateAndRefreshInput is called
@@ -712,6 +718,16 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         // Change the cursor horizontal position
         this.writeEmitter.fire(`\x1b[${(pos + shift) % cols + 1}G`);
         this.cursorPosition = pos;
+    }
+
+    private restoreInput(newCursorPos: number, restoreAllLines: boolean): void {
+        if (restoreAllLines && this.inputCommand) {
+            this.writeEmitter.fire(this.inputCommand);
+            this.promptLength = MULTILINE_PROMPT_LENGTH;
+            this.prompt = MULTILINE_PROMPT;
+        }
+        this.cursorPosition = 0;
+        this.updateAndRefreshInput(newCursorPos, true, () => {});
     }
 
     private updateAndRefreshInput(newCursorPos: number, refreshPrompt: boolean, update: () => void): void {
