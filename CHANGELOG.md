@@ -1,10 +1,14 @@
 # Change Log
 
+## 2.5.0
+- Improve line editing features for terminals associated with HOL Light servers.
+- New command `HOL Light: Connect to Server` for connecting to a running HOL Light server (thanks to @aqjune).
+- Automatically add line number directives to commands sent to REPL for better debugging (thanks to @aqjune).
+
 ## 2.4.0
 - Use `er` (if it is available) when the tactic statement finishes with `;` (thanks to @aqjune).
 - Keep the last successful statements highlighted even if subsequent statements fail (thanks to @aqjune).
 - Bug fixes.
-
 
 ## 2.3.0
 - The HOL Light Server prints the number of subgoals (thanks to @aqjune).
