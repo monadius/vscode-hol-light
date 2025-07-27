@@ -670,8 +670,14 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
             const line = this.buffer.join('');
             this.inputCommand += line + '\r\n';
             // Update the history
-            this.history[this.history.length - 1] = line;
-            this.historyIndex = this.history.push('') - 1;
+            if (/^\s*(;;)?$/.test(line)) {
+                // Do not add empty lines or lines with only ';;' to the history.
+                this.historyIndex = this.history.length - 1;
+                this.history[this.historyIndex] = '';
+            } else {
+                this.history[this.history.length - 1] = line;
+                this.historyIndex = this.history.push('') - 1;
+            }
             if (this.inputCommand.trimEnd().endsWith(';;')) {
                 // Execute the command if it ends with ';;'.
                 this.execute(this.inputCommand, { interactive: true });
