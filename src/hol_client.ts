@@ -551,22 +551,24 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         if (!data) {
             return;
         }
-        // console.log(`handleInput("${data}")`);
+
+        const moveCursorBy = (d: number) => {
+            const pos = Math.max(0, Math.min(this.cursorPosition + d, this.buffer.length));
+            this.moveCursor(pos);
+        };
+
+        console.log(`handleInput("${data}"), bytes = ${[...data].map(c => c.charCodeAt(0)).join(',')}`);
         if (data[0] === '\x1b') {
             // https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences
             // console.log('special: ' + data.slice(1));
             switch (data.slice(1)) {
                 // Right arrow
                 case '[C':
-                    if (this.cursorPosition < this.buffer.length) {
-                        this.moveCursor(this.cursorPosition + 1);
-                    }
+                    moveCursorBy(1);
                     break;
                 // Left arrow
                 case '[D':
-                    if (this.cursorPosition > 0) {
-                        this.moveCursor(this.cursorPosition - 1);
-                    }
+                    moveCursorBy(-1);
                     break;
                 // Home
                 case '[H':
@@ -622,18 +624,32 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
             return;
         }
 
-        // Backspace
-        if (data === '\b' || data === '\x7f') {
-            if (this.cursorPosition > 0) {
-                const pos = this.cursorPosition;
-                this.updateAndRefreshInput(
-                    this.cursorPosition - 1, true,
-                    () => this.buffer.splice(pos - 1, 1)
-                );
-            }
-            return;
+        switch (data) {
+            case '\b':
+            case '\x7f': 
+            // Backspace
+                if (this.cursorPosition > 0) {
+                    const pos = this.cursorPosition;
+                    this.updateAndRefreshInput(
+                        this.cursorPosition - 1, true,
+                        () => this.buffer.splice(pos - 1, 1)
+                    );
+                }
+                return;
+            
+            case '\x01': 
+                // Ctrl-A
+                // Move the cursor to the beginning of the input line.
+                this.moveCursor(0);
+                return;
+
+            case '\x05': 
+                // Ctrl-E
+                // Move the cursor to the end of the input line.
+                this.moveCursor(this.buffer.length);
+                return;
         }
-        
+
         // Ctrl-C
         if (data.includes('\x03')) {
             this.moveCursor(this.buffer.length);

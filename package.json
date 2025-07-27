@@ -158,6 +158,17 @@
         ],
         "keybindings": [
             {
+                "comment": "disable the default ctrl+e binding when a terminal has focus",
+                "key": "ctrl+e",
+                "command": "",
+                "when": "terminalFocus"
+            },
+            {
+                "key": "ctrl+a",
+                "command": "",
+                "when": "terminalFocus"
+            },
+            {
                 "key": "ctrl+`",
                 "command": "workbench.action.terminal.focus",
                 "when": "editorTextFocus"
