@@ -557,7 +557,15 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
             this.moveCursor(pos);
         };
 
-        console.log(`handleInput("${data}"), bytes = ${[...data].map(c => c.charCodeAt(0)).join(',')}`);
+        const replaceInput = (s: string | string[]) => {
+            const chars = typeof s === 'string' ? [...s] : s;
+            this.updateAndRefreshInput(
+                chars.length, true,
+                () => this.buffer = chars
+            );
+        };
+
+        // console.log(`handleInput("${data}"), bytes = ${[...data].map(c => c.charCodeAt(0)).join(',')}`);
         if (data[0] === '\x1b') {
             // https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences
             // console.log('special: ' + data.slice(1));
@@ -583,10 +591,7 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
                     this.history[this.historyIndex] = this.buffer.join('');
                     if (this.historyIndex > 0) {
                         this.historyIndex -= 1;
-                        this.updateAndRefreshInput(
-                            0, true,
-                            () => this.buffer = [...this.history[this.historyIndex]]
-                        );
+                        replaceInput(this.history[this.historyIndex]);
                     }
                     break;
                 // Down arrow
@@ -594,10 +599,7 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
                     this.history[this.historyIndex] = this.buffer.join('');
                     if (this.historyIndex < this.history.length - 1) {
                         this.historyIndex += 1;
-                        this.updateAndRefreshInput(
-                            0, true,
-                            () => this.buffer = [...this.history[this.historyIndex]]
-                        );
+                        replaceInput(this.history[this.historyIndex]);
                     }
                     break;
                 // Delete
@@ -656,6 +658,8 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
             this.writeEmitter.fire('^C\r\n');
             this.interrupt();
             this.resetInput();
+            this.historyIndex = this.history.length - 1;
+            this.history[this.historyIndex] = '';
             return;
         }
 
