@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import stripAnsi from 'strip-ansi';
 
 import * as net from 'node:net';
 
@@ -7,6 +6,7 @@ import * as config from './config';
 import { CommandDecorations, CommandDecorationType } from './decoration';
 import { Executor, CommandOptions, ProofCommand } from './executor';
 import { Repl } from './repl';
+import { colorText, Terminal } from './terminal';
 
 const LINE_END = '\n';
 
@@ -51,29 +51,6 @@ const fixErrorLocation = (s: string, location: vscode.Location) =>
     });
 
 const fixLineBreaks = (s: string) => s.replace(/\r*\n/g, '\r\n');
-
-const COLORS: { [key: string]: number } = {
-    'default': 0,
-    'bold': 1,
-    'underline': 4,
-    'black': 30,
-    'red': 31,
-    'green': 32,
-    'yellow': 33,
-    'blue': 34,
-    'magenta': 35,
-    'cyan': 36,
-    'white': 37
-};
-
-function colorText(s: string, color: string): string {
-    const n = COLORS[color];
-    if (!s || !n) {
-        // Return an unmodified string for unknown colors and for the default color
-        return s;
-    }
-    return `\x1b[${n}m${s}\x1b[0m`;
-}
 
 class Command {
     // Currently command ids are not used
@@ -141,10 +118,7 @@ class CommandWithResult extends Command {
     }
 }
 
-const MULTILINE_PROMPT = colorText('> ', 'blue');
-const MULTILINE_PROMPT_LENGTH = 2;
-
-export class HolClient implements vscode.Pseudoterminal, Executor {
+export class HolClient extends Terminal implements Executor {
     private repl: Repl;
 
     private host: string;
@@ -165,13 +139,8 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
     private canBeInterrupted: boolean = false;
     private readyFlag = false;
 
-    private writeEmitter = new vscode.EventEmitter<string>();
-    private closeEmitter = new vscode.EventEmitter<void | number>();
-
-    onDidWrite: vscode.Event<string> = this.writeEmitter.event;
-    onDidClose?: vscode.Event<void | number> = this.closeEmitter.event;
-
     constructor(host: string, port: number, decorations: CommandDecorations, repl: Repl) {
+        super();
         this.host = host;
         this.port = port;
         this.decorations = decorations;
@@ -190,7 +159,7 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         this.currentCommand = undefined;
     }
 
-    open(_initialDimensions: vscode.TerminalDimensions | undefined): void {
+    override open(_initialDimensions: vscode.TerminalDimensions | undefined): void {
         if (this.socket) {
             this.close();
         }
@@ -203,7 +172,7 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         this.socket.on('close', (hadError) => {
             console.log('HolClient: connection closed');
             this.close();
-            this.closeEmitter.fire(hadError ? 1 : 0);
+            this.fireClose(hadError ? 1 : 0);
         });
         this.socket.on('error', async (err) => {
             console.log(`HolClient: connection error: ${err}`);
@@ -249,18 +218,18 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
                         if (subgoals) {
                             msg = `${subgoals[1]} subgoal${subgoals[1] === '1' ? '' : 's'} (${subgoals[2]} total) `;
                         }
-                        this.promptLength = msg.length + 2;
-                        this.prompt = colorText(msg, 'blue') + '# ';
-                        this.writeEmitter.fire(this.prompt);
+                        const prompt = colorText(msg, 'blue') + '# ';
+                        this.setPrompt(prompt);
+                        this.write(prompt);
                     }
                     suppressPrompt = false;
                     this.currentCommand?.clear(this.decorations);
                     this.currentCommand = undefined;
                     this.readyFlag = true;
                     this.executeNextCommand();
-                    if (this.readyFlag && (this.buffer.length || this.inputCommand)) {
+                    if (this.readyFlag && !this.isInputEmpty()) {
                         // If there is some input in the terminal then restore it.
-                        this.restoreInput(this.cursorPosition, true);
+                        this.restoreInput(true);
                     }
                 } else if (line.startsWith('info:')) {
                     const serverInfo = unescapeString(line.slice(5)).split(';');
@@ -278,7 +247,7 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
                 } else if (line.startsWith('stdout:')) {
                     if (!this.currentCommand?.silent) {
                         // this.writeEmitter.fire('stdout: ');
-                        this.writeEmitter.fire(fixLineBreaks(unescapeString(line.slice(7))));
+                        this.write(fixLineBreaks(unescapeString(line.slice(7))));
                     }
                 } else if (line.startsWith('stderr:')) {
                     if (!this.currentCommand?.silent) {
@@ -287,7 +256,7 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
                         if (this.currentCommand?.location) {
                             text = fixErrorLocation(text, this.currentCommand.location);
                         }
-                        this.writeEmitter.fire(colorText(text, 'red'));
+                        this.write(colorText(text, 'red'));
                     }
                 } else if (line.startsWith('result:') || line.startsWith('rerror:')) {
                     const result = unescapeString(line.slice(7));
@@ -298,7 +267,7 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
                         if (err && this.currentCommand?.location) {
                             text = fixErrorLocation(text, this.currentCommand.location);
                         }
-                        this.writeEmitter.fire(colorText(text, err ? 'red' : 'default'));
+                        this.write(colorText(text, err ? 'red' : 'default'));
                     } else {
                         suppressPrompt = true;
                     }
@@ -374,7 +343,7 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         });
     }
 
-    close(): void {
+    override close(): void {
         this.socket?.end();
         // this.socket.destroy();
         this.socket = undefined;
@@ -384,7 +353,7 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         this.clearCommands(new Error('Connection closed'));
     }
 
-    interrupt(): void {
+    override interrupt(): void {
         if (this.canBeInterrupted && this.socket) {
             this.socket.write('$interrupt' + LINE_END);
         } else if (this.serverPid) {
@@ -393,6 +362,10 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
             process.kill(this.serverPid, 'SIGINT');
         }
         this.clearCommands(new Error('Interrupted'));
+    }
+
+    override evaluateInput(input: string): void {
+        this.execute(input, { interactive: true });
     }
 
     private executeCommand(command: Command) {
@@ -416,8 +389,8 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
                 }
             );
             if (this.echoInput && command.echoInput) {
-                this.writeEmitter.fire(colorText(fixLineBreaks(command.cmd), 'bold'));
-                this.writeEmitter.fire('\r\n');
+                this.write(colorText(fixLineBreaks(command.cmd), 'bold'));
+                this.write('\r\n');
             }
         }
         this.readyFlag = false;
@@ -509,293 +482,5 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         const command = new CommandWithResult(cmd, options, token);
         this.enqueueCommands([command]);
         return command.result;
-    }
-
-    private dimensions?: vscode.TerminalDimensions;
-    // Current prompt (may contain color codes, so the prompt length is in a separate variable).
-    private prompt: string = '# ';
-    // Prompt length is used to compute the cursor position relative to the input buffer start.
-    private promptLength: number = 0;
-    // Contains lines of a multiline input before the current line.
-    private inputCommand: string = '';
-    // Contains the current input line as an array of characters.
-    private buffer: string[] = [];
-    private cursorPosition = 0;
-
-    private history: string[] = [''];
-    private historyIndex = 0;
-
-    private resetInput(): void {
-        this.inputCommand = '';
-        this.buffer = [];
-        this.cursorPosition = 0;
-    }
-    
-    setDimensions(dimensions: vscode.TerminalDimensions): void {
-        // console.log(`terminal dimensions: cols = ${dimensions.columns}, rows = ${dimensions.rows}`);
-        // Save the current cursor position.
-        const pos = this.cursorPosition;
-        // Move the cursor to the beginning of the first line using old dimensions.
-        // -promptLength is used to make sure that the cursor is moved to the correct line
-        // even if the prompt is longer than the new number of columns.
-        this.moveCursor(-this.promptLength);
-        // Set new dimensions and refresh the current input.
-        this.dimensions = dimensions;
-        // Refresh the input after a small delay to avoid glitches:
-        // when there is a lot of existing text in the terminal, it does not
-        // update the input immediately.
-        setTimeout(() => this.restoreInput(pos, false), 100);
-    }
-
-    handleInput(data: string): void {
-        if (!data) {
-            return;
-        }
-
-        const moveCursorBy = (d: number) => {
-            const pos = Math.max(0, Math.min(this.cursorPosition + d, this.buffer.length));
-            this.moveCursor(pos);
-        };
-
-        const replaceInput = (s: string | string[]) => {
-            const chars = typeof s === 'string' ? [...s] : s;
-            this.updateAndRefreshInput(
-                chars.length, true,
-                () => this.buffer = chars
-            );
-        };
-
-        // console.log(`handleInput("${data}"), bytes = ${[...data].map(c => c.charCodeAt(0)).join(',')}`);
-        if (data[0] === '\x1b') {
-            // https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences
-            // console.log('special: ' + data.slice(1));
-            switch (data.slice(1)) {
-                // Right arrow
-                case '[C':
-                    moveCursorBy(1);
-                    break;
-                // Left arrow
-                case '[D':
-                    moveCursorBy(-1);
-                    break;
-                // Home
-                case '[H':
-                    this.moveCursor(0);
-                    break;
-                // End
-                case '[F':
-                    this.moveCursor(this.buffer.length);
-                    break;
-                // Up arrow
-                case '[A':
-                    this.history[this.historyIndex] = this.buffer.join('');
-                    if (this.historyIndex > 0) {
-                        this.historyIndex -= 1;
-                        replaceInput(this.history[this.historyIndex]);
-                    }
-                    break;
-                // Down arrow
-                case '[B':
-                    this.history[this.historyIndex] = this.buffer.join('');
-                    if (this.historyIndex < this.history.length - 1) {
-                        this.historyIndex += 1;
-                        replaceInput(this.history[this.historyIndex]);
-                    }
-                    break;
-                // Delete
-                case '[3~':
-                    if (this.cursorPosition < this.buffer.length) {
-                        const pos = this.cursorPosition;
-                        this.updateAndRefreshInput(
-                            this.cursorPosition, false,
-                            () => this.buffer.splice(pos, 1)
-                        );
-                    }
-                    break;
-                // Page Up
-                case '[5~':
-                    // this.writeEmitter.fire('\x1b[6n');
-                    break;
-                // Page Down
-                case '[6~':
-                    // if (this.dimensions) {
-                    //     this.writeEmitter.fire(`\x1b[${this.dimensions.rows};${this.dimensions.columns}H`);
-                    // }
-                    break;
-            }   
-            return;
-        }
-
-        switch (data) {
-            case '\b':
-            case '\x7f': 
-            // Backspace
-                if (this.cursorPosition > 0) {
-                    const pos = this.cursorPosition;
-                    this.updateAndRefreshInput(
-                        this.cursorPosition - 1, true,
-                        () => this.buffer.splice(pos - 1, 1)
-                    );
-                }
-                return;
-            
-            case '\x01': 
-                // Ctrl-A
-                // Move the cursor to the beginning of the input line.
-                this.moveCursor(0);
-                return;
-
-            case '\x05': 
-                // Ctrl-E
-                // Move the cursor to the end of the input line.
-                this.moveCursor(this.buffer.length);
-                return;
-        }
-
-        // Ctrl-C
-        if (data.includes('\x03')) {
-            this.moveCursor(this.buffer.length);
-            this.writeEmitter.fire('^C\r\n');
-            this.interrupt();
-            this.resetInput();
-            this.historyIndex = this.history.length - 1;
-            this.history[this.historyIndex] = '';
-            return;
-        }
-
-        // Enter
-        if (data === '\r') {
-            this.moveCursor(this.buffer.length);
-            this.writeEmitter.fire('\r\n');
-            const line = this.buffer.join('');
-            this.inputCommand += line + '\r\n';
-            // Update the history
-            if (/^\s*(;;)?$/.test(line)) {
-                // Do not add empty lines or lines with only ';;' to the history.
-                this.historyIndex = this.history.length - 1;
-                this.history[this.historyIndex] = '';
-            } else {
-                this.history[this.history.length - 1] = line;
-                this.historyIndex = this.history.push('') - 1;
-            }
-            if (this.inputCommand.trimEnd().endsWith(';;')) {
-                // Execute the command if it ends with ';;'.
-                this.execute(this.inputCommand, { interactive: true });
-                this.resetInput();
-            } else {
-                // Otherwise, reset the current input and start a new line.
-                this.buffer = [];
-                this.cursorPosition = 0;
-                // Show '> ' for multiline inputs (starting from the second line).
-                this.promptLength = MULTILINE_PROMPT_LENGTH;
-                this.prompt = MULTILINE_PROMPT;
-                this.writeEmitter.fire(this.prompt);
-            }
-            return;
-        }
-
-        const inputLines = data.split(/\r+\n?|\n/);
-        if (inputLines.length > 1) {
-            const beginning = inputLines.slice(0, -1).join('\r\n') + '\r\n';
-            this.writeEmitter.fire(beginning);
-            this.inputCommand += this.buffer.slice(0, this.cursorPosition).join('') + beginning;
-            // TODO: update history with all input lines?
-            // Show a multiline prompt.
-            this.promptLength = MULTILINE_PROMPT_LENGTH;
-            this.prompt = MULTILINE_PROMPT;
-            this.writeEmitter.fire(this.prompt);
-            // Update the buffer and refresh the input.
-            // Note: the buffer is updated before updateAndRefreshInput is called
-            // because the initial cursor position is known.
-            const chars = [...inputLines.at(-1) ?? ''];
-            this.buffer = [...chars, ...this.buffer.slice(this.cursorPosition)];
-            this.cursorPosition = 0;
-            this.updateAndRefreshInput(chars.length, false, () => {});
-        } else {
-            const chars = [...inputLines[0]];
-            const pos = this.cursorPosition;
-            this.updateAndRefreshInput(
-                this.cursorPosition + chars.length, false, 
-                () => this.buffer.splice(pos, 0, ...chars)
-            );
-        }
-    }
-
-    // Moves the cursor to the specified position (relative to the input buffer start).
-    private moveCursor(pos: number): void {
-        const cols = this.dimensions?.columns;
-        const rows = this.dimensions?.rows;
-        if (pos === this.cursorPosition || !cols || !rows) {
-            return;
-        }
-        const shift = this.promptLength;
-        // Compute the total number of lines in the input buffer.
-        // + 1 is added to account for the last empty line which is added if the input
-        // length is a multiple of the number of columns.
-        const totalLines = Math.ceil((this.buffer.length + 1 + shift) / cols);
-        // Adjust the position to be no less than the first visible position.
-        const firstVisiblePosition = Math.max(0, totalLines - rows) * cols - shift;
-        pos = Math.max(firstVisiblePosition, pos);
-
-        const row1 = Math.floor((this.cursorPosition + shift) / cols);
-        const row2 = Math.floor((pos + shift) / cols);
-        const dr = Math.abs(row1 - row2);
-        if (dr) {
-            // Change the cursor vertical position
-            this.writeEmitter.fire(`\x1b[${dr}${row1 > row2 ? 'A' : 'B'}`);
-        }
-        // Change the cursor horizontal position
-        this.writeEmitter.fire(`\x1b[${(pos + shift) % cols + 1}G`);
-        this.cursorPosition = pos;
-    }
-
-    private restoreInput(newCursorPos: number, restoreAllLines: boolean): void {
-        if (restoreAllLines && this.inputCommand) {
-            this.writeEmitter.fire(this.inputCommand);
-            this.promptLength = MULTILINE_PROMPT_LENGTH;
-            this.prompt = MULTILINE_PROMPT;
-        }
-        this.cursorPosition = 0;
-        this.updateAndRefreshInput(newCursorPos, true, () => {});
-    }
-
-    private updateAndRefreshInput(newCursorPos: number, refreshPrompt: boolean, update: () => void): void {
-        const cols = this.dimensions?.columns;
-        if (!cols) {
-            return;
-        }
-        // Erase old input.
-        // It is important to not update the input buffer before erasing the old input because
-        // the cursor position may be computed based on the current input buffer length.
-        if (refreshPrompt) {
-            const len = this.promptLength;
-            // Move the cursor to the position before the prompt
-            this.moveCursor(-len);
-            const shift = Math.min(len, len + this.cursorPosition);
-            // Clear everything from the cursor to the end of the display and show the prompt.
-            // If we need to take a slice of the prompt then remove all ANSI codes first.
-            this.writeEmitter.fire(`\x1b[0J${!shift ? this.prompt : stripAnsi(this.prompt).slice(shift)}`);
-            this.cursorPosition = Math.max(0, this.cursorPosition);
-        } else {
-            // Move the cursor to the first line and the first column of the input
-            this.moveCursor(0);
-            // Clear everything from the cursor to the end of the display
-            this.writeEmitter.fire(`\x1b[0J`);
-        }
-        // Update the input buffer.
-        update();
-        // Display the update input.
-        // The cursor position could be different from 0 if the input is too long
-        // and does not fit the terminal height.
-        const text = this.buffer.slice(this.cursorPosition).join('');
-        this.writeEmitter.fire(text);
-        // The cursor is not moved to the next line automatically if the input length (+ the prompt length)
-        // is a multiple of the number of columns, so we need to move it manually to the next line
-        if ((this.buffer.length + this.promptLength) % cols === 0) {
-            this.writeEmitter.fire(' \x1b[1G');
-        }
-        // Adjust the current cursor position and then move it to the new position
-        this.cursorPosition = this.buffer.length;
-        this.moveCursor(newCursorPos);
     }
 }
