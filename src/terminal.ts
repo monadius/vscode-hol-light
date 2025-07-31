@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import stripAnsi from 'strip-ansi';
 
-const COLORS: { [key: string]: number } = {
+const COLORS = {
     'default': 0,
     'bold': 1,
     'underline': 4,
@@ -15,10 +15,11 @@ const COLORS: { [key: string]: number } = {
     'white': 37
 };
 
-export function colorText(s: string, color: string): string {
+export function colorText(s: string, color: keyof typeof COLORS): string {
     const n = COLORS[color];
     if (!s || !n) {
         // Return an unmodified string for unknown colors and for the default color
+        // (and for empty strings).
         return s;
     }
     return `\x1b[${n}m${s}\x1b[0m`;
@@ -211,6 +212,10 @@ export abstract class Terminal implements vscode.Pseudoterminal {
         // Enter
         if (data === '\r') {
             this.moveCursor(this.buffer.length);
+            // Experiment with Shell Integration:
+            // https://code.visualstudio.com/docs/terminal/shell-integration
+            // https://ghostty.org/docs/vt/concepts/sequences
+            // this.writeEmitter.fire('\x1b]1337;SetMark\x07');
             this.writeEmitter.fire('\r\n');
             const line = this.buffer.join('');
             this.inputCommand += line + '\r\n';
@@ -225,6 +230,23 @@ export abstract class Terminal implements vscode.Pseudoterminal {
             }
             if (this.inputCommand.trimEnd().endsWith(';;')) {
                 // Evaluate the command if it ends with ';;'.
+
+                // Experiment with Shell Integration:
+                // https://github.com/microsoft/vscode/blob/main/src/vs/workbench/contrib/terminal/browser/terminalEscapeSequences.ts
+                // const OSC = '\x1b]633;';
+                // // const ST = '\x1b\\';
+                // const ST = '\x07';
+                // // this.writeEmitter.fire(`${OSC}P;HasRichCommandDetection=True${ST}`);
+                // this.writeEmitter.fire(`${OSC}D${ST}`);
+                // // this.writeEmitter.fire(`\r\n`);
+                // this.writeEmitter.fire(`${OSC}A${ST}`);
+                // // this.writeEmitter.fire(`>>> `);
+                // this.writeEmitter.fire(`${OSC}B${ST}`);
+                // this.writeEmitter.fire(`1+2;;\r\n`);
+                // // this.writeEmitter.fire(`${OSC}E;12${ST}`);
+                // this.writeEmitter.fire(`${OSC}C${ST}`);
+                // this.writeEmitter.fire(`result\r\nof the command\r\n`);
+                // this.writeEmitter.fire(`${OSC}D;1${ST}`);
                 this.evaluateInput(this.inputCommand);
                 this.resetInput();
             } else {
