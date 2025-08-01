@@ -287,7 +287,7 @@ export abstract class Terminal implements vscode.Pseudoterminal {
 
         const inputLines = data.split(/\r+\n?|\n/);
         if (inputLines.length > 1) {
-            const beginning = inputLines.slice(0, -1).join('\r\n') + '\r\n';
+            const beginning = inputLines.slice(0, -1).map((line, i) => (i > 0 ? MULTILINE_PROMPT : '') + line + '\r\n').join('');
             this.writeEmitter.fire(beginning);
             this.inputLines.push(this.buffer.slice(0, this.cursorPosition) + inputLines[0]);
             this.inputLines.push(...inputLines.slice(1, -1));
