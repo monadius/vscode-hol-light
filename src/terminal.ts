@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import stripAnsi from 'strip-ansi';
+import { get } from 'node:http';
 
 const COLORS = {
     'default': 0,
@@ -41,7 +42,7 @@ export abstract class Terminal implements vscode.Pseudoterminal {
     // Prompt length is used to compute the cursor position relative to the input buffer start.
     private promptLength: number = 0;
     // Contains lines of a multiline input before the current line.
-    private inputCommand: string = '';
+    private inputLines: string[] = [];
     // Contains the current input line.
     private buffer: string = '';
     private cursorPosition = 0;
@@ -68,13 +69,21 @@ export abstract class Terminal implements vscode.Pseudoterminal {
     }
 
     protected isInputEmpty(): boolean {
-        return this.buffer.length === 0 && this.inputCommand.length === 0;
+        return this.buffer.length === 0 && this.inputLines.length === 0;
     }
 
     private resetInput(): void {
-        this.inputCommand = '';
+        this.inputLines = [];
         this.buffer = '';
         this.cursorPosition = 0;
+    }
+
+    private getInput(includePrompt: boolean = false): string {
+        const getLine = (line: string, i: number): string => {
+            return (includePrompt ? (i === 0 ? this.prompt : MULTILINE_PROMPT) : '') + line;
+        };
+        const lines = this.inputLines.map((line, i) => getLine(line, i) + '\r\n').join('');
+        return lines + (includePrompt ? (lines ? MULTILINE_PROMPT : this.prompt) : '') + this.buffer;
     }
     
     setDimensions(dimensions: vscode.TerminalDimensions): void {
@@ -217,7 +226,10 @@ export abstract class Terminal implements vscode.Pseudoterminal {
             // this.writeEmitter.fire('\x1b]1337;SetMark\x07');
             this.writeEmitter.fire('\r\n');
             const line = this.buffer;
-            this.inputCommand += line + '\r\n';
+            this.inputLines.push(line);
+            this.buffer = '';
+            this.cursorPosition = 0;
+
             // Update the history
             if (/^\s*(;;)?$/.test(line)) {
                 // Do not add empty lines or lines with only ';;' to the history.
@@ -227,7 +239,7 @@ export abstract class Terminal implements vscode.Pseudoterminal {
                 this.history[this.history.length - 1] = line;
                 this.historyIndex = this.history.push('') - 1;
             }
-            if (this.inputCommand.trimEnd().endsWith(';;')) {
+            if (/;;\s*$/.test(line)) {
                 // Evaluate the command if it ends with ';;'.
 
                 // Experiment with Shell Integration:
@@ -246,12 +258,10 @@ export abstract class Terminal implements vscode.Pseudoterminal {
                 // this.writeEmitter.fire(`${OSC}C${ST}`);
                 // this.writeEmitter.fire(`result\r\nof the command\r\n`);
                 // this.writeEmitter.fire(`${OSC}D;1${ST}`);
-                this.evaluateInput(this.inputCommand);
+                this.evaluateInput(this.getInput());
                 this.resetInput();
             } else {
                 // Otherwise, reset the current input and start a new line.
-                this.buffer = '';
-                this.cursorPosition = 0;
                 // Show '> ' for multiline inputs (starting from the second line).
                 this.promptLength = MULTILINE_PROMPT_LENGTH;
                 this.prompt = MULTILINE_PROMPT;
@@ -264,7 +274,8 @@ export abstract class Terminal implements vscode.Pseudoterminal {
         if (inputLines.length > 1) {
             const beginning = inputLines.slice(0, -1).join('\r\n') + '\r\n';
             this.writeEmitter.fire(beginning);
-            this.inputCommand += this.buffer.slice(0, this.cursorPosition) + beginning;
+            this.inputLines.push(this.buffer.slice(0, this.cursorPosition) + inputLines[0]);
+            this.inputLines.push(...inputLines.slice(1, -1));
             // TODO: update history with all input lines?
             // Show a multiline prompt.
             this.promptLength = MULTILINE_PROMPT_LENGTH;
@@ -317,13 +328,16 @@ export abstract class Terminal implements vscode.Pseudoterminal {
     }
 
     protected restoreInput(restoreAllLines: boolean, newCursorPos: number = this.cursorPosition): void {
-        if (restoreAllLines && this.inputCommand) {
-            this.writeEmitter.fire(this.inputCommand);
+        if (restoreAllLines && this.inputLines.length > 0) {
+            this.writeEmitter.fire(this.getInput(true));
             this.promptLength = MULTILINE_PROMPT_LENGTH;
             this.prompt = MULTILINE_PROMPT;
+            this.cursorPosition = this.buffer.length;
+            this.moveCursor(newCursorPos);
+        } else {
+            this.cursorPosition = 0;
+            this.updateAndRefreshInput(newCursorPos, true, () => {});
         }
-        this.cursorPosition = 0;
-        this.updateAndRefreshInput(newCursorPos, true, () => {});
     }
 
     private updateAndRefreshInput(newCursorPos: number, refreshPrompt: boolean, update: () => void): void {
