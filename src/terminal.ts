@@ -125,11 +125,12 @@ export abstract class Terminal implements vscode.Pseudoterminal {
             this.moveCursor(pos);
         };
 
-        const replaceInput = (s: string) => {
-            this.updateAndRefreshInput(
-                s.length, true,
-                () => this.buffer = s
-            );
+        const replaceMultilineInput = (s: string) => {
+            const lines = s.split('\r\n');
+            this.clearMultilineInput();
+            this.inputLines = lines.slice(0, -1);
+            this.buffer = lines.at(-1) ?? '';
+            this.restoreInput(true, this.buffer.length);
         };
 
         // console.log(`handleInput("${data}"), bytes = ${[...data].map(c => c.charCodeAt(0)).join(',')}`);
@@ -155,18 +156,18 @@ export abstract class Terminal implements vscode.Pseudoterminal {
                     break;
                 // Up arrow
                 case '[A':
-                    this.history[this.historyIndex] = this.buffer;
+                    this.history[this.historyIndex] = this.getInput();
                     if (this.historyIndex > 0) {
                         this.historyIndex -= 1;
-                        replaceInput(this.history[this.historyIndex]);
+                        replaceMultilineInput(this.history[this.historyIndex]);
                     }
                     break;
                 // Down arrow
                 case '[B':
-                    this.history[this.historyIndex] = this.buffer;
+                    this.history[this.historyIndex] = this.getInput();;
                     if (this.historyIndex < this.history.length - 1) {
                         this.historyIndex += 1;
-                        replaceInput(this.history[this.historyIndex]);
+                        replaceMultilineInput(this.history[this.historyIndex]);
                     }
                     break;
                 // Delete
@@ -245,17 +246,19 @@ export abstract class Terminal implements vscode.Pseudoterminal {
             this.buffer = '';
             this.cursorPosition = 0;
 
-            // Update the history
-            if (/^\s*(;;)?$/.test(line)) {
-                // Do not add empty lines or lines with only ';;' to the history.
-                this.historyIndex = this.history.length - 1;
-                this.history[this.historyIndex] = '';
-            } else {
-                this.history[this.history.length - 1] = line;
-                this.historyIndex = this.history.push('') - 1;
-            }
             if (/;;\s*$/.test(line)) {
                 // Evaluate the command if it ends with ';;'.
+                const command = this.getInput();
+                this.resetInput();
+                // Update the history
+                if (/^[\s;]*$/.test(command)) {
+                    // Do not add empty commands to the history.
+                    this.historyIndex = this.history.length - 1;
+                    this.history[this.historyIndex] = '';
+                } else {
+                    this.history[this.history.length - 1] = command.trimEnd();
+                    this.historyIndex = this.history.push('') - 1;
+                }
 
                 // Experiment with Shell Integration:
                 // https://github.com/microsoft/vscode/blob/main/src/vs/workbench/contrib/terminal/browser/terminalEscapeSequences.ts
@@ -273,8 +276,7 @@ export abstract class Terminal implements vscode.Pseudoterminal {
                 // this.writeEmitter.fire(`${OSC}C${ST}`);
                 // this.writeEmitter.fire(`result\r\nof the command\r\n`);
                 // this.writeEmitter.fire(`${OSC}D;1${ST}`);
-                this.evaluateInput(this.getInput());
-                this.resetInput();
+                this.evaluateInput(command);
             } else {
                 // Otherwise, reset the current input and start a new line.
                 // Show '> ' for multiline inputs (starting from the second line).
@@ -289,7 +291,6 @@ export abstract class Terminal implements vscode.Pseudoterminal {
             this.writeEmitter.fire(beginning);
             this.inputLines.push(this.buffer.slice(0, this.cursorPosition) + inputLines[0]);
             this.inputLines.push(...inputLines.slice(1, -1));
-            // TODO: update history with all input lines?
             // Show a multiline prompt.
             this.writeEmitter.fire(this.getCurrentLinePrompt());
             // Update the buffer and refresh the input.
