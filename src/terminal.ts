@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import stripAnsi from 'strip-ansi';
-import { get } from 'node:http';
+
+import { runAfterDelay } from './util';
 
 const COLORS = {
     'default': 0,
@@ -85,7 +86,11 @@ export abstract class Terminal implements vscode.Pseudoterminal {
         const lines = this.inputLines.map((line, i) => getLine(line, i) + '\r\n').join('');
         return lines + (includePrompt ? (lines ? MULTILINE_PROMPT : this.prompt) : '') + this.buffer;
     }
-    
+
+    private restoreInputAfterDelay = runAfterDelay((pos: number) => {
+        this.restoreInput(false, pos);
+    }, 100);
+
     setDimensions(dimensions: vscode.TerminalDimensions): void {
         // console.log(`terminal dimensions: cols = ${dimensions.columns}, rows = ${dimensions.rows}`);
         // Save the current cursor position.
@@ -99,7 +104,7 @@ export abstract class Terminal implements vscode.Pseudoterminal {
         // Refresh the input after a small delay to avoid glitches:
         // when there is a lot of existing text in the terminal, it does not
         // update the input immediately.
-        setTimeout(() => this.restoreInput(false, pos), 100);
+        this.restoreInputAfterDelay(pos);
     }
 
     handleInput(data: string): void {
@@ -342,6 +347,7 @@ export abstract class Terminal implements vscode.Pseudoterminal {
 
     private updateAndRefreshInput(newCursorPos: number, refreshPrompt: boolean, update: () => void): void {
         const cols = this.dimensions?.columns;
+        console.log(`update: cols = ${cols}, ${newCursorPos}`);
         if (!cols) {
             return;
         }
