@@ -42,8 +42,8 @@ export abstract class Terminal implements vscode.Pseudoterminal {
     private promptLength: number = 0;
     // Contains lines of a multiline input before the current line.
     private inputCommand: string = '';
-    // Contains the current input line as an array of characters.
-    private buffer: string[] = [];
+    // Contains the current input line.
+    private buffer: string = '';
     private cursorPosition = 0;
 
     private history: string[] = [''];
@@ -73,7 +73,7 @@ export abstract class Terminal implements vscode.Pseudoterminal {
 
     private resetInput(): void {
         this.inputCommand = '';
-        this.buffer = [];
+        this.buffer = '';
         this.cursorPosition = 0;
     }
     
@@ -103,11 +103,10 @@ export abstract class Terminal implements vscode.Pseudoterminal {
             this.moveCursor(pos);
         };
 
-        const replaceInput = (s: string | string[]) => {
-            const chars = typeof s === 'string' ? [...s] : s;
+        const replaceInput = (s: string) => {
             this.updateAndRefreshInput(
-                chars.length, true,
-                () => this.buffer = chars
+                s.length, true,
+                () => this.buffer = s
             );
         };
 
@@ -134,7 +133,7 @@ export abstract class Terminal implements vscode.Pseudoterminal {
                     break;
                 // Up arrow
                 case '[A':
-                    this.history[this.historyIndex] = this.buffer.join('');
+                    this.history[this.historyIndex] = this.buffer;
                     if (this.historyIndex > 0) {
                         this.historyIndex -= 1;
                         replaceInput(this.history[this.historyIndex]);
@@ -142,7 +141,7 @@ export abstract class Terminal implements vscode.Pseudoterminal {
                     break;
                 // Down arrow
                 case '[B':
-                    this.history[this.historyIndex] = this.buffer.join('');
+                    this.history[this.historyIndex] = this.buffer;
                     if (this.historyIndex < this.history.length - 1) {
                         this.historyIndex += 1;
                         replaceInput(this.history[this.historyIndex]);
@@ -154,7 +153,7 @@ export abstract class Terminal implements vscode.Pseudoterminal {
                         const pos = this.cursorPosition;
                         this.updateAndRefreshInput(
                             this.cursorPosition, false,
-                            () => this.buffer.splice(pos, 1)
+                            () => this.buffer = this.buffer.slice(0, pos) + this.buffer.slice(pos + 1)
                         );
                     }
                     break;
@@ -180,7 +179,7 @@ export abstract class Terminal implements vscode.Pseudoterminal {
                     const pos = this.cursorPosition;
                     this.updateAndRefreshInput(
                         this.cursorPosition - 1, true,
-                        () => this.buffer.splice(pos - 1, 1)
+                        () => this.buffer = this.buffer.slice(0, pos - 1) + this.buffer.slice(pos)
                     );
                 }
                 return;
@@ -217,7 +216,7 @@ export abstract class Terminal implements vscode.Pseudoterminal {
             // https://ghostty.org/docs/vt/concepts/sequences
             // this.writeEmitter.fire('\x1b]1337;SetMark\x07');
             this.writeEmitter.fire('\r\n');
-            const line = this.buffer.join('');
+            const line = this.buffer;
             this.inputCommand += line + '\r\n';
             // Update the history
             if (/^\s*(;;)?$/.test(line)) {
@@ -251,7 +250,7 @@ export abstract class Terminal implements vscode.Pseudoterminal {
                 this.resetInput();
             } else {
                 // Otherwise, reset the current input and start a new line.
-                this.buffer = [];
+                this.buffer = '';
                 this.cursorPosition = 0;
                 // Show '> ' for multiline inputs (starting from the second line).
                 this.promptLength = MULTILINE_PROMPT_LENGTH;
@@ -265,7 +264,7 @@ export abstract class Terminal implements vscode.Pseudoterminal {
         if (inputLines.length > 1) {
             const beginning = inputLines.slice(0, -1).join('\r\n') + '\r\n';
             this.writeEmitter.fire(beginning);
-            this.inputCommand += this.buffer.slice(0, this.cursorPosition).join('') + beginning;
+            this.inputCommand += this.buffer.slice(0, this.cursorPosition) + beginning;
             // TODO: update history with all input lines?
             // Show a multiline prompt.
             this.promptLength = MULTILINE_PROMPT_LENGTH;
@@ -274,16 +273,17 @@ export abstract class Terminal implements vscode.Pseudoterminal {
             // Update the buffer and refresh the input.
             // Note: the buffer is updated before updateAndRefreshInput is called
             // because the initial cursor position is known.
-            const chars = [...inputLines.at(-1) ?? ''];
-            this.buffer = [...chars, ...this.buffer.slice(this.cursorPosition)];
+            const s = inputLines.at(-1) ?? '';
+            // const chars = [...inputLines.at(-1) ?? ''];
+            this.buffer = s + this.buffer.slice(this.cursorPosition);
             this.cursorPosition = 0;
-            this.updateAndRefreshInput(chars.length, false, () => {});
+            this.updateAndRefreshInput(s.length, false, () => {});
         } else {
-            const chars = [...inputLines[0]];
+            const s = inputLines[0];
             const pos = this.cursorPosition;
             this.updateAndRefreshInput(
-                this.cursorPosition + chars.length, false, 
-                () => this.buffer.splice(pos, 0, ...chars)
+                this.cursorPosition + s.length, false, 
+                () => this.buffer = this.buffer.slice(0, pos) + s + this.buffer.slice(pos)
             );
         }
     }
@@ -354,7 +354,7 @@ export abstract class Terminal implements vscode.Pseudoterminal {
         // Display the update input.
         // The cursor position could be different from 0 if the input is too long
         // and does not fit the terminal height.
-        const text = this.buffer.slice(this.cursorPosition).join('');
+        const text = this.buffer.slice(this.cursorPosition);
         this.writeEmitter.fire(text);
         // The cursor is not moved to the next line automatically if the input length (+ the prompt length)
         // is a multiple of the number of columns, so we need to move it manually to the next line
