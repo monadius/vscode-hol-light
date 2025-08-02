@@ -42,6 +42,8 @@ export abstract class Terminal implements vscode.Pseudoterminal {
     private prompt: string = '# ';
     // Prompt length is used to compute the cursor position relative to the input buffer start.
     private promptLength: number = 0;
+    // If true, a new line is printed before the prompt.
+    private newLineBeforePrompt = false;
     // Contains lines of a multiline input before the current line.
     private inputLines: string[] = [];
     // Contains the current input line.
@@ -57,6 +59,9 @@ export abstract class Terminal implements vscode.Pseudoterminal {
     abstract evaluateInput(input: string): void;
 
     protected write(data: string): void {
+        if (!/^\r*$/.test(data)) {
+            this.newLineBeforePrompt = !/\n\r*$/.test(data);
+        }
         this.writeEmitter.fire(data);
     }
 
@@ -70,7 +75,10 @@ export abstract class Terminal implements vscode.Pseudoterminal {
     }
 
     protected showPrompt(): void {
-        this.write(this.prompt);
+        if (this.newLineBeforePrompt) {
+            this.write('\n');
+        }
+        this.write('\r' + this.prompt);
     }
 
     // Clears the current prompt. 
