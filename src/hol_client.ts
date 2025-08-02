@@ -218,9 +218,8 @@ export class HolClient extends Terminal implements Executor {
                         if (subgoals) {
                             msg = `${subgoals[1]} subgoal${subgoals[1] === '1' ? '' : 's'} (${subgoals[2]} total) `;
                         }
-                        const prompt = colorText(msg, 'blue') + '# ';
-                        this.setPrompt(prompt);
-                        this.write(prompt);
+                        this.setPrompt(colorText(msg, 'blue') + '# ');
+                        this.showPrompt();
                     }
                     suppressPrompt = false;
                     this.currentCommand?.clear(this.decorations);
@@ -229,6 +228,7 @@ export class HolClient extends Terminal implements Executor {
                     this.executeNextCommand();
                     if (this.readyFlag && !this.isInputEmpty()) {
                         // If there is some input in the terminal then restore it.
+                        this.clearPrompt();
                         this.restoreInput(true);
                     }
                 } else if (line.startsWith('info:')) {

@@ -69,6 +69,22 @@ export abstract class Terminal implements vscode.Pseudoterminal {
         this.promptLength = stripAnsi(prompt).length;
     }
 
+    protected showPrompt(): void {
+        this.write(this.prompt);
+    }
+
+    // Clears the current prompt. 
+    // It is assumed that the cursor is located immediately after the prompt
+    // and the prompt is starting at the first column.
+    protected clearPrompt(): void {
+        const cols = this.dimensions?.columns;
+        if (!cols) {
+            return;
+        }
+        const n = Math.floor(this.promptLength / cols) + (this.promptLength % cols === 0 ? 1 : 0);
+        this.write(`${n > 0 ? `\x1b[${n}A` : ''}\r\x1b[0J`);
+    }
+
     private getCurrentLinePrompt(): string {
         return this.inputLines.length === 0 ? this.prompt : MULTILINE_PROMPT;
     }
@@ -182,6 +198,7 @@ export abstract class Terminal implements vscode.Pseudoterminal {
                     break;
                 // Page Up
                 case '[5~':
+                    // this.clearPrompt();
                     // this.clearMultilineInput();
                     // this.writeEmitter.fire('\x1b[6n');
                     // this.writeEmitter.fire('\x1b[1T');
@@ -340,15 +357,15 @@ export abstract class Terminal implements vscode.Pseudoterminal {
     }
 
     protected restoreInput(restoreAllLines: boolean, newCursorPos: number = this.cursorPosition): void {
+        // Move the cursor to the first column and erase everything after the cursor.
+        this.writeEmitter.fire('\r\x1b[0J');
         if (restoreAllLines && this.inputLines.length > 0) {
-            this.writeEmitter.fire('\x1b[1G');
-            this.writeEmitter.fire(this.getInput(true));
-            this.cursorPosition = this.buffer.length;
-            this.moveCursor(newCursorPos);
+            this.write(this.getInput(true));
         } else {
-            this.cursorPosition = 0;
-            this.updateAndRefreshInput(newCursorPos, true, () => {});
+            this.write(this.getCurrentLinePrompt() + this.buffer);
         }
+        this.cursorPosition = this.buffer.length;
+        this.moveCursor(newCursorPos);
     }
 
     // Clears all lines of the current input (lines outside of the current terminal view are not cleared).
