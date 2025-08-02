@@ -27,6 +27,14 @@ export function colorText(s: string, color: keyof typeof COLORS): string {
     return `\x1b[${n}m${s}\x1b[0m`;
 }
 
+function escapeSpecialCharacters(s: string): string {
+    // Escape special characters in the string to avoid issues with terminal output.
+    return s.replace(/[\x00-\x1F\x7F]/g, (c) => {
+        const code = c.charCodeAt(0);
+        return `\\x${code.toString(16).padStart(2, '0')}`;
+    });
+}
+
 const MULTILINE_PROMPT = colorText('> ', 'blue');
 const MULTILINE_PROMPT_LENGTH = 2;
 
@@ -271,7 +279,7 @@ export abstract class Terminal implements vscode.Pseudoterminal {
             // Reset the current line.
             this.buffer = '';
             this.cursorPosition = 0;
-            
+
             // Get the current command.
             const command = this.getInput();
 
@@ -313,6 +321,9 @@ export abstract class Terminal implements vscode.Pseudoterminal {
         }
 
         const inputLines = data.split(/\r+\n?|\n/);
+        if (inputLines[inputLines.length - 1]) {
+            inputLines[inputLines.length - 1] = escapeSpecialCharacters(inputLines[inputLines.length - 1]);
+        }
         if (inputLines.length > 1) {
             const beginning = inputLines.slice(0, -1).map((line, i) => (i > 0 ? MULTILINE_PROMPT : '') + line + '\r\n').join('');
             this.write(beginning);
