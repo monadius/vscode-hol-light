@@ -268,12 +268,15 @@ export abstract class Terminal implements vscode.Pseudoterminal {
             this.write('\r\n');
             const line = this.buffer;
             this.inputLines.push(line);
+            // Reset the current line.
             this.buffer = '';
             this.cursorPosition = 0;
+            
+            // Get the current command.
+            const command = this.getInput();
 
-            if (/;;\s*$/.test(line)) {
+            if (/;;\s*$/.test(command)) {
                 // Evaluate the command if it ends with ';;'.
-                const command = this.getInput();
                 this.resetInput();
                 // Update the history
                 if (/^[\s;]*$/.test(command)) {
@@ -303,7 +306,6 @@ export abstract class Terminal implements vscode.Pseudoterminal {
                 // this.writeEmitter.fire(`${OSC}D;1${ST}`);
                 this.evaluateInput(command);
             } else {
-                // Otherwise, reset the current input and start a new line.
                 // Show '> ' for multiline inputs (starting from the second line).
                 this.write(this.getCurrentLinePrompt());
             }
