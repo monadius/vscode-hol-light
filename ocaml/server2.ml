@@ -173,6 +173,26 @@ let rec mt_service (ic, oc) =
     if flush_output then flush oc 
   in
 
+  let rec get_input ic =
+    let input_fds = List.map Unix.descr_of_in_channel [ic; stdin] in
+    let ready, _, _ = Unix.select input_fds [] [] (-1.) in
+    match ready with
+    | fd :: _ when fd = List.hd input_fds ->
+      input_line ic
+    | fd :: _ -> begin
+      let cmd = input_line stdin in
+      match cmd with
+      | "stop" ->
+        Format.printf "[STOP] Stop requested@.";
+        raise End_of_file
+      | _ -> begin
+        Format.eprintf "[WARN] Unknown command: %s@." cmd;
+        get_input ic
+      end
+    end
+    | [] -> failwith "No input available"
+  in
+
   let eval_input input =
     try
       let finally () = 
@@ -200,7 +220,7 @@ let rec mt_service (ic, oc) =
     try
       (* Wait for the input *)
       send_string ~flush_output:true "ready:" (Printf.sprintf "subgoals:%s" $ hol_get_num_subgoals ());
-      let raw_input = input_line ic in
+      let raw_input = get_input ic in
       let input = 
         try String.trim (Scanf.unescaped raw_input)
         with _ -> Format.eprintf "[ERROR] Bad input@."; raw_input in
