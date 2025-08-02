@@ -242,7 +242,7 @@ export abstract class Terminal implements vscode.Pseudoterminal {
         // Ctrl-C
         if (data.includes('\x03')) {
             this.moveCursor(this.buffer.length);
-            this.writeEmitter.fire('^C\r\n');
+            this.write('^C\r\n');
             this.interrupt();
             this.resetInput();
             this.historyIndex = this.history.length - 1;
@@ -257,7 +257,7 @@ export abstract class Terminal implements vscode.Pseudoterminal {
             // https://code.visualstudio.com/docs/terminal/shell-integration
             // https://ghostty.org/docs/vt/concepts/sequences
             // this.writeEmitter.fire('\x1b]1337;SetMark\x07');
-            this.writeEmitter.fire('\r\n');
+            this.write('\r\n');
             const line = this.buffer;
             this.inputLines.push(line);
             this.buffer = '';
@@ -297,7 +297,7 @@ export abstract class Terminal implements vscode.Pseudoterminal {
             } else {
                 // Otherwise, reset the current input and start a new line.
                 // Show '> ' for multiline inputs (starting from the second line).
-                this.writeEmitter.fire(this.getCurrentLinePrompt());
+                this.write(this.getCurrentLinePrompt());
             }
             return;
         }
@@ -305,11 +305,11 @@ export abstract class Terminal implements vscode.Pseudoterminal {
         const inputLines = data.split(/\r+\n?|\n/);
         if (inputLines.length > 1) {
             const beginning = inputLines.slice(0, -1).map((line, i) => (i > 0 ? MULTILINE_PROMPT : '') + line + '\r\n').join('');
-            this.writeEmitter.fire(beginning);
+            this.write(beginning);
             this.inputLines.push(this.buffer.slice(0, this.cursorPosition) + inputLines[0]);
             this.inputLines.push(...inputLines.slice(1, -1));
             // Show a multiline prompt.
-            this.writeEmitter.fire(this.getCurrentLinePrompt());
+            this.write(this.getCurrentLinePrompt());
             // Update the buffer and refresh the input.
             // Note: the buffer is updated before updateAndRefreshInput is called
             // because the initial cursor position is known.
@@ -349,16 +349,16 @@ export abstract class Terminal implements vscode.Pseudoterminal {
         const dr = Math.abs(row1 - row2);
         if (dr) {
             // Change the cursor vertical position
-            this.writeEmitter.fire(`\x1b[${dr}${row1 > row2 ? 'A' : 'B'}`);
+            this.write(`\x1b[${dr}${row1 > row2 ? 'A' : 'B'}`);
         }
         // Change the cursor horizontal position
-        this.writeEmitter.fire(`\x1b[${(pos + shift) % cols + 1}G`);
+        this.write(`\x1b[${(pos + shift) % cols + 1}G`);
         this.cursorPosition = pos;
     }
 
     protected restoreInput(restoreAllLines: boolean, newCursorPos: number = this.cursorPosition): void {
         // Move the cursor to the first column and erase everything after the cursor.
-        this.writeEmitter.fire('\r\x1b[0J');
+        this.write('\r\x1b[0J');
         if (restoreAllLines && this.inputLines.length > 0) {
             this.write(this.getInput(true));
         } else {
@@ -383,10 +383,10 @@ export abstract class Terminal implements vscode.Pseudoterminal {
         }
         if (n > 0) {
             // Move the cursor up by n lines
-            this.writeEmitter.fire(`\x1b[${n}A`);
+            this.write(`\x1b[${n}A`);
         }
         // Clear the screen after the cursor position
-        this.writeEmitter.fire(`\x1b[0J`);
+        this.write(`\x1b[0J`);
         this.resetInput();
         this.cursorPosition = -this.getCurrentLinePromptLength();
     }
@@ -407,13 +407,13 @@ export abstract class Terminal implements vscode.Pseudoterminal {
             const prompt = this.getCurrentLinePrompt();
             // Clear everything from the cursor to the end of the display and show the prompt.
             // If we need to take a slice of the prompt then remove all ANSI codes first.
-            this.writeEmitter.fire(`\x1b[0J${!shift ? prompt : stripAnsi(prompt).slice(shift)}`);
+            this.write(`\x1b[0J${!shift ? prompt : stripAnsi(prompt).slice(shift)}`);
             this.cursorPosition = Math.max(0, this.cursorPosition);
         } else {
             // Move the cursor to the first line and the first column of the input
             this.moveCursor(0);
             // Clear everything from the cursor to the end of the display
-            this.writeEmitter.fire(`\x1b[0J`);
+            this.write(`\x1b[0J`);
         }
         // Update the input buffer.
         update();
@@ -421,11 +421,11 @@ export abstract class Terminal implements vscode.Pseudoterminal {
         // The cursor position could be different from 0 if the input is too long
         // and does not fit the terminal height.
         const text = this.buffer.slice(this.cursorPosition);
-        this.writeEmitter.fire(text);
+        this.write(text);
         // The cursor is not moved to the next line automatically if the input length (+ the prompt length)
         // is a multiple of the number of columns, so we need to move it manually to the next line
         if ((this.buffer.length + promptLength) % cols === 0) {
-            this.writeEmitter.fire(' \x1b[1G');
+            this.write(' \x1b[1G');
         }
         // Adjust the current cursor position and then move it to the new position
         this.cursorPosition = this.buffer.length;
