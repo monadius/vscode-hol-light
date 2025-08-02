@@ -269,11 +269,12 @@ export abstract class Terminal implements vscode.Pseudoterminal {
         // Enter
         if (data === '\r') {
             this.moveCursor(this.buffer.length);
-            // Experiment with Shell Integration:
-            // https://code.visualstudio.com/docs/terminal/shell-integration
-            // https://ghostty.org/docs/vt/concepts/sequences
-            // this.writeEmitter.fire('\x1b]1337;SetMark\x07');
-            this.write('\r\n');
+            if ((this.getCurrentLinePromptLength() + this.buffer.length) % (this.dimensions?.columns || 1) === 0) {
+                // Do not add a new line if the cursor is already at the beginning of the next line.
+                this.write('\r');
+            } else {
+                this.write('\r\n');
+            }
             const line = this.buffer;
             this.inputLines.push(line);
             // Reset the current line.
@@ -297,6 +298,9 @@ export abstract class Terminal implements vscode.Pseudoterminal {
                 }
 
                 // Experiment with Shell Integration:
+                // https://code.visualstudio.com/docs/terminal/shell-integration
+                // https://ghostty.org/docs/vt/concepts/sequences
+                // this.writeEmitter.fire('\x1b]1337;SetMark\x07');
                 // https://github.com/microsoft/vscode/blob/main/src/vs/workbench/contrib/terminal/browser/terminalEscapeSequences.ts
                 // const OSC = '\x1b]633;';
                 // // const ST = '\x1b\\';

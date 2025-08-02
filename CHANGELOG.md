@@ -4,6 +4,7 @@
 - Improve line editing features for terminals associated with HOL Light servers.
 - New command `HOL Light: Connect to Server` for connecting to a running HOL Light server (thanks to @aqjune).
 - Automatically add line number directives to commands sent to REPL for better debugging (thanks to @aqjune).
+- HOL Light server can be stopped by typing `stop` and pressing ENTER in the server terminal.
 
 ## 2.4.0
 - Use `er` (if it is available) when the tactic statement finishes with `;` (thanks to @aqjune).
