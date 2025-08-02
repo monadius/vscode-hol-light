@@ -35,6 +35,14 @@ function escapeSpecialCharacters(s: string): string {
     });
 }
 
+function replaceTabsWithSpaces(s: string, shift: number, spaces: number = 4): string {
+    return s.replace(/\t/g, (_, i: number) => {
+        const k = spaces - (i + shift) % spaces;
+        shift += k - 1;
+        return ' '.repeat(k);
+    });
+}
+
 const MULTILINE_PROMPT = colorText('> ', 'blue');
 const MULTILINE_PROMPT_LENGTH = 2;
 
@@ -324,7 +332,7 @@ export abstract class Terminal implements vscode.Pseudoterminal {
             return;
         }
 
-        const inputLines = data.split(/\r+\n?|\n/);
+        const inputLines = data.split(/\r+\n?|\n/).map((line, i) => replaceTabsWithSpaces(line, i === 0 ? this.cursorPosition : 0));
         if (inputLines[inputLines.length - 1]) {
             inputLines[inputLines.length - 1] = escapeSpecialCharacters(inputLines[inputLines.length - 1]);
         }
