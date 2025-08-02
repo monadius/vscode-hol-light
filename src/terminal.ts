@@ -137,7 +137,7 @@ export abstract class Terminal implements vscode.Pseudoterminal {
 
     private restoreInputAfterDelay = runAfterDelay((pos: number) => {
         this.restoreInput(false, pos);
-    }, 100);
+    }, 200);
 
     setDimensions(dimensions: vscode.TerminalDimensions): void {
         // console.log(`terminal dimensions: cols = ${dimensions.columns}, rows = ${dimensions.rows}`);
