@@ -65,6 +65,8 @@ export abstract class Terminal implements vscode.Pseudoterminal {
     // Contains the current input line.
     private buffer: string = '';
     private cursorPosition = 0;
+    // If true then all inputs are ignored
+    private blockInput: boolean = false;
 
     private history: string[] = [''];
     private historyIndex = 0;
@@ -135,28 +137,40 @@ export abstract class Terminal implements vscode.Pseudoterminal {
         return lines + (includePrompt ? this.getCurrentLinePrompt() : '') + this.buffer;
     }
 
-    private restoreInputAfterDelay = runAfterDelay((pos: number) => {
-        this.restoreInput(false, pos);
-    }, 200);
+    private restoreInputAfterDelay = runAfterDelay(true, 400, (rows: number) => {
+        // console.log(`restoreInputAfterDelay(rows = ${rows})`);
+        if (rows > 0) {
+            this.write(`\x1b[${rows}A`);
+        }
+        this.write('\r');
+        this.restoreInput(false);
+        this.blockInput = false;
+    });
 
     setDimensions(dimensions: vscode.TerminalDimensions): void {
         // console.log(`terminal dimensions: cols = ${dimensions.columns}, rows = ${dimensions.rows}`);
-        // Save the current cursor position.
-        const pos = this.cursorPosition;
-        // Move the cursor to the beginning of the first line using old dimensions.
-        // -promptLength is used to make sure that the cursor is moved to the correct line
-        // even if the prompt is longer than the new number of columns.
-        this.moveCursor(-this.getCurrentLinePromptLength());
-        // Set new dimensions and refresh the current input.
+        // Remember the current number of columns
+        const currentCols = this.dimensions?.columns;
         this.dimensions = dimensions;
+        if (!currentCols) {
+            return;
+        }
+        // Compute the number of rows between the current cursor position and the current input start
+        const rows = Math.floor((this.cursorPosition + this.getCurrentLinePromptLength()) / currentCols);
         // Refresh the input after a small delay to avoid glitches:
         // when there is a lot of existing text in the terminal, it does not
         // update the input immediately.
-        this.restoreInputAfterDelay(pos);
+        // Note that this function remembers the first argument with which it was called
+        // and it also postpones the internal callback every time this function is called.
+        // Glitches are still possible: if the terminal dimensions are changed rapidly
+        // then setDimensions is not called as often as it should be and the callback
+        // inside restoreInputAfterDelay is invoked before the final dimensions are set.
+        this.blockInput = true;
+        this.restoreInputAfterDelay(rows);
     }
 
     handleInput(data: string): void {
-        if (!data) {
+        if (!data || this.blockInput) {
             return;
         }
 

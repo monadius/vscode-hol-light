@@ -176,17 +176,24 @@ export function debounceWithDelay<T, A extends any[], R>(fn: (this: T, ...args: 
 /**
  * Returns a function which calls the provided function after the given delay.
  * If there is a pending call, then other calls are ignored until the original call is finished.
- * @param fn 
+ * @param debounce If true then every call resets the original timeout delay.
  * @param delay 
+ * @param fn 
  */
-export function runAfterDelay<T, A extends any[], R>(fn: (this: T, ...args: A) => R, delay: number): (this: T, ...args: A) => void {
+export function runAfterDelay<T, A extends any[], R>(debounce: boolean, delay: number, fn: (this: T, ...args: A) => R): (this: T, ...args: A) => void {
     let timeout: NodeJS.Timeout | undefined;
+    let callback: (() => void) | undefined;
     return function(...args: A) {
         if (!timeout) {
-            timeout = setTimeout(() => {
-                fn.apply(this, args), delay
+            callback = () => {
+                fn.apply(this, args);
                 timeout = undefined;
-            }, delay);
+                callback = undefined;
+            };
+            timeout = setTimeout(callback, delay);
+        } else if (debounce && callback) {
+            clearTimeout(timeout);
+            timeout = setTimeout(callback, delay);
         }
     };
 }
