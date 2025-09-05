@@ -93,7 +93,25 @@ let restore redirected =
     Unix.close descr
 
 let toploop_eval input =
-  write_to_string Toploop.use_input (Toploop.String input)
+  let add_it ph =
+    let open Ast_helper in
+    match ph with
+    | Parsetree.Ptop_def [{pstr_desc = Pstr_eval (expr, attrs); pstr_loc = loc}] ->
+      Parsetree.Ptop_def [
+        Str.value ~loc Asttypes.Nonrecursive [
+          Vb.mk (Pat.var (Location.mknoloc "it")) expr
+        ]
+      ]
+    | _ -> ph in
+  let parse = !Toploop.parse_use_file in
+  let new_parse lb =
+    let phs = List.map add_it (parse lb) in
+    Toploop.parse_use_file := parse;
+    phs in
+  Toploop.parse_use_file := new_parse;
+  Fun.protect 
+    ~finally:(fun () -> Toploop.parse_use_file := parse) 
+    (fun () -> write_to_string Toploop.use_input (Toploop.String input))
 
 (* Returns (# total subgoals, # subgoals). Does what print_goalstate of HOL Light does *)
 let hol_get_num_subgoals () =
