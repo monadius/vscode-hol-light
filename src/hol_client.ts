@@ -398,9 +398,6 @@ export class HolClient extends Terminal implements Executor {
 
         // Add the line number directive to the command if the location is specified.
         let cmd = command.cmd;
-        if (!command.silent && !/^(#|;|let\b|type\b|open\b|include\b|module\b|exception\b|class\b)/.test(cmd)) {
-            cmd = 'let it = ' + cmd;
-        }
 
         if (command.location) {
           const filepath = command.location.uri.fsPath;
