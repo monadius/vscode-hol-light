@@ -92,26 +92,30 @@ let restore redirected =
     Unix.dup2 descr redirected.old_descr;
     Unix.close descr
 
-let toploop_eval input =
-  let add_it ph =
-    let open Ast_helper in
-    match ph with
-    | Parsetree.Ptop_def [{pstr_desc = Pstr_eval (expr, attrs); pstr_loc = loc}] ->
-      Parsetree.Ptop_def [
-        Str.value ~loc Asttypes.Nonrecursive [
-          Vb.mk (Pat.var (Location.mknoloc "it")) expr
+let toploop_eval ~silent input =
+  let eval () = write_to_string Toploop.use_input (Toploop.String input) in
+  if silent then
+    eval ()
+  else
+    let add_it ph =
+      let open Ast_helper in
+      match ph with
+      | Parsetree.Ptop_def [{pstr_desc = Pstr_eval (expr, attrs); pstr_loc = loc}] ->
+        Parsetree.Ptop_def [
+          Str.value ~loc Asttypes.Nonrecursive [
+            Vb.mk (Pat.var (Location.mknoloc "it")) expr
+          ]
         ]
-      ]
-    | _ -> ph in
-  let parse = !Toploop.parse_use_file in
-  let new_parse lb =
-    let phs = List.map add_it (parse lb) in
-    Toploop.parse_use_file := parse;
-    phs in
-  Toploop.parse_use_file := new_parse;
-  Fun.protect 
-    ~finally:(fun () -> Toploop.parse_use_file := parse) 
-    (fun () -> write_to_string Toploop.use_input (Toploop.String input))
+      | _ -> ph in
+    let parse = !Toploop.parse_use_file in
+    let new_parse lb =
+      let phs = List.map add_it (parse lb) in
+      Toploop.parse_use_file := parse;
+      phs in
+    Toploop.parse_use_file := new_parse;
+    Fun.protect 
+      ~finally:(fun () -> Toploop.parse_use_file := parse) 
+      eval
 
 (* Returns (# total subgoals, # subgoals). Does what print_goalstate of HOL Light does *)
 let hol_get_num_subgoals () =
@@ -213,6 +217,13 @@ let rec mt_service (ic, oc) =
 
   let eval_input input =
     try
+      let silent, input =
+        let prefix = "$silent$" in
+        let plen = String.length prefix in
+        if String.starts_with ~prefix input then
+          true, String.sub input plen (String.length input - plen)
+        else
+          false, input in
       let finally () = 
         Format.pp_print_flush Format.std_formatter ();
         Format.pp_print_flush Format.err_formatter ();
@@ -224,7 +235,7 @@ let rec mt_service (ic, oc) =
       Fun.protect ~finally $ fun () -> 
         redirect Unix.stdout new_stdout;
         redirect Unix.stderr new_stderr;
-        toploop_eval input
+        toploop_eval ~silent input
     with exn ->
       let exn_str = Printexc.to_string exn in
       if !debug_flag then Format.eprintf "[ERROR] %s@." exn_str; 

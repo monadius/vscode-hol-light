@@ -405,6 +405,10 @@ export class HolClient extends Terminal implements Executor {
           // There is no way to pass column to the line number directive of OCaml.
           cmd = `#${linenum} "${filepath}"\n` + cmd;
         }
+        if (command.silent) {
+            cmd = '$silent$' + cmd;
+        }
+        // console.log(`HolClient: executing command: ${cmd}`);
         this.socket.write(escapeString(cmd));
         this.socket.write(LINE_END);
     }
