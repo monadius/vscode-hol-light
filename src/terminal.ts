@@ -80,6 +80,7 @@ export abstract class Terminal implements vscode.Pseudoterminal {
         if (!/^\r*$/.test(data)) {
             this.newLineBeforePrompt = !/\n\r*$/.test(data);
         }
+        // console.log(`write("${data.replace(/\n/g, '\\n').replace(/\r/g, '\\r')}")`);
         this.writeEmitter.fire(data);
     }
 
