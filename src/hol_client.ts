@@ -268,6 +268,7 @@ export class HolClient extends Terminal implements Executor {
                             text = fixErrorLocation(text, this.currentCommand.location);
                         }
                         this.write(colorText(text, err ? 'red' : 'default'));
+                        this.markExecutionFinished(err);
                     } else {
                         suppressPrompt = true;
                     }
@@ -392,6 +393,7 @@ export class HolClient extends Terminal implements Executor {
                 this.write(colorText(fixLineBreaks(command.cmd), 'bold'));
                 this.write('\r\n');
             }
+            this.markPreexecution();
         }
         this.readyFlag = false;
         this.currentCommand = command;

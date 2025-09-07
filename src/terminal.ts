@@ -46,6 +46,9 @@ function replaceTabsWithSpaces(s: string, shift: number, spaces: number = 4): st
 const MULTILINE_PROMPT = colorText('> ', 'blue');
 const MULTILINE_PROMPT_LENGTH = 2;
 
+const OSC = '\x1b]633;';
+const ST = '\x07';
+
 export abstract class Terminal implements vscode.Pseudoterminal {
     private writeEmitter = new vscode.EventEmitter<string>();
     private closeEmitter = new vscode.EventEmitter<void | number>();
@@ -97,7 +100,27 @@ export abstract class Terminal implements vscode.Pseudoterminal {
         if (this.newLineBeforePrompt) {
             this.write('\n');
         }
-        this.write('\r' + this.prompt);
+        this.write('\r');
+        this.markPromptStart();
+        this.write(this.prompt);
+        this.markPromptEnd();
+    }
+
+    private markPromptStart(): void {
+        this.write(`${OSC}D${ST}`);
+        this.write(`${OSC}A${ST}`);
+    }
+
+    private markPromptEnd(): void {
+        this.write(`${OSC}B${ST}`);
+    }
+
+    protected markPreexecution(): void {
+        this.write(`${OSC}C${ST}`);
+    }
+
+    protected markExecutionFinished(err: boolean) {
+        this.write(`${OSC}D;${err ? 1 : 0}${ST}`);
     }
 
     // Clears the current prompt. 
