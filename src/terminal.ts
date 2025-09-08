@@ -80,8 +80,9 @@ export abstract class Terminal implements vscode.Pseudoterminal {
     abstract evaluateInput(input: string): void;
 
     protected write(data: string): void {
-        if (!/^\r*$/.test(data)) {
-            this.newLineBeforePrompt = !/\n\r*$/.test(data);
+        const str = stripAnsi(data);
+        if (!/^\r*$/.test(str)) {
+            this.newLineBeforePrompt = !/\n\r*$/.test(str);
         }
         // console.log(`write("${data.replace(/\n/g, '\\n').replace(/\r/g, '\\r')}")`);
         this.writeEmitter.fire(data);
@@ -100,9 +101,8 @@ export abstract class Terminal implements vscode.Pseudoterminal {
         if (this.newLineBeforePrompt) {
             this.write('\n');
         }
-        this.write('\r');
         this.markPromptStart();
-        this.write(this.prompt);
+        this.write('\r' + this.prompt);
         this.markPromptEnd();
     }
 
