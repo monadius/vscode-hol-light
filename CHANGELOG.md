@@ -1,5 +1,9 @@
 # Change Log
 
+## 2.6.0
+- The HOL Light server terminal supports shell integration (https://code.visualstudio.com/docs/terminal/shell-integration).
+- Top level expressions are automatically bound to `it` when using a HOL Light server.
+
 ## 2.5.0
 - Improve line editing features for terminals associated with HOL Light servers.
 - New command `HOL Light: Connect to Server` for connecting to a running HOL Light server (thanks to @aqjune).

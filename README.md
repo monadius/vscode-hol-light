@@ -20,13 +20,15 @@ The extension does not start a HOL Light REPL automatically. Whenever any comman
 
 ## HOL Light Server
 
-A special HOL Light server can be used to execute all HOL Light statements. This server enhances the extension capabilities by providing execution results to the extension. A HOL Light server must be started manually inside a HOL Light REPL. OCaml 4.14 is required to start a HOL Light server.
+A special HOL Light server can be used to execute all HOL Light statements. This server enhances the extension capabilities by providing execution results to the extension. A HOL Light server must be started manually inside a HOL Light REPL. OCaml 4.14 (or higher) is required to start a HOL Light server.
 
 The easiest way to start it is to open a HOL Light REPL inside the extension and then use the command `HOL Light: Start Server` which starts the server inside this REPL (it will also open a new HOL Light client terminal). This command can be invoked directly from the status bar by clicking the `Start Server` text which appears in the bottom right corner whenever a HOL Light terminal window is open. A server can only be started when the active HOL Light REPL is not executing any other commands (more precisely, a server will be started after executing all other commands but the client will not be able to connect to this server and an error message will be shown). A server will automatically stop when the client terminal is closed.
 
 Alternatively, a server can be started manually inside any HOL Light REPL (even running on a remote machine). The server code and instructions for running a server are in the [`hol_server` repository](https://github.com/monadius/hol_server/). After starting a server, it is required to select `Connect to a HOL Light Server` in the list of HOL Light startup scripts (which appears whenever any HOL Light command is executed without an active REPL or when the command `HOL Light: New HOL Light REPL session` is invoked).
 
 When a HOL Light server is active, a feedback is provided for all executed HOL Light statements: Failed statements are colored with light red color and successfully executed statements are colored with light green color (these colors can be changed by editing the corresponding configuration options). When multiple statements are executed (for example by selecting multiple statements and sending them to REPL) then the execution will stop automatically after the first failure.
+
+The HOL Light server terminal supports shell integration (see https://code.visualstudio.com/docs/terminal/shell-integration).
 
 ## Code Completion, Hover Info Messages, and Go to Definition
 
