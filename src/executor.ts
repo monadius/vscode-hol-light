@@ -2,11 +2,23 @@ import * as vscode from 'vscode';
 
 import { CommandDecorations, CommandDecorationType } from './decoration';
 
+export type ProofCommand = 'g' | 'e' | 'r' | 'er' | 'b';
+
 export interface CommandOptions {
     location?: vscode.Location;
     silent?: boolean;
     // This flag is true for commands entered in the terminal window directly
     interactive?: boolean;
+    // If this command manipulates the goal state, proofCommand stores the
+    // corresponding command.
+    proofCommand?: ProofCommand;
+}
+
+export function classifyProofCommand(cmd: string): ProofCommand | undefined {
+    const m = cmd.match(/^\s*([gerb]|er)(?=[\(`]|\s+[\(\w`])/);
+    if (m) {
+        return m[1] as ProofCommand;
+    }
 }
 
 export interface Executor {

@@ -92,8 +92,44 @@ let restore redirected =
     Unix.dup2 descr redirected.old_descr;
     Unix.close descr
 
-let toploop_eval input =
-  write_to_string Toploop.use_input (Toploop.String input)
+let toploop_eval ~silent input =
+  let eval () = write_to_string Toploop.use_input (Toploop.String input) in
+  if silent then
+    eval ()
+  else
+    let add_it ph =
+      let open Ast_helper in
+      match ph with
+      | Parsetree.Ptop_def [{pstr_desc = Pstr_eval (expr, attrs); pstr_loc = loc}] ->
+        Parsetree.Ptop_def [
+          Str.value ~loc Asttypes.Nonrecursive [
+            Vb.mk (Pat.var (Location.mknoloc "it")) expr
+          ]
+        ]
+      | _ -> ph in
+    let parse = !Toploop.parse_use_file in
+    let new_parse lb =
+      let phs = List.map add_it (parse lb) in
+      Toploop.parse_use_file := parse;
+      phs in
+    Toploop.parse_use_file := new_parse;
+    Fun.protect 
+      ~finally:(fun () -> Toploop.parse_use_file := parse) 
+      eval
+
+(* Returns (# total subgoals, # subgoals). Does what print_goalstate of HOL Light does *)
+let hol_get_num_subgoals () =
+  match !current_goalstack with
+  | [] -> ""
+  | (_,gl,_)::[] ->
+    if List.length gl = 0 then ""
+    else Format.sprintf "1,%d" (List.length gl)
+  | (_,gl,_)::(_,glprev,_)::_ ->
+    if List.length gl = 0 then ""
+    else
+      let p = length gl - length glprev in
+      let p' = if p < 1 then 1 else p + 1 in
+      Format.sprintf "%d,%d" p' (List.length gl)
 
 let monitor_thread socket_ic socket_oc (labelled_fdins : (Unix.file_descr * string) list) =
   ignore (Thread.sigmask Unix.SIG_BLOCK [Sys.sigint]);
@@ -159,8 +195,35 @@ let rec mt_service (ic, oc) =
     if flush_output then flush oc 
   in
 
+  let rec get_input ic =
+    let input_fds = List.map Unix.descr_of_in_channel [ic; stdin] in
+    let ready, _, _ = Unix.select input_fds [] [] (-1.) in
+    match ready with
+    | fd :: _ when fd = List.hd input_fds ->
+      input_line ic
+    | fd :: _ -> begin
+      let cmd = input_line stdin in
+      match cmd with
+      | "stop" ->
+        Format.printf "[STOP] Stop requested@.";
+        raise End_of_file
+      | _ -> begin
+        Format.eprintf "[WARN] Unknown command: %s@." cmd;
+        get_input ic
+      end
+    end
+    | [] -> failwith "No input available"
+  in
+
   let eval_input input =
     try
+      let silent, input =
+        let prefix = "$silent$" in
+        let plen = String.length prefix in
+        if String.starts_with ~prefix input then
+          true, String.sub input plen (String.length input - plen)
+        else
+          false, input in
       let finally () = 
         Format.pp_print_flush Format.std_formatter ();
         Format.pp_print_flush Format.err_formatter ();
@@ -172,7 +235,7 @@ let rec mt_service (ic, oc) =
       Fun.protect ~finally $ fun () -> 
         redirect Unix.stdout new_stdout;
         redirect Unix.stderr new_stderr;
-        toploop_eval input
+        toploop_eval ~silent input
     with exn ->
       let exn_str = Printexc.to_string exn in
       if !debug_flag then Format.eprintf "[ERROR] %s@." exn_str; 
@@ -185,8 +248,8 @@ let rec mt_service (ic, oc) =
   while !connected do
     try
       (* Wait for the input *)
-      send_string ~flush_output:true "ready" "";
-      let raw_input = input_line ic in
+      send_string ~flush_output:true "ready:" (Printf.sprintf "subgoals:%s" $ hol_get_num_subgoals ());
+      let raw_input = get_input ic in
       let input = 
         try String.trim (Scanf.unescaped raw_input)
         with _ -> Format.eprintf "[ERROR] Bad input@."; raw_input in

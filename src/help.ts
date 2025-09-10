@@ -16,6 +16,19 @@ class HelpItem {
     constructor(doc: string) {
         let sectionName = '';
         let sectionLines: string[] = [];
+        const processLine = (line: string) => {
+            // Rules from `doc-to-help.sed` + additional rules for Markdown
+            return line.replace(/\\noindent\s*\b/g, '')
+                       .replace(/``(.*?)''/g, '“$1”')
+                       .replace(/\{\{/g, '<<<<<<')
+                       .replace(/\}\}/g, '>>>>>>')
+                       .replace(/(`?)\{(.*?)\}('?)/g, (_, a, text, b) => `\`\`${text.startsWith('`') ? ' ' : ''}${text}${text.endsWith('`') ? ' ' : ''}\`\`${a ? '' : b}`)
+                       .replace(/<<<<<</g, '{')
+                       .replace(/>>>>>>/g, '}')
+                       .replace(/\{\\em (.*?)\}/g, '**$1**')
+                       .replace(/\\begin\{itemize\}|\\end\{itemize\}/g, '')
+                       .replace(/\\item\b/g, '*');
+        };
         const addSection = () => {
             if (!sectionName) {
                 return;
@@ -23,14 +36,14 @@ class HelpItem {
             while (sectionLines.length && !sectionLines.at(-1)?.trim()) {
                 sectionLines.pop();
             }
-            const text = sectionLines.map(line => line.replace(/\{([^}]*)\}/g, '`$1`')).join('\n');
+            const text = sectionLines.map(processLine).join('\n');
             this.sections[sectionName] = text;
             sectionName = '';
             sectionLines = [];
         };
 
         for (const line of doc.split('\n')) {
-            const m = line.match(/^\\(\S+)\s*(.*)/);
+            const m = line.match(/^\\([A-Z_\d]+)\s*(.*)/);
             if (m) {
                 if (m[1] === 'ENDDOC') {
                     break;

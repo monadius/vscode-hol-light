@@ -6,7 +6,7 @@ A HOL Light extension for Visual Studio Code. It supports basic syntax highlight
 
 HOL Light should be installed separately. See [HOL Light repository](https://github.com/jrh13/hol-light/) for installation instructions. The path to a HOL Light installation should be manually set by modifying the `hol-light.path` option (it could be done by invoking the command `HOL Light: Set HOL Light Path` from the command palette).
 
-The extension is automatically activated for `.hl` files. If a HOL Light file has a different file type (e.g., `.ml`) then it is required to activate the HOL Light extension manually by selecting `HOL Light` language mode. 
+The extension is automatically activated for `.hl` files. If a HOL Light file has a different file type (e.g., `.ml`) then it is required to activate the HOL Light extension manually by selecting `HOL Light` language mode.
 
 It is also possible to associate `.ml` files with the HOL Light extension by executing the command `HOL Light: Associate .ml Files with HOL Light`. This command adds the following lines to the workspace settings file:
 ```
@@ -20,13 +20,15 @@ The extension does not start a HOL Light REPL automatically. Whenever any comman
 
 ## HOL Light Server
 
-A special HOL Light server can be used to execute all HOL Light statements. This server enhances the extension capabilities by providing execution results to the extension. A HOL Light server must be started manually inside a HOL Light REPL. OCaml 4.14 is required to start a HOL Light server.
+A special HOL Light server can be used to execute all HOL Light statements. This server enhances the extension capabilities by providing execution results to the extension. A HOL Light server must be started manually inside a HOL Light REPL. OCaml 4.14 (or higher) is required to start a HOL Light server.
 
 The easiest way to start it is to open a HOL Light REPL inside the extension and then use the command `HOL Light: Start Server` which starts the server inside this REPL (it will also open a new HOL Light client terminal). This command can be invoked directly from the status bar by clicking the `Start Server` text which appears in the bottom right corner whenever a HOL Light terminal window is open. A server can only be started when the active HOL Light REPL is not executing any other commands (more precisely, a server will be started after executing all other commands but the client will not be able to connect to this server and an error message will be shown). A server will automatically stop when the client terminal is closed.
 
-Alternatively, a server can be started manually inside any HOL Light REPL (even running on a remote machine). The server code and instructions for running a server are in the [`hol_server` repository](https://github.com/monadius/hol_server/). After starting a server, it is required to select `Connect to a HOL Light Server` in the list of HOL Light startup scripts (which appears whenever any HOL Light command is executed without an active REPL or when the command `HOL Light: New HOL Light REPL session` is invoked).
+Alternatively, a server can be started manually inside any HOL Light REPL (even running on a remote machine). The server code and instructions for running a server are in the [`hol_server` repository](https://github.com/monadius/hol_server/tree/vscode). After starting a server, it is required to select `Connect to a HOL Light Server` in the list of HOL Light startup scripts (which appears whenever any HOL Light command is executed without an active REPL or when the command `HOL Light: New HOL Light REPL session` is invoked).
 
 When a HOL Light server is active, a feedback is provided for all executed HOL Light statements: Failed statements are colored with light red color and successfully executed statements are colored with light green color (these colors can be changed by editing the corresponding configuration options). When multiple statements are executed (for example by selecting multiple statements and sending them to REPL) then the execution will stop automatically after the first failure.
+
+The HOL Light server terminal supports shell integration (see https://code.visualstudio.com/docs/terminal/shell-integration).
 
 ## Code Completion, Hover Info Messages, and Go to Definition
 
@@ -52,10 +54,20 @@ All commands can be invoked from the command palette or by pressing the correspo
 
     Starts a new HOL Light REPL. This command is automatically invoked whenever any HOL Light command is executed without an active HOL Light REPL.
 
-1) **HOL Light: Send selected text to HOL Light REPL** 
+1) **HOL Light: Start Server**
+
+    Starts a HOL Light server inside the active HOL Light REPL.
+
+1) **HOL Light: Connect to Server**
+
+    Connects to a running HOL Light server. It is possible to edit the server address in the input dialog which appears after invoking this command. The default server address is `localhost:2012`.
+
+    It is also possible to connect to a server by selecting `Connect to a HOL Light Server` in the list of HOL Light startup scripts (which appears whenever any HOL Light command is executed without an active REPL or when the command `HOL Light: New HOL Light REPL session` is invoked).
+
+1) **HOL Light: Send selected text to HOL Light REPL**
 
     Default shortcut: `Alt + E`
-    
+
     Sends selected text to HOL Light. If no text is selected, then text at the cursor position separated by `;;` is sent to HOL Light and the cursor position is moved to the next statement.
 
     A variation of this command is *HOL Light: Send Current Statement to REPL (no preprocessing)* (default shortcut `Ctrl + Alt + E`). This command sends the selected text to HOL Light without any preprocessing. It is useful when a server is used to execute statements and it is required to execute a module definition.
@@ -70,7 +82,7 @@ All commands can be invoked from the command palette or by pressing the correspo
 
     Default shortcut: `Alt + G`
 
-    Sets the term at the current cursor position as a new goal. This command works when the cursor is inside a HOL Light term (a text inside back quotes).
+    Sets the term at the current cursor position as a new goal. This command works when the cursor is inside a HOL Light term (a text inside back quotes). If the selected text is not empty, the text is interpreted as an OCaml expression and passed as a parameter to the goal command.
 
 1) **HOL Light: Execute Current Tactic (Multiple Lines)**
 
@@ -92,7 +104,7 @@ All commands can be invoked from the command palette or by pressing the correspo
 
     Default shortcut: `Alt + B`
 
-    Reverts one proof step.
+    Reverts one proof step. If a HOL Light server is active then the previous successful tactic is highlighted after executing this command.
 
 1) **HOL Light: Print Current Goal**
 
@@ -213,6 +225,8 @@ The extension adds the `HOL Light configuration` group to settings.
 
 - Commands which select tactics may not work correctly for all possible tactics. Workaround: It is always possible to select tactic text manually and send it to HOL Light.
 
-- Type annotations inside HOL terms which occupy several lines are not correctly highlighted. The only recognized type constructors for highlighting are `list`, `group`, `finite_sum`, `word`.
+- Type annotations inside HOL terms which occupy several lines are not correctly
+  highlighted. The only recognized type constructors for highlighting are
+  `list`, `group`, `ring`, `finite_sum`, `word`, `option`.
 
 - The extension parser is not perfect and it may miss or incorrectly parse some definitions. In general, all definitions should be separated by `;;`.

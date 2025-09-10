@@ -73,3 +73,10 @@ let TEST_TAC (x: int) : tactic = x;;
     
 let in_ball_annulus = prove(`!v. v IN ball_annulus <=> &2 <= norm v /\ norm v <= &2 * h0 /\ ~(v = vec 0)`,ALL_TAC);;
 
+(* Test definitions from s2n-bignum *)
+
+let ARM_MK_EXEC_RULE th0: thm * (thm option array) = 
+  let th0 = INST [`pc':num`,`pc:num`] (SPEC_ALL th0);;
+
+let mk_sublist_of_mc (new_mc_name:string) (mc_th:thm)
+    (ofs_and_len:term*term) (mc_length_th:thm): thm * thm * (thm * thm option array) = 1;;

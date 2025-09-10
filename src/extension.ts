@@ -13,6 +13,7 @@ import { SearchResults } from './searchResults';
 import * as selection from './selection';
 import * as tactic from './tactic';
 import * as util from './util';
+import { classifyProofCommand } from './executor';
 
 const LANG_ID = 'hol-light-ocaml';
 
@@ -52,7 +53,7 @@ export function activate(context: vscode.ExtensionContext) {
     async function chooseHOLLightPath() {
         const uri = await vscode.window.showOpenDialog({
             canSelectFiles: false,
-            canSelectFolders: true, 
+            canSelectFolders: true,
             canSelectMany: false
         });
         if (!uri || !uri.length || !uri[0].fsPath) {
@@ -90,7 +91,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.languages.registerHoverProvider(LANG_ID, util.combineHoverProviders(helpProvider, database, repl))
     );
-    
+
     context.subscriptions.push(
         vscode.languages.registerDefinitionProvider(LANG_ID, database)
     );
@@ -103,7 +104,7 @@ export function activate(context: vscode.ExtensionContext) {
     // Register notebook classes
     context.subscriptions.push(
         vscode.workspace.registerNotebookSerializer(
-            notebook.NOTEBOOK_TYPE, 
+            notebook.NOTEBOOK_TYPE,
             new notebook.HolNotebookSerializer(),
             // Output is not saved
             { transientOutputs: true }
@@ -187,7 +188,7 @@ export function activate(context: vscode.ExtensionContext) {
             await vscode.window.withProgress({
                     location: vscode.ProgressLocation.Notification,
                     cancellable: false
-            }, (progress, _token) => 
+            }, (progress, _token) =>
                 database.indexDocumentWithDependencies(
                     editor.document, holPath, rootPaths, true, progress));
         })
@@ -232,7 +233,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.repl', async () => {
             repl.dispose();
-            (await repl.getTerminalWindow())?.show(true);
+            (await repl.getTerminalWindow({}))?.show(true);
         })
     );
 
@@ -250,9 +251,20 @@ export function activate(context: vscode.ExtensionContext) {
             } else {
                 const address = await config.getServerAddress({ portOnly: true });
                 if (address) {
-                    repl.startServer(address[1]);
+                    if (await repl.startServer(address[1])) {
+                        // Decorations are cleared in HolClient after a connection to
+                        // a server is established
+                        // decorations.removeAllDecorations();
+                    }
                 }
             }
+        })
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('hol-light.connect_server', async () => {
+            repl.dispose();
+            (await repl.getTerminalWindow({ serverOnly: true }))?.show(true);
         })
     );
 
@@ -298,7 +310,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.repl_send_statement', async (editor) => {
-            const terminal = await repl.getTerminalWindow(pathLib.dirname(editor.document.uri.fsPath));
+            const terminal = await repl.getTerminalWindow({ workDir: pathLib.dirname(editor.document.uri.fsPath) });
             if (!terminal) {
                 return;
             }
@@ -308,8 +320,11 @@ export function activate(context: vscode.ExtensionContext) {
                 const document = editor.document;
                 const selections = selection.splitStatements(document, { range: editor.selection });
                 const statements = selections.map(({ text, documentStart, documentEnd }) => ({
-                    cmd: text.trim(), 
-                    options: { location: util.locationStartEnd(document, documentStart, documentEnd) }
+                    cmd: text.trim(),
+                    options: {
+                        location: util.locationStartEnd(document, documentStart, documentEnd),
+                        proofCommand: classifyProofCommand(text),
+                    }
                 })).filter(cmd => cmd.cmd);
                 repl.execute(statements);
                 return;
@@ -323,7 +338,7 @@ export function activate(context: vscode.ExtensionContext) {
             //     const select = selection.selectStatement(editor.document, pos);
             // }
             // console.timeEnd('select statement');
-        
+
             // console.time('select statement2');
             // for (let i = 0; i < 100; i++) {
             //     const select = selection.selectStatement2(editor.document, pos);
@@ -331,9 +346,10 @@ export function activate(context: vscode.ExtensionContext) {
             // console.timeEnd('select statement2');
 
             repl.execute(statementSelection.text, {
-                location: util.locationStartEnd(editor.document, statementSelection.documentStart, statementSelection.documentEnd)
+                location: util.locationStartEnd(editor.document, statementSelection.documentStart, statementSelection.documentEnd),
+                proofCommand: classifyProofCommand(statementSelection.text),
             });
-            
+
             if (statementSelection.newPos) {
                 editor.selection = new vscode.Selection(statementSelection.newPos, statementSelection.newPos);
                 editor.revealRange(editor.selection);
@@ -343,11 +359,14 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.repl_send_raw_statement', async (editor) => {
-            const terminal = await repl.getTerminalWindow(pathLib.dirname(editor.document.uri.fsPath));
+            const terminal = await repl.getTerminalWindow({ workDir: pathLib.dirname(editor.document.uri.fsPath) });
             if (!terminal) {
                 return;
             }
             terminal.show(true);
+
+            // Do not attempt to set the proofCommand option because
+            // the statement text may contain several commands.
 
             if (!editor.selection.isEmpty) {
                 const document = editor.document;
@@ -363,7 +382,7 @@ export function activate(context: vscode.ExtensionContext) {
             repl.execute(statementSelection.text, {
                 location: util.locationStartEnd(editor.document, statementSelection.documentStart, statementSelection.documentEnd)
             });
-            
+
             if (statementSelection.newPos) {
                 editor.selection = new vscode.Selection(statementSelection.newPos, statementSelection.newPos);
                 editor.revealRange(editor.selection);
@@ -373,20 +392,23 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.repl_send_statements_before_cursor', async (editor) => {
-            const terminal = await repl.getTerminalWindow(pathLib.dirname(editor.document.uri.fsPath));
+            const terminal = await repl.getTerminalWindow({ workDir: pathLib.dirname(editor.document.uri.fsPath) });
             if (!terminal) {
                 return;
             }
             terminal.show(true);
 
             const document = editor.document;
-            const selections = selection.splitStatements(document, { 
+            const selections = selection.splitStatements(document, {
                 range: new vscode.Range(document.positionAt(0), editor.selection.active),
                 parseLastStatement: true,
             });
             const statements = selections.map(({ text, documentStart, documentEnd }) => ({
                 cmd: text.trim(),
-                options: { location: util.locationStartEnd(document, documentStart, documentEnd) },
+                options: {
+                    location: util.locationStartEnd(document, documentStart, documentEnd),
+                    proofCommand: classifyProofCommand(text),
+                },
             })).filter(cmd => cmd.cmd);
 
             repl.execute(statements);
@@ -405,7 +427,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerTextEditorCommand('hol-light.repl_send_goal', async (editor) => {
-            const terminal = await repl.getTerminalWindow(pathLib.dirname(editor.document.uri.fsPath));
+            const terminal = await repl.getTerminalWindow({ workDir: pathLib.dirname(editor.document.uri.fsPath) });
             if (!terminal) {
                 return;
             }
@@ -418,13 +440,22 @@ export function activate(context: vscode.ExtensionContext) {
             // }
             // console.timeEnd('select goal');
 
+            if (!editor.selection.isEmpty) {
+              // Use the selected text as the goal.
+              let text = editor.document.getText(editor.selection);
+              const location = new vscode.Location(editor.document.uri, editor.selection);
+              repl.execute(`g(${text});;\n`, { location, proofCommand: 'g' });
+              return;
+            }
+
             const term = selection.selectTerm(editor.document, pos);
             if (!term) {
                 vscode.window.showWarningMessage('Not inside a term');
                 return;
             }
             repl.execute(`g(${term.text});;`, {
-                location: util.locationStartEnd(editor.document, term.documentStart, term.documentEnd)
+                location: util.locationStartEnd(editor.document, term.documentStart, term.documentEnd),
+                proofCommand: 'g'
             });
             ProofViewPanel.updateProofState(repl);
         })
@@ -433,7 +464,7 @@ export function activate(context: vscode.ExtensionContext) {
     const tacticRe = /^\s*(?:THEN\b|THENL\b(\s*\[)?)|\b(?:THEN|THENL(\s*\[)?)\s*$|\)\s*;;+\s*$/g;
 
     async function replSendTactic(editor: vscode.TextEditor, multiline: boolean, newline: boolean) {
-        const terminal = await repl.getTerminalWindow(pathLib.dirname(editor.document.uri.fsPath));
+        const terminal = await repl.getTerminalWindow({ workDir: pathLib.dirname(editor.document.uri.fsPath) });
         if (!terminal) {
             return;
         }
@@ -443,7 +474,7 @@ export function activate(context: vscode.ExtensionContext) {
             let text = editor.document.getText(editor.selection);
             text = text.replace(tacticRe, '').trim();
             const location = new vscode.Location(editor.document.uri, editor.selection);
-            repl.execute(`e(${text});;\n`, { location });
+            repl.execute(`e(${text});;\n`, { location, proofCommand: 'e' });
             ProofViewPanel.updateProofState(repl);
             return;
         }
@@ -452,9 +483,20 @@ export function activate(context: vscode.ExtensionContext) {
         const pos = editor.selection.active;
         let newPos: vscode.Position;
         if (selection && !selection.range.isEmpty) {
-            repl.execute(`e(${editor.document.getText(selection.range)});;\n`, {
-                location: new vscode.Location(editor.document.uri, selection.range)
-            });
+            if (selection.endsWithSemicolon && repl.erSupportedByHOL()) {
+                // If the selected tactic ends with ';', this is a part of the tactic
+                // list after THENL. Use 'er' which rotates to the next subgoal after
+                // 'e tac'.
+                repl.execute(`er(${editor.document.getText(selection.range)});;\n`, {
+                    location: new vscode.Location(editor.document.uri, selection.range),
+                    proofCommand: 'er'
+                });
+            } else {
+                repl.execute(`e(${editor.document.getText(selection.range)});;\n`, {
+                    location: new vscode.Location(editor.document.uri, selection.range),
+                    proofCommand: 'e'
+                });
+            }
             ProofViewPanel.updateProofState(repl);
             newPos = selection.newline ? 
                 new vscode.Position(selection.range.end.line + 1, pos.character) :
@@ -471,11 +513,11 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     context.subscriptions.push(
-        vscode.commands.registerTextEditorCommand('hol-light.repl_send_tactic_multline', 
+        vscode.commands.registerTextEditorCommand('hol-light.repl_send_tactic_multline',
                 editor => replSendTactic(editor, true, true)),
-        vscode.commands.registerTextEditorCommand('hol-light.repl_send_tactic_multline_no_newline', 
+        vscode.commands.registerTextEditorCommand('hol-light.repl_send_tactic_multline_no_newline',
                 editor => replSendTactic(editor, true, false)),
-        vscode.commands.registerTextEditorCommand('hol-light.repl_send_tactic', 
+        vscode.commands.registerTextEditorCommand('hol-light.repl_send_tactic',
                 editor => replSendTactic(editor, false, true)),
         vscode.commands.registerTextEditorCommand('hol-light.repl_send_tactic_no_newline',
                 editor => replSendTactic(editor, false, false))
@@ -497,7 +539,7 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.window.showErrorMessage('No HOL Light REPL');
                 return;
             }
-            repl.execute('b();;');
+            repl.execute('b();;', { proofCommand: 'b' });
             ProofViewPanel.updateProofState(repl);
             decorations.clearAll(editor.document.uri);
         })
@@ -520,14 +562,14 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.window.showErrorMessage('No HOL Light REPL');
                 return;
             }
-            repl.execute('r(1);;');
+            repl.execute('r(1);;', { proofCommand: 'r' });
             ProofViewPanel.updateProofState(repl);
         })
     );
 
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.search', async () => {
-            const terminal = await repl.getTerminalWindow();
+            const terminal = await repl.getTerminalWindow({});
             if (!terminal) {
                 return;
             }

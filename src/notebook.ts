@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import stripAnsi from 'strip-ansi';
 import { TextDecoder, TextEncoder } from 'node:util';
 
 import * as config from './config';
@@ -83,7 +84,7 @@ export class HolNotebookController {
     }
 
     private async executeAll(cells: vscode.NotebookCell[], notebook: vscode.NotebookDocument, _controller: vscode.NotebookController): Promise<void> {
-        const terminal = await this.repl.getTerminalWindow();
+        const terminal = await this.repl.getTerminalWindow({});
         if (!terminal) {
             return;
         }
@@ -127,7 +128,7 @@ export class HolNotebookController {
             if (m) {
                 const name = m[1].trim();
                 const type = m[2].trim();
-                let body = m[3].trim();
+                let body = stripAnsi(m[3].trim());
                 output.push(vscode.NotebookCellOutputItem.text(`\`${name} : ${type}\``, 'text/markdown'));
                 if (type === 'thm' || type === 'term') {
                     body = type === 'thm' ? "```hol-light-ocaml\n`" + body + "`\n```" : "```hol-light-ocaml\n" + body + "\n```";

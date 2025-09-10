@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import stripAnsi from 'strip-ansi';
 
 import * as pathLib from 'node:path';
 
@@ -29,6 +30,9 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
     private clientTerminal?: vscode.Terminal;
     private holClient?: client.HolClient;
 
+    // Is the 'er' command available in this version of HOL Light?
+    private erAvailable: boolean = false;
+
     private readonly startServerItem: vscode.StatusBarItem;
 
     constructor(context: vscode.ExtensionContext, private decorations: CommandDecorations) {
@@ -53,6 +57,13 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
         this.startServerItem.text = '$(server-environment)Start Server';
         this.startServerItem.tooltip = 'Start a server for interacting with HOL Light';
         context.subscriptions.push(this.startServerItem);
+    }
+
+    // The main purpose of the defaultExecutor is to provide an executor for tests
+    private static defaultExecutor?: Executor;
+
+    static setDefaultExecutor(executor?: Executor) {
+        this.defaultExecutor = executor;
     }
 
     private updateStatusBarItem() {
@@ -83,7 +94,7 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
         this.holTerminal?.dispose();
         this.holTerminal = undefined;
         this.holExecutor = undefined;
-        
+
         this.updateStatusBarItem();
     }
 
@@ -96,7 +107,7 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
 
     execute(cmd: string, options?: CommandOptions): void;
     execute(cmds: { cmd: string, options?: CommandOptions }[]): void;
-    
+
     execute(cmd: string | { cmd: string; options?: CommandOptions; }[], options?: CommandOptions): void {
         const executor = this.getActiveExecutor();
         if (executor) {
@@ -114,6 +125,10 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
 
     executeForResult(cmd: string, options?: CommandOptions, token?: vscode.CancellationToken): Promise<string> {
         return this.getActiveExecutor()?.executeForResult(cmd, options, token) ?? Promise.reject("Uninitialized HOL terminal");
+    }
+
+    erSupportedByHOL(): boolean {
+        return this.erAvailable;
     }
 
     private waitingForClient = false;
@@ -152,22 +167,35 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
         this.clientTerminal?.dispose();
         this.clientTerminal = undefined;
         this.holClient = undefined;
-        
+        this.erAvailable = false;
+
         this.holClient = new client.HolClient(address, port, this.decorations, this);
         this.clientTerminal = vscode.window.createTerminal({ name: 'HOL Light (client)', pty: this.holClient, isTransient: true });
 
         if (show) {
             this.clientTerminal.show(true);
         }
+
+        // Check availability of 'er tac'.
+        // This check is done here because createHolClientTerminal could be called
+        // from HolClient.open if there is a connection error.
+        this.executeForResult('er;;', { silent: true }).then(output => {
+            if (/\btactic -> goalstack\b/.test(output)) {
+                this.erAvailable = true;
+            }
+        }).catch(_err => {
+            // ignore errors
+        });
     }
 
-    async getTerminalWindow(_workDir: string = ''): Promise<vscode.Terminal | undefined> {
-        if (!this.getActiveTerminal()) {
+    async getTerminalWindow({ workDir = '', serverOnly = false }: { workDir?: string, serverOnly?: boolean }): Promise<vscode.Terminal | undefined> {
+        if (!this.getActiveTerminal() && !Repl.defaultExecutor) {
+            const serverPlaceholder = '#hol-server#';
             // let standardTerminal = false;
-            const paths = config.getConfigOption<string[]>(config.EXE_PATHS, []);
+            const paths = serverOnly ? [serverPlaceholder] : config.getConfigOption<string[]>(config.EXE_PATHS, []);
             const serverDetail = `Address: ${config.getConfigOption(config.SERVER_ADDRESS, config.DEFAULT_SERVER_ADDRESS) || config.DEFAULT_SERVER_ADDRESS}`;
             const serverLabel = 'Connect to a HOL Light server';
-            const serverItem: vscode.QuickPickItem = { 
+            const serverItem: vscode.QuickPickItem = {
                 label: serverLabel,
                 detail: serverDetail,
                 buttons: [{ iconPath: new vscode.ThemeIcon('settings-gear'), tooltip: 'Change the address' }],
@@ -175,24 +203,26 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
 
             const result = await new Promise<vscode.QuickPickItem | null>((resolve, _reject) => {
                 const items: vscode.QuickPickItem[] = paths.map(path => {
-                    if (path === '#hol-server#') {
+                    if (path === serverPlaceholder) {
                         return serverItem;
                     }
                     // const buttons = [{ iconPath: new vscode.ThemeIcon('terminal'), tooltip: 'Run in a standard terminal' }];
                     return { label: path };
                 });
-                items.push({ label: '', kind: vscode.QuickPickItemKind.Separator });
-                if (!paths.includes('#hol-server#')) {
-                    items.push(serverItem);
+                if (!serverOnly) {
+                    items.push({ label: '', kind: vscode.QuickPickItemKind.Separator });
+                    if (!paths.includes(serverPlaceholder)) {
+                        items.push(serverItem);
+                    }
+                    items.push({ label: 'Choose a script file...', detail: 'Select a file in a file open dialog' });
                 }
-                items.push({ label: 'Choose a script file...', detail: 'Select a file in a file open dialog' });
 
                 let resolveOnHide = true;
-                
+
                 const input = vscode.window.createQuickPick();
                 input.items = items;
-                input.placeholder = 'Select a HOL Light startup script';
-                
+                input.placeholder = serverOnly ? 'Connect to a HOL Light Server' : 'Select a HOL Light startup script';
+
                 // const updateInput = () => {
                 //     if (standardTerminal) {
                 //         input.title = 'Run in a standard terminal (click the button to switch)';
@@ -233,7 +263,7 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
                 //     updateInput();
                 // });
 
-                // TODO: try checkboxes for each item. 
+                // TODO: try checkboxes for each item.
                 // It will be necessary to update input.items every time when the corresponding
                 // item button is clicked.
 
@@ -254,8 +284,8 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
                     path = '';
                 } else if (result.detail) {
                     const uri = await vscode.window.showOpenDialog({
-                        canSelectFiles: true, 
-                        canSelectFolders: false, 
+                        canSelectFiles: true,
+                        canSelectFolders: false,
                         canSelectMany: false
                     });
                     if (!uri || !uri.length || !uri[0].fsPath) {
@@ -286,6 +316,9 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
                 }
                 this.createHolClientTerminal(address[0], address[1], false);
             }
+        } else if (!this.getActiveTerminal() && Repl.defaultExecutor) {
+            this.holTerminal = vscode.window.createTerminal({ name: 'HOL Light', isTransient: true });
+            this.holExecutor = Repl.defaultExecutor;
         }
 
         this.updateStatusBarItem();
@@ -298,12 +331,14 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
         }
         try {
             const res = await this.executeForResult('( ' + word + ' )', { silent: true }, token);
-            const m = res.match(/^[^:]*:([^=]*)=(.*)/s);
+            // Make sure that res is not too long.
+            // vscode.MarkdownString may freeze for long inputs.
+            const m = (res.length > 50000 ? res.slice(0, 50000) + '...' : res).match(/^[^:]*:([^=]*)=(.*)/s);
             if (!m) {
                 return null;
             }
-            const type = m[1].trim();
-            let body = m[2].trim();
+            let type = m[1].trim();
+            let body = stripAnsi(m[2].trim());
             switch (type) {
                 case 'thm':
                     body = "```\n`" + body + "`\n```";
@@ -312,7 +347,9 @@ export class Repl implements Executor, vscode.Disposable, vscode.HoverProvider {
                     body = "```\n" + body + "\n```";
                     break;
                 default:
-                    body = body.replace(/`/g, '\\`').replace(/</g, '&lt;');
+                    body = util.escapeMarkdown(body, true);
+                    // Remove all new line characters from the type
+                    type = type.replace(/\r?\n/g, ' ');
                     break;
             }
             // Use double `` to display potential ` inside the type correctly

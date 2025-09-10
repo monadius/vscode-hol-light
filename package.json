@@ -2,7 +2,7 @@
     "name": "hol-light-simple",
     "displayName": "HOL Light",
     "description": "An extension for VS Code which provides support for HOL Light",
-    "version": "2.1.1",
+    "version": "2.6.0",
     "license": "SEE LICENSE IN LICENSE",
     "publisher": "monadius",
     "engines": {
@@ -37,6 +37,11 @@
                 "category": "HOL Light",
                 "command": "hol-light.start_server",
                 "title": "Start Server"
+            },
+            {
+              "category": "HOL Light",
+              "command": "hol-light.connect_server",
+              "title": "Connect to Server"
             },
             {
                 "category": "HOL Light",
@@ -158,6 +163,17 @@
             }
         ],
         "keybindings": [
+            {
+                "comment": "disable the default ctrl+e binding when a terminal has focus",
+                "key": "ctrl+e",
+                "command": "",
+                "when": "terminalFocus"
+            },
+            {
+                "key": "ctrl+a",
+                "command": "",
+                "when": "terminalFocus"
+            },
             {
                 "key": "ctrl+`",
                 "command": "workbench.action.terminal.focus",
@@ -338,7 +354,11 @@
                 },
                 "hol-light.rootPaths": {
                     "type": "array",
-                    "default": [".", "{hol}", "{workspace}"],
+                    "default": [
+                        ".",
+                        "{hol}",
+                        "{workspace}"
+                    ],
                     "description": "Paths for searching dependencies"
                 },
                 "hol-light.server": {
@@ -490,18 +510,21 @@
         "lint": "eslint src --ext ts",
         "test": "node ./out/test/runTest.js"
     },
+    "dependencies": {
+        "strip-ansi": "^7.1.0"
+    },
     "devDependencies": {
         "@types/glob": "^8.1.0",
-        "@types/mocha": "^10.0.1",
+        "@types/mocha": "^10.0.10",
         "@types/node": "16.x",
         "@types/vscode": "^1.78.0",
         "@typescript-eslint/eslint-plugin": "^5.59.1",
         "@typescript-eslint/parser": "^5.59.1",
         "@vscode/test-electron": "^2.3.0",
-        "esbuild": "^0.17.19",
+        "esbuild": "^0.25.4",
         "eslint": "^8.39.0",
         "glob": "^8.1.0",
-        "mocha": "^10.2.0",
+        "mocha": "^10.8.2",
         "typescript": "^5.0.4"
     }
 }

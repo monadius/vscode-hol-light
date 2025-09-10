@@ -28,6 +28,18 @@ export function getWordAtPosition(document: vscode.TextDocument, position: vscod
     return [document.getText(range), range];
 }
 
+/**
+ * Escapes special markdown characters in the given string
+ * @param text
+ */
+export function escapeMarkdown(text: string, preserveLineBreaks = false): string {
+    text = text.replace(/[`~*#]/g, '\\$&').replace(/</g, '&lt;');
+    if (preserveLineBreaks) {
+        text = text.replace(/\r?\n/g, '  $&');
+    }
+    return text;
+}
+
 export function locationStartEnd(document: vscode.TextDocument, start: number | vscode.Position, end: number | vscode.Position): vscode.Location {
     const pos1 = typeof start === 'number' ? document.positionAt(start) : start;
     const pos2 = typeof end === 'number' ? document.positionAt(end) : end;
@@ -50,7 +62,7 @@ export function filterMap<T, R>(xs: Iterable<T>, f: (x: T) => R | null | undefin
     return res;
 }
 
-export async function isFileExists(filePath: string, checkDir: boolean): Promise<boolean> {
+export async function fileExists(filePath: string, checkDir: boolean): Promise<boolean> {
     try {
         const stats = await fs.stat(filePath);
         return checkDir ? stats.isDirectory() : stats.isFile();
@@ -158,5 +170,30 @@ export function debounceWithDelay<T, A extends any[], R>(fn: (this: T, ...args: 
             timeout = undefined;
         }
         timeout = setTimeout(() => fn.apply(this, args), delay);
+    };
+}
+
+/**
+ * Returns a function which calls the provided function after the given delay.
+ * If there is a pending call, then other calls are ignored until the original call is finished.
+ * @param debounce If true then every call resets the original timeout delay.
+ * @param delay 
+ * @param fn 
+ */
+export function runAfterDelay<T, A extends any[], R>(debounce: boolean, delay: number, fn: (this: T, ...args: A) => R): (this: T, ...args: A) => void {
+    let timeout: NodeJS.Timeout | undefined;
+    let callback: (() => void) | undefined;
+    return function(...args: A) {
+        if (!timeout) {
+            callback = () => {
+                fn.apply(this, args);
+                timeout = undefined;
+                callback = undefined;
+            };
+            timeout = setTimeout(callback, delay);
+        } else if (debounce && callback) {
+            clearTimeout(timeout);
+            timeout = setTimeout(callback, delay);
+        }
     };
 }

@@ -222,7 +222,7 @@ export function selectTerm(document: vscode.TextDocument, pos: number): Selectio
 export function splitSearchInput(input: string): string[] {
     const result: string[] = [];
     
-    const fixWildcards = (s: string) => s.replace(/(?<!_)_(?!_)/g, (_, i) => '__var' + i);
+    const fixWildcards = (s: string) => s.replace(/(?<!\w)_(?!\w)/g, (_, i) => ` __var${i} `);
     const re = /".*?(?:"|$)|`.*?(?:`|$)|[^,`"]+/g;
     let m: RegExpExecArray | null;
     while (m = re.exec(input)) {

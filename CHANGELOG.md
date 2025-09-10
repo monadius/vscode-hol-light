@@ -1,5 +1,36 @@
 # Change Log
 
+## 2.6.0
+- The HOL Light server terminal supports shell integration (https://code.visualstudio.com/docs/terminal/shell-integration).
+- Top level expressions are automatically bound to `it` when using a HOL Light server.
+
+## 2.5.0
+- Improve line editing features for terminals associated with HOL Light servers.
+- New command `HOL Light: Connect to Server` for connecting to a running HOL Light server (thanks to @aqjune).
+- Automatically add line number directives to commands sent to REPL for better debugging (thanks to @aqjune).
+- HOL Light server can be stopped by typing `stop` and pressing ENTER in the server terminal.
+
+## 2.4.0
+- Use `er` (if it is available) when the tactic statement finishes with `;` (thanks to @aqjune).
+- Keep the last successful statements highlighted even if subsequent statements fail (thanks to @aqjune).
+- Bug fixes.
+
+## 2.3.0
+- The HOL Light Server prints the number of subgoals (thanks to @aqjune).
+
+## 2.2.0
+- `hol-light.repl_send_goal` sends the selected text to a HOL Light REPL as a new goal (thanks to @aqjune).
+- `hol-light.repl_back_proof` highlights the previous successful tactic (thanks to @aqjune). 
+   Note: works with a HOL Light server only.
+
+## 2.1.3
+- Add `ring` and `option` to the list of known HOL Light type constructors (for
+  highlighting type definitions).
+- Bug fixes.
+
+## 2.1.2
+- Bug fixes.
+
 ## 2.1.1
 - Bug fixes.
 - Autocompletion, hover messages, and Go to Definition support for operators

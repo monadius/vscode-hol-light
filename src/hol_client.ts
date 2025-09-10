@@ -4,8 +4,9 @@ import * as net from 'node:net';
 
 import * as config from './config';
 import { CommandDecorations, CommandDecorationType } from './decoration';
-import { Executor, CommandOptions } from './executor';
+import { Executor, CommandOptions, ProofCommand } from './executor';
 import { Repl } from './repl';
+import { colorText, Terminal } from './terminal';
 
 const LINE_END = '\n';
 
@@ -51,29 +52,6 @@ const fixErrorLocation = (s: string, location: vscode.Location) =>
 
 const fixLineBreaks = (s: string) => s.replace(/\r*\n/g, '\r\n');
 
-const COLORS: { [key: string]: number } = {
-    'default': 0,
-    'bold': 1,
-    'underline': 4,
-    'black': 30,
-    'red': 31,
-    'green': 32,
-    'yellow': 33,
-    'blue': 34,
-    'magenta': 35,
-    'cyan': 36,
-    'white': 37
-};
-
-function colorText(s: string, color: string): string {
-    const n = COLORS[color];
-    if (!n) {
-        // Return an unmodified string for unknown colors and for the default color 
-        return s;
-    }
-    return `\x1b[${n}m${s}\x1b[0m`;
-}
-
 class Command {
     // Currently command ids are not used
     private static counter: number = 0;
@@ -90,6 +68,10 @@ class Command {
 
     // Location for providing feedback
     readonly location?: vscode.Location;
+    // If this command manipulates the goal state, proofCommand stores the
+    // corresponding command.
+    // Used for recovering text highlights of the previous tactics when b()ed.
+    readonly proofCommand?: ProofCommand;
 
     progressResolve?: () => void;
 
@@ -99,6 +81,7 @@ class Command {
         this.location = options?.location;
         this.silent = options?.silent ?? false;
         this.interactive = options?.interactive ?? false;
+        this.proofCommand = options?.proofCommand;
     }
 
     clear(decorations: CommandDecorations, _reason?: Error) {
@@ -135,7 +118,7 @@ class CommandWithResult extends Command {
     }
 }
 
-export class HolClient implements vscode.Pseudoterminal, Executor {
+export class HolClient extends Terminal implements Executor {
     private repl: Repl;
 
     private host: string;
@@ -148,18 +131,16 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
     private commandQueue: Command[] = [];
     private currentCommand?: Command;
 
+    // A history of locations of executed tactic strings for text highlighting
+    private tacticLocHistory: Array<vscode.Location | undefined> = [];
+
     private socket?: net.Socket;
     private serverPid?: number;
     private canBeInterrupted: boolean = false;
     private readyFlag = false;
 
-    private writeEmitter = new vscode.EventEmitter<string>();
-    private closeEmitter = new vscode.EventEmitter<void | number>();
-
-    onDidWrite: vscode.Event<string> = this.writeEmitter.event;
-    onDidClose?: vscode.Event<void | number> = this.closeEmitter.event;
-
     constructor(host: string, port: number, decorations: CommandDecorations, repl: Repl) {
+        super();
         this.host = host;
         this.port = port;
         this.decorations = decorations;
@@ -174,10 +155,11 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         this.currentCommand?.clear(this.decorations, rejectReason);
         this.commandQueue.forEach(command => command.clear(this.decorations, rejectReason));
         this.commandQueue.length = 0;
+        this.tacticLocHistory = [];
         this.currentCommand = undefined;
     }
 
-    open(_initialDimensions: vscode.TerminalDimensions | undefined): void {
+    override open(_initialDimensions: vscode.TerminalDimensions | undefined): void {
         if (this.socket) {
             this.close();
         }
@@ -185,11 +167,12 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         this.socket = net.connect(this.port, this.host);
         this.socket.on('connect', () => {
             console.log('client connected');
+            this.decorations.removeAllDecorations();
         });
         this.socket.on('close', (hadError) => {
             console.log('HolClient: connection closed');
             this.close();
-            this.closeEmitter.fire(hadError ? 1 : 0);
+            this.fireClose(hadError ? 1 : 0);
         });
         this.socket.on('error', async (err) => {
             console.log(`HolClient: connection error: ${err}`);
@@ -227,15 +210,27 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
             // Process complete lines
             for (let i = 0; i < output.length - 1; i++) {
                 const line = output[i];
-                if (line === 'ready') {
+                if (line.startsWith('ready:')) {
+                    const readyInfo = unescapeString(line.slice(6));
                     if (!suppressPrompt) {
-                        this.writeEmitter.fire('# ');
+                        const subgoals = readyInfo.match(/subgoals:(\d+),(\d+)/);
+                        let msg = '';
+                        if (subgoals) {
+                            msg = `${subgoals[1]} subgoal${subgoals[1] === '1' ? '' : 's'} (${subgoals[2]} total) `;
+                        }
+                        this.setPrompt(colorText(msg, 'blue') + '# ');
+                        this.showPrompt();
                     }
                     suppressPrompt = false;
                     this.currentCommand?.clear(this.decorations);
                     this.currentCommand = undefined;
                     this.readyFlag = true;
                     this.executeNextCommand();
+                    if (this.readyFlag && !this.isInputEmpty()) {
+                        // If there is some input in the terminal then restore it.
+                        this.clearPrompt();
+                        this.restoreInput(true);
+                    }
                 } else if (line.startsWith('info:')) {
                     const serverInfo = unescapeString(line.slice(5)).split(';');
                     for (const info of serverInfo) {
@@ -252,7 +247,7 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
                 } else if (line.startsWith('stdout:')) {
                     if (!this.currentCommand?.silent) {
                         // this.writeEmitter.fire('stdout: ');
-                        this.writeEmitter.fire(fixLineBreaks(unescapeString(line.slice(7))));
+                        this.write(fixLineBreaks(unescapeString(line.slice(7))));
                     }
                 } else if (line.startsWith('stderr:')) {
                     if (!this.currentCommand?.silent) {
@@ -261,7 +256,7 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
                         if (this.currentCommand?.location) {
                             text = fixErrorLocation(text, this.currentCommand.location);
                         }
-                        this.writeEmitter.fire(colorText(text, 'red'));
+                        this.write(colorText(text, 'red'));
                     }
                 } else if (line.startsWith('result:') || line.startsWith('rerror:')) {
                     const result = unescapeString(line.slice(7));
@@ -272,7 +267,8 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
                         if (err && this.currentCommand?.location) {
                             text = fixErrorLocation(text, this.currentCommand.location);
                         }
-                        this.writeEmitter.fire(colorText(text, err ? 'red' : 'default'));
+                        this.write(colorText(text, err ? 'red' : 'default'));
+                        this.markExecutionFinished(err);
                     } else {
                         suppressPrompt = true;
                     }
@@ -282,10 +278,50 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
                         command.progressResolve?.();
 
                         if (command.location) {
-                            this.decorations.clear(err ? CommandDecorationType.success : CommandDecorationType.failure, command.location.uri);
-                            // this.decorations.addRange(this.decorations.success, command.location);
+                            if (!err) {
+                                // If there is no error, remove the previous failure highlight.
+                                this.decorations.clear(CommandDecorationType.failure, command.location.uri);
+                            }
                             this.decorations.setRange(err ? CommandDecorationType.failure : CommandDecorationType.success, command.location);
                         }
+
+                        // If the command manipulates the goal state, let's properly update the
+                        // history of tactic. Also, if the command is "b();;", let's highlight
+                        // the previous tactic.
+                        if (command.proofCommand && !err) {
+                            switch (command.proofCommand) {
+                                case 'g':
+                                    // Reset tactic queue
+                                    this.tacticLocHistory = [];
+                                    break;
+                                case 'e':
+                                    this.tacticLocHistory.push(command.location);
+                                    break;
+                                case 'er':
+                                    this.tacticLocHistory.push(command.location);
+                                    break;
+                                case 'b':
+                                    this.tacticLocHistory.pop();
+                                    // lastTacticLoc is undefined if there is no more tactic
+                                    // to backtrace or the tactic was not associated with any
+                                    // actual text in the editor
+                                    const lastTacticLoc = this.tacticLocHistory.at(-1);
+                                    // If this "b();;" also had a location, this will cause
+                                    // doubly highlighting "b();;" as well as the previous
+                                    // tactic text. Avoid this because it will look
+                                    // ugly.
+                                    if (lastTacticLoc && !command.location) {
+                                        this.decorations.addRange(
+                                            CommandDecorationType.success,
+                                            lastTacticLoc);
+                                    }
+                                    break;
+                                case 'r':
+                                    // There is nothing that needs to be done for highlighting.
+                                    break;
+                            }
+                        }
+
                         if (command instanceof CommandWithResult) {
                             if (command.cancellationToken?.isCancellationRequested) {
                                 command.reject(new Error('Cancelled'));
@@ -308,7 +344,7 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         });
     }
 
-    close(): void {
+    override close(): void {
         this.socket?.end();
         // this.socket.destroy();
         this.socket = undefined;
@@ -318,7 +354,7 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         this.clearCommands(new Error('Connection closed'));
     }
 
-    interrupt(): void {
+    override interrupt(): void {
         if (this.canBeInterrupted && this.socket) {
             this.socket.write('$interrupt' + LINE_END);
         } else if (this.serverPid) {
@@ -327,6 +363,10 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
             process.kill(this.serverPid, 'SIGINT');
         }
         this.clearCommands(new Error('Interrupted'));
+    }
+
+    override evaluateInput(input: string): void {
+        this.execute(input, { interactive: true });
     }
 
     private executeCommand(command: Command) {
@@ -338,26 +378,40 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         if (command.location) {
             this.decorations.addRange(CommandDecorationType.pending, command.location);
         }
-        // console.log(`executing: ${command.cmd}`);
         if (!command.silent) {
             vscode.window.withProgress({
                     location: vscode.ProgressLocation.Window,
                     title: command.cmd,
                     cancellable: true
-                }, 
+                },
                 (_progress, token) => {
                     token.onCancellationRequested(() => this.interrupt());
                     return new Promise<void>((resolve) => command.progressResolve = resolve);
                 }
             );
             if (this.echoInput && command.echoInput) {
-                this.writeEmitter.fire(colorText(fixLineBreaks(command.cmd), 'bold'));
-                this.writeEmitter.fire('\r\n');
+                this.write(colorText(fixLineBreaks(command.cmd), 'bold'));
+                this.write('\r\n');
             }
+            this.markPreexecution(command.cmd);
         }
         this.readyFlag = false;
         this.currentCommand = command;
-        this.socket.write(escapeString(command.cmd));
+
+        // Add the line number directive to the command if the location is specified.
+        let cmd = command.cmd;
+
+        if (command.location) {
+          const filepath = command.location.uri.fsPath;
+          const linenum = command.location.range.start.line + 1;
+          // There is no way to pass column to the line number directive of OCaml.
+          cmd = `#${linenum} "${filepath}"\n` + cmd;
+        }
+        if (command.silent) {
+            cmd = '$silent$' + cmd;
+        }
+        // console.log(`HolClient: executing command: ${cmd}`);
+        this.socket.write(escapeString(cmd));
         this.socket.write(LINE_END);
     }
 
@@ -435,49 +489,5 @@ export class HolClient implements vscode.Pseudoterminal, Executor {
         const command = new CommandWithResult(cmd, options, token);
         this.enqueueCommands([command]);
         return command.result;
-    }
-
-    private buffer: string[] = [];
-
-    handleInput(data: string): void {
-        // console.log(`handleInput("${data}")`);
-        if (data[0] === '\x1b') {
-            // https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences
-            console.log('special: ' + data.slice(1));
-            return;
-        }
-        if (data === '\b' || data === '\x7f') {
-            const n = this.buffer.length;
-            if (n) {
-                this.writeEmitter.fire('\x1b[D\x1b[P');
-            }
-            if (this.buffer[n - 1].length > 1) {
-                this.buffer[n - 1] = this.buffer[n - 1].slice(0, -1);
-            } else {
-                this.buffer.pop();
-            }
-            return;
-        }
-        this.writeEmitter.fire(fixLineBreaks(data));
-        if (data.charCodeAt(0) === 3) {
-            this.writeEmitter.fire('^C\r\n');
-            this.interrupt();
-            this.buffer = [];
-        } else if (data.endsWith('\r') || data.endsWith('\r\n')) {
-            if (data.endsWith('\r')) {
-                data += '\n';
-                this.writeEmitter.fire('\n');
-            }
-            this.buffer.push(data);
-            const s = this.buffer.join('');
-            if (s.trimEnd().endsWith(';;')) {
-                this.buffer = [];
-                this.execute(s, { interactive: true });
-            } else {
-                this.buffer = [s];
-            }
-        } else {
-            this.buffer.push(data);
-        }
     }
 }

@@ -21,7 +21,7 @@ suite('Parser Test Suite', () => {
         const text = document.getText();
         const result = parseText(text, docUri, { customNames, debug: true });
         
-        assert.strictEqual(result.definitions.length, 34, 'All definitions');
+        assert.strictEqual(result.definitions.length, 36, 'All definitions');
         assert.strictEqual(result.dependencies.length, 1, 'All dependencies');
         assert.strictEqual(result.modules.length, 0, 'All modules');
         assert.deepEqual(result.globalModule.openDecls, [], 'Global moudle open declarations');

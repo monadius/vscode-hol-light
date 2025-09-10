@@ -74,12 +74,17 @@ export class Decorations {
         this.documentRanges.delete(uri);
         this.updateDecorations();
     }
+
+    removeAllDecorations() {
+        this.documentRanges = new WeakMap();
+        this.updateDecorations();
+    }
 }
 
 
 class DecorationCollection {
     private decorations: Decorations[];
-    
+
     constructor(decorations: Decorations[]) {
         this.decorations = decorations;
     }
@@ -116,12 +121,17 @@ class DecorationCollection {
         this.decorations.forEach(ds => ds.removeRange(location));
     }
 
+    // Remove all decorations in the file pointed by uri.
     clear(decorationIndex: number, uri: vscode.Uri) {
         this.decorations[decorationIndex]?.clear(uri);
     }
 
     clearAll(uri: vscode.Uri) {
         this.decorations.forEach(ds => ds.clear(uri));
+    }
+
+    removeAllDecorations() {
+        this.decorations.forEach(ds => ds.removeAllDecorations());
     }
 
     getLatestHighlightedRange(decorationIndex: number | number[], uri: vscode.Uri): vscode.Range | undefined {
