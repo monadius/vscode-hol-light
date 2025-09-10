@@ -115,7 +115,11 @@ export abstract class Terminal implements vscode.Pseudoterminal {
         this.write(`${OSC}B${ST}`);
     }
 
-    protected markPreexecution(): void {
+    protected markPreexecution(cmd?: string): void {
+        if (cmd) {
+            cmd = cmd.replace(/[;\x00-\x20\\]/g, m => m === '\\' ? '\\\\' : `\\x${m.charCodeAt(0).toString(16).padStart(2, '0')}`);
+            this.write(`${OSC}E;${cmd}${ST}`);
+        }
         this.write(`${OSC}C${ST}`);
     }
 

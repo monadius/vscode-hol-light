@@ -393,7 +393,7 @@ export class HolClient extends Terminal implements Executor {
                 this.write(colorText(fixLineBreaks(command.cmd), 'bold'));
                 this.write('\r\n');
             }
-            this.markPreexecution();
+            this.markPreexecution(command.cmd);
         }
         this.readyFlag = false;
         this.currentCommand = command;
