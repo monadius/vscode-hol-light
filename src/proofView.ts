@@ -8,10 +8,18 @@ function getWebviewOptions(extensionUri: vscode.Uri): vscode.WebviewOptions {
         // Enable javascript in the webview
         enableScripts: true,
         // And restrict the webview to only loading content from our extension's `media` directory.
-        localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'media')]
+        // localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'media')]
     };
 }
 
+function getNonce() {
+  let text = '';
+  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  for (let i = 0; i < 32; i++) {
+    text += possible.charAt(Math.floor(Math.random() * possible.length));
+  }
+  return text;
+}
 
 export class ProofViewPanel {
     public static currentPanel?: ProofViewPanel;
@@ -67,18 +75,44 @@ export class ProofViewPanel {
         this.panel.webview.html = this.getHtmlForWebview(this.panel.webview, proofState);
     }
 
-    private getHtmlForWebview(webview: vscode.Webview, proofState: string) {
-        return `<!DOCTYPE html>
+    private getHtmlForWebview(webview: vscode.Webview, proofstring: string) {
+        const scriptUri = webview.asWebviewUri(
+            vscode.Uri.joinPath(this.extensionUri, 'out', 'goalview.js')
+        );
+
+        const nonce = getNonce();
+
+        return /* html */ `
+            <!DOCTYPE html>
             <html lang="en">
             <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Proof View</title>
+            <meta charset="UTF-8">
+            <meta http-equiv="Content-Security-Policy"
+                content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Proof View</title>
             </head>
             <body>
-                <h1 id="title">Current Proof</h1>
-                <div id="proof">${proofState}</div>
+            <div>Current Proof:</div>
+            <div id="root">${proofstring}</div>
+            <script type="module" nonce="${nonce}" src="${scriptUri}"></script>
             </body>
-            </html>`;
+            </html>
+        `;
     }
+
+    // private getHtmlForWebview(webview: vscode.Webview, proofState: string) {
+    //     return `<!DOCTYPE html>
+    //         <html lang="en">
+    //         <head>
+    //             <meta charset="UTF-8">
+    //             <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    //             <title>Proof View</title>
+    //         </head>
+    //         <body>
+    //             <h1 id="title">Current Proof</h1>
+    //             <div id="proof">${proofState}</div>
+    //         </body>
+    //         </html>`;
+    // }
 }
