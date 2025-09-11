@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { Repl } from './repl';
 
-const VIEW_TYPE = 'proofView';
+const VIEW_TYPE = 'goalView';
 
 function getWebviewOptions(extensionUri: vscode.Uri): vscode.WebviewOptions {
     return {
@@ -21,8 +21,8 @@ function getNonce() {
   return text;
 }
 
-export class ProofViewPanel {
-    public static currentPanel?: ProofViewPanel;
+export class GoalViewPanel {
+    public static currentPanel?: GoalViewPanel;
 
     private readonly panel: vscode.WebviewPanel;
     private readonly extensionUri: vscode.Uri;
@@ -30,8 +30,8 @@ export class ProofViewPanel {
 
     public static createOrShow(extensionUri: vscode.Uri) {
         const column = vscode.window.activeTextEditor ? vscode.ViewColumn.Beside : vscode.ViewColumn.Two;
-        if (ProofViewPanel.currentPanel) {
-            ProofViewPanel.currentPanel.panel.reveal(column, true);
+        if (GoalViewPanel.currentPanel) {
+            GoalViewPanel.currentPanel.panel.reveal(column, true);
             return;
         }
 
@@ -42,7 +42,7 @@ export class ProofViewPanel {
             getWebviewOptions(extensionUri),
         );
 
-        ProofViewPanel.currentPanel = new ProofViewPanel(panel, extensionUri);
+        GoalViewPanel.currentPanel = new GoalViewPanel(panel, extensionUri);
     }
 
     public static async updateProofState(repl: Repl) {
@@ -65,7 +65,7 @@ export class ProofViewPanel {
     }
 
     public dispose() {
-        ProofViewPanel.currentPanel = undefined;
+        GoalViewPanel.currentPanel = undefined;
         this.panel.dispose();
         this.disposables.forEach(x => x.dispose());
         this.disposables = [];

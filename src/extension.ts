@@ -7,7 +7,7 @@ import * as data from './database';
 import { CommandDecorationType, CommandDecorations, createDecorationType } from './decoration';
 import * as help from './help';
 import * as notebook from './notebook';
-import { ProofViewPanel } from './proofView';
+import { GoalViewPanel } from './goal_view';
 import { Repl } from './repl';
 import { SearchResults } from './searchResults';
 import * as selection from './selection';
@@ -226,7 +226,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.show_proof_view', () => {
-            ProofViewPanel.createOrShow(context.extensionUri);
+            GoalViewPanel.createOrShow(context.extensionUri);
         })
     );
 
@@ -457,7 +457,7 @@ export function activate(context: vscode.ExtensionContext) {
                 location: util.locationStartEnd(editor.document, term.documentStart, term.documentEnd),
                 proofCommand: 'g'
             });
-            ProofViewPanel.updateProofState(repl);
+            GoalViewPanel.updateProofState(repl);
         })
     );
 
@@ -475,7 +475,7 @@ export function activate(context: vscode.ExtensionContext) {
             text = text.replace(tacticRe, '').trim();
             const location = new vscode.Location(editor.document.uri, editor.selection);
             repl.execute(`e(${text});;\n`, { location, proofCommand: 'e' });
-            ProofViewPanel.updateProofState(repl);
+            GoalViewPanel.updateProofState(repl);
             return;
         }
         const maxLines = multiline ? config.getConfigOption(config.TACTIC_MAX_LINES, 30) : 1;
@@ -497,7 +497,7 @@ export function activate(context: vscode.ExtensionContext) {
                     proofCommand: 'e'
                 });
             }
-            ProofViewPanel.updateProofState(repl);
+            GoalViewPanel.updateProofState(repl);
             newPos = selection.newline ? 
                 new vscode.Position(selection.range.end.line + 1, pos.character) :
                 new vscode.Position(selection.range.end.line, selection.range.end.character + 1);
@@ -540,7 +540,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             repl.execute('b();;', { proofCommand: 'b' });
-            ProofViewPanel.updateProofState(repl);
+            GoalViewPanel.updateProofState(repl);
             decorations.clearAll(editor.document.uri);
         })
     );
@@ -552,7 +552,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             repl.execute('p();;');
-            ProofViewPanel.updateProofState(repl);
+            GoalViewPanel.updateProofState(repl);
         })
     );
 
@@ -563,7 +563,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             repl.execute('r(1);;', { proofCommand: 'r' });
-            ProofViewPanel.updateProofState(repl);
+            GoalViewPanel.updateProofState(repl);
         })
     );
 

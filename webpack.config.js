@@ -9,9 +9,8 @@ const webpack = require('webpack');
 /** @typedef {import('webpack').Configuration} WebpackConfig **/
 
 /** @type WebpackConfig */
-module.exports = (env, argv) => {
+module.exports = (_env, argv) => {
   const isProd = argv.mode === 'production';
-  console.log(isProd, argv.mode)
   
   return [
     // Extension (runs in Node)
@@ -38,7 +37,7 @@ module.exports = (env, argv) => {
     // Webview (runs in browser)
     {
       mode: argv.mode || 'none',
-      target: 'web', // important
+      target: 'web',
       entry: {
         goalview: './src/goalview/index.tsx'
       },
@@ -51,6 +50,7 @@ module.exports = (env, argv) => {
       },
       plugins: isProd ? [] : [
         new webpack.DefinePlugin({
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           'process.env.NODE_ENV': JSON.stringify('development')
         })
       ],
@@ -62,4 +62,4 @@ module.exports = (env, argv) => {
       }
     }
   ];
-}
+};
