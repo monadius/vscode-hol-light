@@ -2,7 +2,7 @@
     "name": "hol-light-simple",
     "displayName": "HOL Light",
     "description": "An extension for VS Code which provides support for HOL Light",
-    "version": "2.6.0",
+    "version": "2.6.0-views",
     "license": "SEE LICENSE IN LICENSE",
     "publisher": "monadius",
     "engines": {
@@ -24,7 +24,9 @@
     "bugs": "https://github.com/monadius/vscode-hol-light/issues",
     "homepage": "https://github.com/monadius/vscode-hol-light/blob/master/README.md",
     "icon (TODO)": "images/hol-light-logo.png",
-    "activationEvents": [],
+    "activationEvents": [
+        "onWebviewPanel:goalView"
+    ],
     "main": "./out/extension.js",
     "contributes": {
         "commands": [

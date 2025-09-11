@@ -224,11 +224,24 @@ export function activate(context: vscode.ExtensionContext) {
         indexDocument(vscode.window.activeTextEditor.document);
     }
 
+    // Goal view
+
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.show_proof_view', () => {
             GoalViewPanel.createOrShow(context.extensionUri);
         })
     );
+
+    context.subscriptions.push(
+        vscode.window.registerWebviewPanelSerializer('goalView', {
+            async deserializeWebviewPanel(webviewPanel, state) {
+                // Re-create the GoalViewPanel instance
+                GoalViewPanel.deserialize(webviewPanel, context.extensionUri, state);
+            }
+        })
+    );
+
+    // HOL Light REPL commands
 
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.repl', async () => {

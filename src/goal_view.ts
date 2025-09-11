@@ -45,6 +45,10 @@ export class GoalViewPanel {
         GoalViewPanel.currentPanel = new GoalViewPanel(panel, extensionUri);
     }
 
+    public static deserialize(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, state: any) {
+        GoalViewPanel.currentPanel = new GoalViewPanel(panel, extensionUri);
+    }
+
     public static async updateProofState(repl: Repl) {
         if (!repl.canExecuteForResult() || !this.currentPanel) {
             return false;
