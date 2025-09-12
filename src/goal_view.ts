@@ -64,8 +64,10 @@ export class GoalViewPanel {
         this.extensionUri = extensionUri;
 
         this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
+        this.panel.webview.html = this.getHtmlForWebview(this.panel.webview);
+        this.setMessageListener(this.panel.webview);
 
-        this.update('');
+        // this.update('');
     }
 
     public dispose() {
@@ -76,10 +78,10 @@ export class GoalViewPanel {
     }
 
     public update(proofState: string) {
-        this.panel.webview.html = this.getHtmlForWebview(this.panel.webview, proofState);
+        this.panel.webview.postMessage({ command: 'update', text: proofState });
     }
 
-    private getHtmlForWebview(webview: vscode.Webview, proofstring: string) {
+    private getHtmlForWebview(webview: vscode.Webview) {
         const scriptUri = webview.asWebviewUri(
             vscode.Uri.joinPath(this.extensionUri, 'out', 'goalview.js')
         );
@@ -90,33 +92,31 @@ export class GoalViewPanel {
             <!DOCTYPE html>
             <html lang="en">
             <head>
-            <meta charset="UTF-8">
-            <meta http-equiv="Content-Security-Policy"
-                content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Proof View</title>
+                <meta charset="UTF-8">
+                <meta http-equiv="Content-Security-Policy"
+                    content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Proof View</title>
             </head>
             <body>
-            <div>Current Proof:</div>
-            <div id="root">${proofstring}</div>
-            <script type="module" nonce="${nonce}" src="${scriptUri}"></script>
+                <div id="root"/>
+                <script type="module" nonce="${nonce}" src="${scriptUri}"></script>
             </body>
             </html>
         `;
     }
 
-    // private getHtmlForWebview(webview: vscode.Webview, proofState: string) {
-    //     return `<!DOCTYPE html>
-    //         <html lang="en">
-    //         <head>
-    //             <meta charset="UTF-8">
-    //             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    //             <title>Proof View</title>
-    //         </head>
-    //         <body>
-    //             <h1 id="title">Current Proof</h1>
-    //             <div id="proof">${proofState}</div>
-    //         </body>
-    //         </html>`;
-    // }
+    private setMessageListener(webview: vscode.Webview) {
+        webview.onDidReceiveMessage(
+            message => {
+                switch (message.command) {
+                    case 'alert':
+                        vscode.window.showErrorMessage(message.text);
+                        return;
+                }
+            },
+            undefined,
+            this.disposables
+        );
+    }
 }
