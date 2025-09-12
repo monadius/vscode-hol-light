@@ -1,6 +1,8 @@
+import { useVSCode } from './use_vscode';
 import * as React from 'react';
 
 export default function App() {
+  const vscode = useVSCode();
   const [text, setText] = React.useState('no goal');
 
   React.useEffect(() => {
@@ -17,8 +19,26 @@ export default function App() {
 
   return (
     <div style={{ fontFamily: 'sans-serif', padding: 20 }}>
-      <h1>Hello from React inside VS Code Webview:</h1>
+      <h1>
+        Hello from React inside VS Code Webview:
+      </h1>
       <div>{ text }</div>
+      <div
+        style={{
+          marginTop: 20,
+          padding: '10px 20px',
+          background: '#007acc',
+          color: 'white',
+          borderRadius: 4,
+          cursor: 'pointer',
+          display: 'inline-block',
+          fontWeight: 'bold',
+          textAlign: 'center'
+        }}
+        onClick={() => vscode.postMessage({ command: 'alert', text })}
+      >
+        Send Alert to VS Code
+      </div>
     </div>
   );
 }
