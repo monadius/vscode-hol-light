@@ -28,7 +28,7 @@ module.exports = (_env, argv) => {
       resolve: {
         extensions: ['.ts', '.js']
       },
-      devtool: 'source-map',
+      devtool: 'nosources-source-map',
       module: {
         rules: [{ test: /\.ts$/, use: 'ts-loader', exclude: /node_modules/ }]
       },

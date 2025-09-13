@@ -516,8 +516,8 @@
         "test": "node ./out/test/runTest.js"
     },
     "dependencies": {
-        "react": "^18.0.0",
-        "react-dom": "^18.0.0",
+        "react": "^19.1.0",
+        "react-dom": "^19.1.0",
         "strip-ansi": "^7.1.0"
     },
     "devDependencies": {
@@ -525,8 +525,8 @@
         "@types/mocha": "^10.0.10",
         "@types/node": "16.x",
         "@types/vscode": "^1.78.0",
-        "@types/react": "^18.0.0",
-        "@types/react-dom": "^18.0.0",
+        "@types/react": "^19.1.0",
+        "@types/react-dom": "^19.1.0",
         "@types/vscode-webview": "^1.57.0",
         "@typescript-eslint/eslint-plugin": "^5.59.1",
         "@typescript-eslint/parser": "^5.59.1",
