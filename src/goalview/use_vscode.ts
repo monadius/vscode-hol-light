@@ -3,7 +3,10 @@ import type { WebviewApi } from "vscode-webview";
 let vscodeApi : WebviewApi<unknown> | undefined;
 
 export function useVSCode(): WebviewApi<unknown> {
-    if (!vscodeApi && typeof acquireVsCodeApi === 'function') {
+    if (vscodeApi) {
+        return vscodeApi;
+    }
+    if (typeof acquireVsCodeApi === 'function') {
         vscodeApi = acquireVsCodeApi();
     } else {
         vscodeApi = {

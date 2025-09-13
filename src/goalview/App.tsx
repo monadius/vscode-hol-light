@@ -1,15 +1,25 @@
 import { useVSCode } from './use_vscode';
 import * as React from 'react';
 
+interface Goal {
+    assumptions: [string, string][];
+    conclusion: string;
+}
+
 export default function App() {
   const vscode = useVSCode();
   const [text, setText] = React.useState('no goal');
 
   React.useEffect(() => {
-    const handler = (msg: MessageEvent<{ command: string, text: string }>) => {
+    vscode.postMessage({ command: 'refresh' });
+  }, []);
+
+  React.useEffect(() => {
+    const handler = (msg: MessageEvent<{ command: string }>) => {
       switch (msg.data.command) {
         case 'update':
-          setText(msg.data.text);
+          const data = (msg.data as unknown) as { text: string, goals: Goal[] };
+          setText(data.text);
           break;
       }
     };
@@ -20,9 +30,9 @@ export default function App() {
   return (
     <div style={{ fontFamily: 'sans-serif', padding: 20 }}>
       <h1>
-        Hello from React inside VS Code Webview:
+        Goals
       </h1>
-      <div>{ text }</div>
+      <pre style={{ fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>{text}</pre>
       <div
         style={{
           marginTop: 20,
@@ -35,9 +45,9 @@ export default function App() {
           fontWeight: 'bold',
           textAlign: 'center'
         }}
-        onClick={() => vscode.postMessage({ command: 'alert', text })}
+        onClick={() => vscode.postMessage({ command: 'refresh' })}
       >
-        Send Alert to VS Code
+        Refresh
       </div>
     </div>
   );

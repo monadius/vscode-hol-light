@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { Repl } from './repl';
+import stripAnsi from 'strip-ansi';
 
 const VIEW_TYPE = 'goalView';
 
@@ -19,6 +20,33 @@ function getNonce() {
     text += possible.charAt(Math.floor(Math.random() * possible.length));
   }
   return text;
+}
+
+interface Goal {
+    assumptions: [string, string][];
+    conclusion: string;
+}
+
+function preprocessProofState(proofState: string): Goal[] {
+    const goals: Goal[] = [];
+    const blocks = proofState.split(/\n{2,}/).filter(b => b.trim().length > 0);
+
+    let assumptions: [string, string][] = [];
+
+    for (const block of blocks) {
+        const assumptionLines = Array.from(block.matchAll(/^\s*(\w+)\s+\[`([^`]+)`]/gm));
+        if (assumptionLines.length) {
+            assumptions = assumptionLines.map(match => [match[1], match[2]]);
+        } else {
+            const conclusionMatch = block.match(/^\s*`([^`]+)`/);
+            const conclusion = conclusionMatch ? conclusionMatch[1].trim() : "";
+            if (conclusion) {
+                goals.push({ assumptions, conclusion });
+            }
+        }
+    }
+
+    return goals;
 }
 
 export class GoalViewPanel {
@@ -55,7 +83,11 @@ export class GoalViewPanel {
         }
         const panel = this.currentPanel;
         const res = await repl.executeForResult('p()', { silent: true });
-        panel.update(res);
+
+        // const text = stripAnsi(res).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\r?\n/g, '\\n');
+        // console.log(`"${text}"`);
+
+        panel.update(stripAnsi(res));
         return true;
     }
 
@@ -66,8 +98,6 @@ export class GoalViewPanel {
         this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
         this.panel.webview.html = this.getHtmlForWebview(this.panel.webview);
         this.setMessageListener(this.panel.webview);
-
-        // this.update('');
     }
 
     public dispose() {
@@ -78,7 +108,8 @@ export class GoalViewPanel {
     }
 
     public update(proofState: string) {
-        this.panel.webview.postMessage({ command: 'update', text: proofState });
+        const goals = preprocessProofState(proofState);
+        this.panel.webview.postMessage({ command: 'update', text: proofState, goals: goals });
     }
 
     private getHtmlForWebview(webview: vscode.Webview) {
@@ -110,8 +141,9 @@ export class GoalViewPanel {
         webview.onDidReceiveMessage(
             message => {
                 switch (message.command) {
-                    case 'alert':
-                        vscode.window.showErrorMessage(message.text);
+                    case 'refresh':
+                        const testState = "- : goalstack = 2 subgoals (2 total)\n\n  0 [`FINITE s`]\n  1 [`forall x. x IN s ==> g (f x) = x`]\n\n`forall p q.\n     p permutes s /\\ q = (\\x. if x IN IMAGE f s then f (p (g x)) else x)\n     ==> (evenperm q <=> evenperm p)`\n\n  0 [`FINITE s`]\n  1 [`forall x. x IN s ==> g (f x) = x`]\n\n`forall p q.\n     (forall x. x IN s ==> q (f x) = f (p x)) /\\\n     (forall y. ~(y IN IMAGE f s) ==> q y = y) <=>\n     q = (\\x. if x IN IMAGE f s then f (p (g x)) else x)`\n\n";
+                        this.update(testState);
                         return;
                 }
             },
