@@ -35,32 +35,5 @@ module.exports = (_env, argv) => {
       externals: { vscode: 'commonjs vscode' }
     },
 
-    // Webview (runs in browser)
-    {
-      mode: argv.mode || 'none',
-      target: 'web',
-      entry: {
-        goalview: './src/goalview/index.tsx'
-      },
-      output: {
-        path: path.resolve(__dirname, 'out'),
-        filename: '[name].js'
-      },
-      resolve: {
-        extensions: ['.ts', '.tsx', '.js']
-      },
-      plugins: isProd ? [] : [
-        new webpack.DefinePlugin({
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          'process.env.NODE_ENV': JSON.stringify('development')
-        })
-      ],
-      module: {
-        rules: [
-          { test: /\.tsx?$/, use: 'ts-loader', exclude: /node_modules/ },
-          { test: /\.css$/, use: ['style-loader', 'css-loader'] }
-        ]
-      }
-    }
   ];
 };

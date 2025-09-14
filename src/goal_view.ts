@@ -114,7 +114,7 @@ export class GoalViewPanel {
 
     private getHtmlForWebview(webview: vscode.Webview) {
         const scriptUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this.extensionUri, 'out', 'goalview.js')
+            vscode.Uri.joinPath(this.extensionUri, 'goalview', 'dist', 'index.js')
         );
 
         const nonce = getNonce();
@@ -127,7 +127,7 @@ export class GoalViewPanel {
                 <meta http-equiv="Content-Security-Policy"
                     content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Proof View</title>
+                <title>HOL Light Goal View</title>
             </head>
             <body>
                 <div id="root"/>
@@ -142,7 +142,7 @@ export class GoalViewPanel {
             message => {
                 switch (message.command) {
                     case 'refresh':
-                        const testState = "- : goalstack = 2 subgoals (2 total)\n\n  0 [`FINITE s`]\n  1 [`forall x. x IN s ==> g (f x) = x`]\n\n`forall p q.\n     p permutes s /\\ q = (\\x. if x IN IMAGE f s then f (p (g x)) else x)\n     ==> (evenperm q <=> evenperm p)`\n\n  0 [`FINITE s`]\n  1 [`forall x. x IN s ==> g (f x) = x`]\n\n`forall p q.\n     (forall x. x IN s ==> q (f x) = f (p x)) /\\\n     (forall y. ~(y IN IMAGE f s) ==> q y = y) <=>\n     q = (\\x. if x IN IMAGE f s then f (p (g x)) else x)`\n\n";
+                        const testState = "goalstack = 2 subgoals (2 total)\n\n  0 [`FINITE s`]\n  1 [`forall x. x IN s ==> g (f x) = x`]\n\n`forall p q.\n     p permutes s /\\ q = (\\x. if x IN IMAGE f s then f (p (g x)) else x)\n     ==> (evenperm q <=> evenperm p)`\n\n  0 [`FINITE s`]\n  1 [`forall x. x IN s ==> g (f x) = x`]\n\n`forall p q.\n     (forall x. x IN s ==> q (f x) = f (p x)) /\\\n     (forall y. ~(y IN IMAGE f s) ==> q y = y) <=>\n     q = (\\x. if x IN IMAGE f s then f (p (g x)) else x)`\n\n";
                         this.update(testState);
                         return;
                 }

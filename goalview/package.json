@@ -2,10 +2,10 @@
   "name": "goalview",
   "private": true,
   "version": "0.0.0",
-  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:dev": "tsc -b && vite build -m development",
     "lint": "eslint .",
     "preview": "vite preview"
   },
