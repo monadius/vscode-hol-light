@@ -1,5 +1,10 @@
 import { useVSCode } from './use_vscode';
 import * as React from 'react';
+import "@vscode-elements/elements/dist/vscode-button";
+
+if (import.meta.env.DEV) {
+  await import("@vscode-elements/webview-playground");
+}
 
 interface Goal {
     assumptions: [string, string][];
@@ -29,27 +34,35 @@ export default function App() {
   }, []);
 
   return (
-    <div style={{ fontFamily: 'sans-serif', padding: 20 }}>
-      <h1>
-        Goals
-      </h1>
-      <pre style={{ fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>{text}</pre>
-      <div
-        style={{
-          marginTop: 20,
-          padding: '10px 20px',
-          background: '#007acc',
-          color: 'white',
-          borderRadius: 4,
-          cursor: 'pointer',
-          display: 'inline-block',
-          fontWeight: 'bold',
-          textAlign: 'center'
-        }}
-        onClick={() => vscode.postMessage({ command: 'refresh' })}
-      >
-        Refresh
+    <>
+      {import.meta.env.DEV ? <vscode-dev-toolbar></vscode-dev-toolbar> : null}
+      <div style={{ fontFamily: 'sans-serif', padding: 20 }}>
+        <h1>
+          Goals
+        </h1>
+        <code style={{ fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>{text}</code>
+        <vscode-button
+          onClick={() => vscode.postMessage({ command: 'refresh' })}
+        >
+          Refresh
+        </vscode-button>
+        {/* <div
+          style={{
+            marginTop: 20,
+            padding: '10px 20px',
+            background: '#007acc',
+            color: 'white',
+            borderRadius: 4,
+            cursor: 'pointer',
+            display: 'inline-block',
+            fontWeight: 'bold',
+            textAlign: 'center'
+          }}
+          onClick={() => vscode.postMessage({ command: 'refresh' })}
+        >
+          Refresh
+        </div> */}
       </div>
-    </div>
+    </>
   );
 }
