@@ -65,7 +65,7 @@ export class GoalViewPanel {
 
         const panel = vscode.window.createWebviewPanel(
             VIEW_TYPE,
-            'Proof View',
+            'Goals',
             { viewColumn: column, preserveFocus: true },
             getWebviewOptions(extensionUri),
         );

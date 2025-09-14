@@ -117,8 +117,8 @@
             },
             {
                 "category": "HOL Light",
-                "command": "hol-light.show_proof_view",
-                "title": "Show Proof View",
+                "command": "hol-light.show_goal_view",
+                "title": "Show Goal View",
                 "icon": "$(book)"
             },
             {
@@ -498,7 +498,7 @@
             ],
             "editor/title": [
                 {
-                    "command": "hol-light.show_proof_view",
+                    "command": "hol-light.show_goal_view",
                     "group": "navigation",
                     "when": "editorLangId == hol-light-ocaml"
                 }

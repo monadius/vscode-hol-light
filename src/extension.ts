@@ -227,7 +227,7 @@ export function activate(context: vscode.ExtensionContext) {
     // Goal view
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('hol-light.show_proof_view', () => {
+        vscode.commands.registerCommand('hol-light.show_goal_view', () => {
             GoalViewPanel.createOrShow(context.extensionUri);
         })
     );
