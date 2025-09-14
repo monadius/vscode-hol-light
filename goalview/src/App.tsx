@@ -12,15 +12,16 @@ export default function App() {
 
   React.useEffect(() => {
     vscode.postMessage({ command: 'refresh' });
-  }, []);
+  }, [vscode]);
 
   React.useEffect(() => {
     const handler = (msg: MessageEvent<{ command: string }>) => {
       switch (msg.data.command) {
-        case 'update':
+        case 'update': {
           const data = (msg.data as unknown) as { text: string, goals: Goal[] };
           setText(data.text);
           break;
+        }
       }
     };
     window.addEventListener('message', handler);
