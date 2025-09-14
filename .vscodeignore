@@ -9,6 +9,7 @@ vsc-extension-quickstart.md
 **/*.map
 **/*.ts
 releases/**
+node_modules/**
 **/*.vsix
 
 !goalview/dist/index.js
