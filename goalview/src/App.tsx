@@ -3,6 +3,9 @@ import { useVSCode } from './use_vscode';
 import * as React from 'react';
 import "@vscode-elements/elements/dist/vscode-button";
 import "@vscode-elements/elements/dist/vscode-divider";
+import "@vscode-elements/elements/dist/vscode-tabs";
+import "@vscode-elements/elements/dist/vscode-tab-header";
+import "@vscode-elements/elements/dist/vscode-tab-panel";
 import type { Goal } from './types';
 import './App.css';
 
@@ -13,7 +16,7 @@ if (import.meta.env.DEV) {
 function Goal({ goal }: { goal: Goal }) {
   return (
     <>
-      <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-2 mb-2">
+      <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-2 mb-2 mt-2">
         {goal.assumptions.map(([label, assumption], i) => (
           <React.Fragment key={i}>
             <code>{label}</code>
@@ -22,10 +25,27 @@ function Goal({ goal }: { goal: Goal }) {
         ))}
       </div>
       <vscode-divider/>
-      <pre>
+      <pre className="mt-2">
         {goal.conclusion}
       </pre>
     </>
+  );
+}
+
+function Goals({ goals }: { goals: Goal[] }) {
+  return (
+    <vscode-tabs>
+      {
+        goals.map((goal, i) => (
+          <>
+            <vscode-tab-header slot="header">{`Goal ${i + 1}`}</vscode-tab-header>
+            <vscode-tab-panel>
+              <Goal goal={goal}/>
+            </vscode-tab-panel>
+          </>
+        ))
+      }
+    </vscode-tabs>
   );
 }
 
@@ -57,9 +77,7 @@ export default function App() {
     <>
       {import.meta.env.DEV ? <vscode-dev-toolbar></vscode-dev-toolbar> : null}
       <div className="text-start">
-        {!goals ? (<div>No goals</div>) : <Goal goal={goals[0]}/>}
-        {/* <code style={{ fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>{text}</code> */}
-        {/* <vscode-divider></vscode-divider> */}
+        {!goals || !goals.length ? (<div>No goals</div>) : <Goals goals={goals}/>}
         <br/>
         <vscode-button
           onClick={() => vscode.postMessage({ command: 'refresh' })}
