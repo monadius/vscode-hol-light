@@ -11,14 +11,13 @@ if (import.meta.env.DEV) {
 }
 
 function Goal({ goal }: { goal: Goal }) {
-  console.log(goal.conclusion);
   return (
     <>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-2 mb-2">
         {goal.assumptions.map(([label, assumption], i) => (
           <React.Fragment key={i}>
             <code>{label}</code>
-            <code>{assumption}</code>
+            <pre>{assumption}</pre>
           </React.Fragment>
         ))}
       </div>
@@ -32,10 +31,8 @@ function Goal({ goal }: { goal: Goal }) {
 
 export default function App() {
   const vscode = useVSCode();
-  const [text, setText] = React.useState('no goal');
+  const [_text, setText] = React.useState('no goal');
   const [goals, setGoals] = React.useState<Goal[]>();
-
-  console.log(goals);
 
   React.useEffect(() => {
     vscode.postMessage({ command: 'refresh' });
@@ -59,10 +56,7 @@ export default function App() {
   return (
     <>
       {import.meta.env.DEV ? <vscode-dev-toolbar></vscode-dev-toolbar> : null}
-      <div style={{ fontFamily: 'sans-serif', padding: 20, textAlign: 'start' }}>
-        <h1>
-          Goals
-        </h1>
+      <div className="text-start">
         {!goals ? (<div>No goals</div>) : <Goal goal={goals[0]}/>}
         {/* <code style={{ fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>{text}</code> */}
         {/* <vscode-divider></vscode-divider> */}
@@ -72,22 +66,6 @@ export default function App() {
         >
           Refresh
         </vscode-button>
-        {/* <div
-          style={{
-            marginTop: 20,
-            padding: '10px 20px',
-            background: '#007acc',
-            color: 'white',
-            borderRadius: 4,
-            cursor: 'pointer',
-            display: 'inline-block',
-            fontWeight: 'bold',
-            textAlign: 'center'
-          }}
-          onClick={() => vscode.postMessage({ command: 'refresh' })}
-        >
-          Refresh
-        </div> */}
       </div>
     </>
   );

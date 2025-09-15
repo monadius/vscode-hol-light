@@ -9,7 +9,7 @@ function getWebviewOptions(extensionUri: vscode.Uri): vscode.WebviewOptions {
         // Enable javascript in the webview
         enableScripts: true,
         // And restrict the webview to only loading content from our extension's `media` directory.
-        // localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'media')]
+        localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'goalview', 'dist')],
     };
 }
 
@@ -116,6 +116,9 @@ export class GoalViewPanel {
         const scriptUri = webview.asWebviewUri(
             vscode.Uri.joinPath(this.extensionUri, 'goalview', 'dist', 'index.js')
         );
+        const styleUri = webview.asWebviewUri(
+            vscode.Uri.joinPath(this.extensionUri, 'goalview', 'dist', 'assets', 'index.css')
+        );
 
         const nonce = getNonce();
 
@@ -125,8 +128,9 @@ export class GoalViewPanel {
             <head>
                 <meta charset="UTF-8">
                 <meta http-equiv="Content-Security-Policy"
-                    content="default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';">
+                    content="default-src 'none'; script-src 'nonce-${nonce}'; style-src ${webview.cspSource};">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <link rel="stylesheet" type="text/css" nonce="${nonce}" href="${styleUri}">
                 <title>HOL Light Goal View</title>
             </head>
             <body>
