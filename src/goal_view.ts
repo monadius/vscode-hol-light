@@ -52,11 +52,12 @@ function preprocessProofState(proofState: string): Goal[] {
 export class GoalViewPanel {
     public static currentPanel?: GoalViewPanel;
 
+    private readonly repl: Repl;
     private readonly panel: vscode.WebviewPanel;
     private readonly extensionUri: vscode.Uri;
     private disposables: vscode.Disposable[] = [];
 
-    public static createOrShow(extensionUri: vscode.Uri) {
+    public static createOrShow(extensionUri: vscode.Uri, repl: Repl) {
         const column = vscode.window.activeTextEditor ? vscode.ViewColumn.Beside : vscode.ViewColumn.Two;
         if (GoalViewPanel.currentPanel) {
             GoalViewPanel.currentPanel.panel.reveal(column, true);
@@ -70,30 +71,24 @@ export class GoalViewPanel {
             getWebviewOptions(extensionUri),
         );
 
-        GoalViewPanel.currentPanel = new GoalViewPanel(panel, extensionUri);
+        GoalViewPanel.currentPanel = new GoalViewPanel(panel, extensionUri, repl);
     }
 
-    public static deserialize(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, state: any) {
-        GoalViewPanel.currentPanel = new GoalViewPanel(panel, extensionUri);
+    public static deserialize(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, repl: Repl, _state: any) {
+        GoalViewPanel.currentPanel = new GoalViewPanel(panel, extensionUri, repl);
     }
 
-    public static async updateProofState(repl: Repl) {
-        if (!repl.canExecuteForResult() || !this.currentPanel) {
+    public static async refresh() {
+        if (!this.currentPanel) {
             return false;
         }
-        const panel = this.currentPanel;
-        const res = await repl.executeForResult('p()', { silent: true });
-
-        // const text = stripAnsi(res).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\r?\n/g, '\\n');
-        // console.log(`"${text}"`);
-
-        panel.update(stripAnsi(res));
-        return true;
+        return this.currentPanel.refresh();
     }
 
-    private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
+    private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, repl: Repl) {
         this.panel = panel;
         this.extensionUri = extensionUri;
+        this.repl = repl;
 
         this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
         this.panel.webview.html = this.getHtmlForWebview(this.panel.webview);
@@ -107,7 +102,16 @@ export class GoalViewPanel {
         this.disposables = [];
     }
 
-    public update(proofState: string) {
+    public async refresh() {
+        if (!this.repl.canExecuteForResult()) {
+            return false;
+        }
+        const res = await this.repl.executeForResult('p()', { silent: true });
+        this.updateProofState(stripAnsi(res));
+        return true;
+    }
+
+    public updateProofState(proofState: string) {
         const goals = preprocessProofState(proofState);
         this.panel.webview.postMessage({ command: 'update', text: proofState, goals: goals });
     }
@@ -122,7 +126,7 @@ export class GoalViewPanel {
 
         const nonce = getNonce();
 
-        return /* html */ `
+        return `
             <!DOCTYPE html>
             <html lang="en">
             <head>
@@ -146,8 +150,9 @@ export class GoalViewPanel {
             message => {
                 switch (message.command) {
                     case 'refresh':
-                        const testState = "goalstack = 2 subgoals (2 total)\n\n  0 [`FINITE s`]\n  1 [`forall x. x IN s ==> g (f x) = x`]\n\n`forall p q.\n     p permutes s /\\ q = (\\x. if x IN IMAGE f s then f (p (g x)) else x)\n     ==> (evenperm q <=> evenperm p)`\n\n  0 [`FINITE s`]\n  1 [`forall x. x IN s ==> g (f x) = x`]\n\n`forall p q.\n     (forall x. x IN s ==> q (f x) = f (p x)) /\\\n     (forall y. ~(y IN IMAGE f s) ==> q y = y) <=>\n     q = (\\x. if x IN IMAGE f s then f (p (g x)) else x)`\n\n";
-                        this.update(testState);
+                        // const testState = "goalstack = 2 subgoals (2 total)\n\n  0 [`FINITE s`]\n  1 [`forall x. x IN s ==> g (f x) = x`]\n\n`forall p q.\n     p permutes s /\\ q = (\\x. if x IN IMAGE f s then f (p (g x)) else x)\n     ==> (evenperm q <=> evenperm p)`\n\n  0 [`FINITE s`]\n  1 [`forall x. x IN s ==> g (f x) = x`]\n\n`forall p q.\n     (forall x. x IN s ==> q (f x) = f (p x)) /\\\n     (forall y. ~(y IN IMAGE f s) ==> q y = y) <=>\n     q = (\\x. if x IN IMAGE f s then f (p (g x)) else x)`\n\n";
+                        // this.update(testState);
+                        this.refresh();
                         return;
                 }
             },
