@@ -82,7 +82,9 @@ declare module "react" {
       "vscode-radio": WebComponentProps<VscodeRadio>;
       "vscode-radio-group": WebComponentProps<VscodeRadioGroup>;
       "vscode-scrollable": WebComponentProps<VscodeScrollable>;
-      "vscode-single-select": WebComponentProps<VscodeSingleSelect>;
+      "vscode-single-select": WebComponentProps<VscodeSingleSelect> & {
+        "onchange"?: React.ChangeEventHandler<VscodeSingleSelect>;
+      };
       "vscode-split-layout": WebComponentProps<VscodeSplitLayout> & {
         "onvsc-split-layout-change"?: CustomEventHandler<VscSplitLayoutChangeEvent>;
       };

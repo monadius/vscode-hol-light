@@ -106,14 +106,20 @@ export class GoalViewPanel {
         if (!this.repl.canExecuteForResult()) {
             return false;
         }
-        const res = await this.repl.executeForResult('p()', { silent: true });
-        this.updateProofState(stripAnsi(res));
+        const goalstack = await this.repl.executeForResult('p()', { silent: true });
+        const printTypes = (await this.repl.executeForResult('!print_types_of_subterms', { silent: true })).match(/\d+\s*$/)?.[0] ?? '1';
+        this.updateProofState(stripAnsi(goalstack), +printTypes);
         return true;
     }
 
-    public updateProofState(proofState: string) {
+    public updateProofState(proofState: string, printTypes: number) {
         const goals = preprocessProofState(proofState);
-        this.panel.webview.postMessage({ command: 'update', text: proofState, goals: goals });
+        this.panel.webview.postMessage({
+            command: 'update',
+            text: proofState,
+            goals: goals,
+            printTypes: printTypes,
+        });
     }
 
     private getHtmlForWebview(webview: vscode.Webview) {
@@ -149,11 +155,18 @@ export class GoalViewPanel {
         webview.onDidReceiveMessage(
             message => {
                 switch (message.command) {
-                    case 'refresh':
+                    case 'refresh': {
                         // const testState = "goalstack = 2 subgoals (2 total)\n\n  0 [`FINITE s`]\n  1 [`forall x. x IN s ==> g (f x) = x`]\n\n`forall p q.\n     p permutes s /\\ q = (\\x. if x IN IMAGE f s then f (p (g x)) else x)\n     ==> (evenperm q <=> evenperm p)`\n\n  0 [`FINITE s`]\n  1 [`forall x. x IN s ==> g (f x) = x`]\n\n`forall p q.\n     (forall x. x IN s ==> q (f x) = f (p x)) /\\\n     (forall y. ~(y IN IMAGE f s) ==> q y = y) <=>\n     q = (\\x. if x IN IMAGE f s then f (p (g x)) else x)`\n\n";
                         // this.update(testState);
                         this.refresh();
-                        return;
+                        break;
+                    }
+                    case 'print-types': {
+                        const value = message.value | 0;
+                        this.repl.execute(`print_types_of_subterms := ${value}`, { silent: true });
+                        this.refresh();
+                        break;
+                    }
                 }
             },
             undefined,

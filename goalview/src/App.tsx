@@ -6,6 +6,8 @@ import "@vscode-elements/elements/dist/vscode-divider";
 import "@vscode-elements/elements/dist/vscode-tabs";
 import "@vscode-elements/elements/dist/vscode-tab-header";
 import "@vscode-elements/elements/dist/vscode-tab-panel";
+import "@vscode-elements/elements/dist/vscode-option";
+import "@vscode-elements/elements/dist/vscode-single-select";
 import type { Goal } from './types';
 import './App.css';
 
@@ -16,7 +18,7 @@ if (import.meta.env.DEV) {
 function Goal({ goal }: { goal: Goal }) {
   return (
     <>
-      <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-2 mb-2 mt-2">
+      <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 mb-2 mt-2">
         {goal.assumptions.map(([label, assumption], i) => (
           <React.Fragment key={i}>
             <code>{label}</code>
@@ -37,12 +39,12 @@ function Goals({ goals }: { goals: Goal[] }) {
     <vscode-tabs>
       {
         goals.map((goal, i) => (
-          <>
+          <React.Fragment key={i}>
             <vscode-tab-header slot="header">{`Goal ${i + 1}`}</vscode-tab-header>
             <vscode-tab-panel>
               <Goal goal={goal}/>
             </vscode-tab-panel>
-          </>
+          </React.Fragment>
         ))
       }
     </vscode-tabs>
@@ -51,7 +53,7 @@ function Goals({ goals }: { goals: Goal[] }) {
 
 export default function App() {
   const vscode = useVSCode();
-  const [_text, setText] = React.useState('no goal');
+  const [printTypes, setPrintTypes] = React.useState<number>(1);
   const [goals, setGoals] = React.useState<Goal[]>();
 
   React.useEffect(() => {
@@ -62,9 +64,9 @@ export default function App() {
     const handler = (msg: MessageEvent<{ command: string }>) => {
       switch (msg.data.command) {
         case 'update': {
-          const data = (msg.data as unknown) as { text: string, goals: Goal[] };
-          setText(data.text);
+          const data = (msg.data as unknown) as { text: string, goals: Goal[], printTypes: number };
           setGoals(data.goals);
+          setPrintTypes(Math.max(0, Math.min(data.printTypes, 2)));
           break;
         }
       }
@@ -84,6 +86,16 @@ export default function App() {
         >
           Refresh
         </vscode-button>
+        <vscode-single-select
+          onchange={(e) => {
+            setPrintTypes(e.target.selectedIndex);
+            vscode.postMessage({ command: 'print-types', value: e.target.selectedIndex })
+          }}
+        >
+          <vscode-option selected={printTypes === 0}>Do not show types</vscode-option>
+          <vscode-option selected={printTypes === 1}>Show invented types</vscode-option>
+          <vscode-option selected={printTypes === 2}>Show all types</vscode-option>
+        </vscode-single-select>
       </div>
     </>
   );
