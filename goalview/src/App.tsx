@@ -3,11 +3,12 @@ import { useVSCode } from './use_vscode';
 import * as React from 'react';
 import "@vscode-elements/elements/dist/vscode-button";
 import "@vscode-elements/elements/dist/vscode-divider";
-import "@vscode-elements/elements/dist/vscode-tabs";
+import "@vscode-elements/elements/dist/vscode-option";
+import "@vscode-elements/elements/dist/vscode-scrollable";
+import "@vscode-elements/elements/dist/vscode-single-select";
 import "@vscode-elements/elements/dist/vscode-tab-header";
 import "@vscode-elements/elements/dist/vscode-tab-panel";
-import "@vscode-elements/elements/dist/vscode-option";
-import "@vscode-elements/elements/dist/vscode-single-select";
+import "@vscode-elements/elements/dist/vscode-tabs";
 import type { Goal } from './types';
 import './App.css';
 
@@ -17,20 +18,22 @@ if (import.meta.env.DEV) {
 
 function Goal({ goal }: { goal: Goal }) {
   return (
-    <>
-      <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 mb-2 mt-2">
+    <vscode-scrollable>
+      <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 mb-2 mt-2">
         {goal.assumptions.map(([label, assumption], i) => (
           <React.Fragment key={i}>
-            <code>{label}</code>
-            <pre>{assumption}</pre>
+            <pre className="justify-self-end">{label}:</pre>
+            <pre className="overflow-x-auto">
+              {assumption}
+            </pre>
           </React.Fragment>
         ))}
       </div>
       <vscode-divider/>
-      <pre className="mt-2">
+      <pre className="overflow-x-auto mt-2">
         {goal.conclusion}
       </pre>
-    </>
+    </vscode-scrollable>
   );
 }
 
@@ -107,6 +110,7 @@ export default function App() {
     <>
       {import.meta.env.DEV ? <vscode-dev-toolbar></vscode-dev-toolbar> : null}
       <div className="flex flex-col h-screen">
+        {/* <div className="flex-1 overflow-auto"> */}
         <div className="flex-1">
           <Goals goals={goals}/>
         </div>
