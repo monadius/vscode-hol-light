@@ -63,6 +63,7 @@ class Command {
     // A hack to suppress echoing of interactive commands if they are executed immediately
     echoInput = true;
     readonly silent: boolean;
+    readonly evalAsString: boolean;
     readonly interactive: boolean;
     readonly cmd: string;
 
@@ -80,6 +81,7 @@ class Command {
         this.cmd = cmd;
         this.location = options?.location;
         this.silent = options?.silent ?? false;
+        this.evalAsString = options?.evalAsString ?? false;
         this.interactive = options?.interactive ?? false;
         this.proofCommand = options?.proofCommand;
     }
@@ -407,9 +409,18 @@ export class HolClient extends Terminal implements Executor {
           // There is no way to pass column to the line number directive of OCaml.
           cmd = `#${linenum} "${filepath}"\n` + cmd;
         }
+
+        const args = [];
         if (command.silent) {
-            cmd = '$silent$' + cmd;
+            args.push('silent');
         }
+        if (command.evalAsString) {
+            args.push('string');
+        }
+        if (args.length) {
+            cmd = `$${args.join(';')}$${cmd}`;
+        }
+        
         // console.log(`HolClient: executing command: ${cmd}`);
         this.socket.write(escapeString(cmd));
         this.socket.write(LINE_END);

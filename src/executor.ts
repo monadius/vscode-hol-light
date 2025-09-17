@@ -7,6 +7,7 @@ export type ProofCommand = 'g' | 'e' | 'r' | 'er' | 'b';
 export interface CommandOptions {
     location?: vscode.Location;
     silent?: boolean;
+    evalAsString?: boolean;
     // This flag is true for commands entered in the terminal window directly
     interactive?: boolean;
     // If this command manipulates the goal state, proofCommand stores the
