@@ -106,9 +106,17 @@ export class GoalViewPanel {
         if (!this.repl.canExecuteForResult()) {
             return false;
         }
-        const goalstack = await this.repl.executeForResult('p()', { silent: true });
-        const printTypes = (await this.repl.executeForResult('!print_types_of_subterms', { silent: true })).match(/\d+\s*$/)?.[0] ?? '1';
-        this.updateProofState(stripAnsi(goalstack), +printTypes);
+        try {
+            const goalstack = await this.repl.executeForResult('p()', { silent: true });
+            const printTypes = await this.repl.executeForResult(
+                'string_of_int !print_types_of_subterms', 
+                { silent: true, evalAsString: true }
+            );
+            this.updateProofState(stripAnsi(goalstack), +printTypes);
+        } catch (e) {
+            console.error('Failed to refresh goal view:', e);
+            return false;
+        }
         return true;
     }
 

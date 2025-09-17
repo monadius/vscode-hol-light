@@ -12,5 +12,5 @@ releases/**
 node_modules/**
 **/*.vsix
 
-!goalview/dist/index.js
+!goalview/dist/**
 goalview/**
