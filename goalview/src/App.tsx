@@ -61,13 +61,14 @@ function Controls(props: ControlProps) {
   const vscode = useVSCode();
   const { printTypes, onChangePrintTypes } = props;
   return (
-    <div>
+    <div className="flex flex-row mb-2 mt-2 gap-x-2">
       <vscode-button
         onClick={() => vscode.postMessage({ command: 'refresh' })}
       >
         Refresh
       </vscode-button>
       <vscode-single-select
+        position='above'
         onchange={(e) => onChangePrintTypes(e.target.selectedIndex)}
       >
         <vscode-option selected={printTypes === 0}>Do not show types</vscode-option>
@@ -105,8 +106,10 @@ export default function App() {
   return (
     <>
       {import.meta.env.DEV ? <vscode-dev-toolbar></vscode-dev-toolbar> : null}
-      <div className="text-start">
-        <Goals goals={goals}/>
+      <div className="flex flex-col h-screen">
+        <div className="flex-1">
+          <Goals goals={goals}/>
+        </div>
         <Controls
           printTypes={printTypes}
           onChangePrintTypes={(n: number) => {
