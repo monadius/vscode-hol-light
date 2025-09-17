@@ -34,20 +34,47 @@ function Goal({ goal }: { goal: Goal }) {
   );
 }
 
-function Goals({ goals }: { goals: Goal[] }) {
+function Goals({ goals }: { goals?: Goal[] }) {
+  if (!goals || !goals.length) {
+    return <div>No goals</div>;
+  }
   return (
     <vscode-tabs>
-      {
-        goals.map((goal, i) => (
+      {goals.map((goal, i) => (
           <React.Fragment key={i}>
             <vscode-tab-header slot="header">{`Goal ${i + 1}`}</vscode-tab-header>
             <vscode-tab-panel>
               <Goal goal={goal}/>
             </vscode-tab-panel>
           </React.Fragment>
-        ))
-      }
+      ))}
     </vscode-tabs>
+  );
+}
+
+interface ControlProps {
+  printTypes: number,
+  onChangePrintTypes: (printTypes: number) => void,
+};
+
+function Controls(props: ControlProps) {
+  const vscode = useVSCode();
+  const { printTypes, onChangePrintTypes } = props;
+  return (
+    <div>
+      <vscode-button
+        onClick={() => vscode.postMessage({ command: 'refresh' })}
+      >
+        Refresh
+      </vscode-button>
+      <vscode-single-select
+        onchange={(e) => onChangePrintTypes(e.target.selectedIndex)}
+      >
+        <vscode-option selected={printTypes === 0}>Do not show types</vscode-option>
+        <vscode-option selected={printTypes === 1}>Show invented types</vscode-option>
+        <vscode-option selected={printTypes === 2}>Show all types</vscode-option>
+      </vscode-single-select>
+    </div>
   );
 }
 
@@ -79,23 +106,14 @@ export default function App() {
     <>
       {import.meta.env.DEV ? <vscode-dev-toolbar></vscode-dev-toolbar> : null}
       <div className="text-start">
-        {!goals || !goals.length ? (<div>No goals</div>) : <Goals goals={goals}/>}
-        <br/>
-        <vscode-button
-          onClick={() => vscode.postMessage({ command: 'refresh' })}
-        >
-          Refresh
-        </vscode-button>
-        <vscode-single-select
-          onchange={(e) => {
-            setPrintTypes(e.target.selectedIndex);
-            vscode.postMessage({ command: 'print-types', value: e.target.selectedIndex })
+        <Goals goals={goals}/>
+        <Controls
+          printTypes={printTypes}
+          onChangePrintTypes={(n: number) => {
+            setPrintTypes(n);
+            vscode.postMessage({ command: 'print-types', value: n });
           }}
-        >
-          <vscode-option selected={printTypes === 0}>Do not show types</vscode-option>
-          <vscode-option selected={printTypes === 1}>Show invented types</vscode-option>
-          <vscode-option selected={printTypes === 2}>Show all types</vscode-option>
-        </vscode-single-select>
+        />
       </div>
     </>
   );
