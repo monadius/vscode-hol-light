@@ -30,6 +30,8 @@ export class GoalViewPanel {
     private readonly extensionUri: vscode.Uri;
     private disposables: vscode.Disposable[] = [];
 
+    private maxBoxes?: number;
+
     public static createOrShow(extensionUri: vscode.Uri, repl: Repl) {
         const column = vscode.window.activeTextEditor ? vscode.ViewColumn.Beside : vscode.ViewColumn.Two;
         if (GoalViewPanel.currentPanel) {
@@ -80,8 +82,9 @@ export class GoalViewPanel {
             return false;
         }
         try {
+            const max = this.maxBoxes !== undefined ? `~max_boxes:(Some ${this.maxBoxes})` : '~max_boxes:None';
             const goalstate = await this.repl.executeForResult(
-                'Hol_light_json.json_of_top_goalstate ~color:false ~max_boxes:None', 
+                `Hol_light_json.json_of_top_goalstate ~color:false ${max}`, 
                 { silent: true, evalAsString: true }
             );
             const printTypes = await this.repl.executeForResult(
@@ -140,6 +143,9 @@ export class GoalViewPanel {
                     case 'refresh': {
                         // const testState = "goalstack = 2 subgoals (2 total)\n\n  0 [`FINITE s`]\n  1 [`forall x. x IN s ==> g (f x) = x`]\n\n`forall p q.\n     p permutes s /\\ q = (\\x. if x IN IMAGE f s then f (p (g x)) else x)\n     ==> (evenperm q <=> evenperm p)`\n\n  0 [`FINITE s`]\n  1 [`forall x. x IN s ==> g (f x) = x`]\n\n`forall p q.\n     (forall x. x IN s ==> q (f x) = f (p x)) /\\\n     (forall y. ~(y IN IMAGE f s) ==> q y = y) <=>\n     q = (\\x. if x IN IMAGE f s then f (p (g x)) else x)`\n\n";
                         // this.updateProofState(testState, 1);
+                        if (message.maxBoxes !== undefined) {
+                            this.maxBoxes = message.maxBoxes | 0;
+                        }
                         this.refresh();
                         break;
                     }

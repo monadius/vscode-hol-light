@@ -55,13 +55,15 @@ function Goals({ goalstate }: { goalstate?: types.Goalstate }) {
 }
 
 interface ControlProps {
-  printTypes: number,
-  onChangePrintTypes: (printTypes: number) => void,
+  printTypes: number;
+  maxBoxes: number;
+  onChangePrintTypes: (printTypes: number) => void;
+  onChangeMaxBoxes: (maxBoxes: number) => void;
 };
 
 function Controls(props: ControlProps) {
   const vscode = useVSCode();
-  const { printTypes, onChangePrintTypes } = props;
+  const { printTypes, maxBoxes, onChangePrintTypes, onChangeMaxBoxes } = props;
   return (
     <div className="flex flex-row mb-2 mt-2 gap-x-2">
       <vscode-button
@@ -77,6 +79,15 @@ function Controls(props: ControlProps) {
         <vscode-option selected={printTypes === 1}>Show invented types</vscode-option>
         <vscode-option selected={printTypes === 2}>Show all types</vscode-option>
       </vscode-single-select>
+      <vscode-single-select
+        value={maxBoxes.toString()}
+        position='above'
+        onchange={(e) => onChangeMaxBoxes(+e.target.value)}
+      >
+        <vscode-option>0</vscode-option>
+        <vscode-option>10</vscode-option>
+        <vscode-option>100</vscode-option>
+      </vscode-single-select>    
     </div>
   );
 }
@@ -84,11 +95,12 @@ function Controls(props: ControlProps) {
 export default function App() {
   const vscode = useVSCode();
   const [printTypes, setPrintTypes] = React.useState<number>(1);
+  const [maxBoxes, setMaxBoxes] = React.useState<number>(100);
   const [goalstate, setGoalstate] = React.useState<types.Goalstate>();
 
   React.useEffect(() => {
-    vscode.postMessage({ command: 'refresh' });
-  }, [vscode]);
+    vscode.postMessage({ command: 'refresh', maxBoxes: maxBoxes });
+  }, [vscode, maxBoxes]);
 
   React.useEffect(() => {
     const handler = (msg: MessageEvent<{ command: string }>) => {
@@ -115,9 +127,13 @@ export default function App() {
         </div>
         <Controls
           printTypes={printTypes}
+          maxBoxes={maxBoxes}
           onChangePrintTypes={(n: number) => {
             setPrintTypes(n);
             vscode.postMessage({ command: 'print-types', value: n });
+          }}
+          onChangeMaxBoxes={(n: number) => {
+            setMaxBoxes(n);
           }}
         />
       </div>
