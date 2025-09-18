@@ -81,7 +81,7 @@ export class GoalViewPanel {
         }
         try {
             const goalstate = await this.repl.executeForResult(
-                'Hol_light_json.json_of_top_goalstate ~color:false', 
+                'Hol_light_json.json_of_top_goalstate ~color:false ~max_boxes:None', 
                 { silent: true, evalAsString: true }
             );
             const printTypes = await this.repl.executeForResult(

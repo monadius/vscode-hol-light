@@ -84,19 +84,21 @@ let write_int ob x =
 
 end;;
 
-let write_to_string writer =
+let write_to_string ?max_boxes writer =
   let buf = Buffer.create 1024 in
   let fmt = Format.formatter_of_buffer buf in
-  Format.pp_set_max_boxes fmt 100;
+  (match max_boxes with
+  | Some n -> Format.pp_set_max_boxes fmt 100
+  | None -> ());
   fun arg ->
     Buffer.clear buf;
     let result = writer fmt arg in
     Format.pp_print_flush fmt ();
     result, Buffer.contents buf;;
 
-let write_term ~color ob t =
+let write_term ~color ?max_boxes ob t =
   let writer = if color then pp_print_colored_term else pp_print_term in
-  let _, s = write_to_string writer t in
+  let _, s = write_to_string ?max_boxes writer t in
   Json.write_string ob s;;
 
 let write_list ob writer lst =
@@ -107,14 +109,14 @@ let write_list ob writer lst =
   ) lst;
   Buffer.add_char ob ']';;
 
-let write_goal ~color ob =
+let write_goal ~color ?max_boxes ob =
   let write_hyp ob (label, hyp) =
     Buffer.add_char ob '{';
     Buffer.add_string ob "\"label\":";
     Json.write_string ob label;
     Buffer.add_char ob ',';
     Buffer.add_string ob "\"term\":";
-    write_term ~color ob (concl hyp);
+    write_term ~color ~max_boxes:!print_goal_hyp_max_boxes ob (concl hyp);
     Buffer.add_char ob '}'
   in
   fun (goal : goal) ->
@@ -124,14 +126,14 @@ let write_goal ~color ob =
     write_list ob write_hyp hyps;
     Buffer.add_char ob ',';
     Buffer.add_string ob "\"term\":";
-    write_term ~color ob tm;
+    write_term ~color ?max_boxes ob tm;
     Buffer.add_char ob '}';;
 
-let write_goalstate ~color ob (gs : goalstate) =
+let write_goalstate ~color ?max_boxes ob (gs : goalstate) =
   let _, goals, _ = gs in
-  write_list ob (write_goal ~color) goals;;
+  write_list ob (write_goal ~color ?max_boxes) goals;;
 
-let write_top_goalstate ~color ob =
+let write_top_goalstate ~color ?max_boxes ob =
   let goals, subgoals =
     match !current_goalstack with
     | [] -> [], 0
@@ -141,13 +143,13 @@ let write_top_goalstate ~color ob =
       goals, if p < 1 then 1 else p + 1 in
   Buffer.add_char ob '{';
   Buffer.add_string ob "\"goals\":";
-  write_list ob (write_goal ~color) goals;
+  write_list ob (write_goal ~color ?max_boxes) goals;
   Buffer.add_char ob ',';
   Buffer.add_string ob "\"subgoals\":";
   Json.write_int ob subgoals;
   Buffer.add_char ob '}';;
 
-let json_of_top_goalstate ~color =
+let json_of_top_goalstate ~color ~max_boxes =
   let ob = Buffer.create 1024 in
-  write_top_goalstate ~color ob;
+  write_top_goalstate ~color ?max_boxes ob;
   Buffer.contents ob;;
