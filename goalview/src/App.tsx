@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { useVSCode } from './use_vscode';
 import * as React from 'react';
 import "@vscode-elements/elements/dist/vscode-button";
@@ -15,6 +16,23 @@ if (import.meta.env.DEV) {
   await import("@vscode-elements/webview-playground");
 }
 
+function escapeHtml(str: string) {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function Term({ term }: { term: string }) {
+  const s = escapeHtml(term);
+  console.log(s);
+  return (
+    <pre className="overflow-x-auto" dangerouslySetInnerHTML={{__html: `<span style="color: red;">${s}</span>`}}/>
+  );
+}
+
 function Goal({ goal }: { goal: types.Goal }) {
   return (
     <vscode-scrollable>
@@ -22,9 +40,7 @@ function Goal({ goal }: { goal: types.Goal }) {
         {goal.hypotheses.map((hyp, i) => (
           <React.Fragment key={i}>
             <pre className="justify-self-end">{`${i}${hyp.label ? ` (${hyp.label})` : ''}`}:</pre>
-            <pre className="overflow-x-auto">
-              {hyp.term}
-            </pre>
+            <Term term={hyp.term}/>
           </React.Fragment>
         ))}
       </div>
