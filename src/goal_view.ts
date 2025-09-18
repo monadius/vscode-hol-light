@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { Repl } from './repl';
-import stripAnsi from 'strip-ansi';
+import type { Goalstate } from './types';
 
 const VIEW_TYPE = 'goalView';
 
@@ -20,33 +20,6 @@ function getNonce() {
     text += possible.charAt(Math.floor(Math.random() * possible.length));
   }
   return text;
-}
-
-interface Goal {
-    assumptions: [string, string][];
-    conclusion: string;
-}
-
-function preprocessProofState(proofState: string): Goal[] {
-    const goals: Goal[] = [];
-    const blocks = proofState.split(/\n{2,}/).filter(b => b.trim().length > 0);
-
-    let assumptions: [string, string][] = [];
-
-    for (const block of blocks) {
-        const assumptionLines = Array.from(block.matchAll(/^\s*(\w+)\s+\[`([^`]+)`]/gm));
-        if (assumptionLines.length) {
-            assumptions = assumptionLines.map(match => [match[1], match[2]]);
-        } else {
-            const conclusionMatch = block.match(/^\s*`([^`]+)`/);
-            const conclusion = conclusionMatch ? conclusionMatch[1].trim() : "";
-            if (conclusion) {
-                goals.push({ assumptions, conclusion });
-            }
-        }
-    }
-
-    return goals;
 }
 
 export class GoalViewPanel {
@@ -107,12 +80,15 @@ export class GoalViewPanel {
             return false;
         }
         try {
-            const goalstack = await this.repl.executeForResult('p()', { silent: true });
+            const goalstate = await this.repl.executeForResult(
+                'Hol_light_json.json_of_top_goalstate ~color:false', 
+                { silent: true, evalAsString: true }
+            );
             const printTypes = await this.repl.executeForResult(
                 'string_of_int !print_types_of_subterms', 
                 { silent: true, evalAsString: true }
             );
-            this.updateProofState(stripAnsi(goalstack), +printTypes);
+            this.updateGoalview(JSON.parse(goalstate) as Goalstate, +printTypes);
         } catch (e) {
             console.error('Failed to refresh goal view:', e);
             return false;
@@ -120,12 +96,10 @@ export class GoalViewPanel {
         return true;
     }
 
-    public updateProofState(proofState: string, printTypes: number) {
-        const goals = preprocessProofState(proofState);
+    private updateGoalview(goalstate: Goalstate, printTypes: number) {
         this.panel.webview.postMessage({
             command: 'update',
-            text: proofState,
-            goals: goals,
+            goalstate: goalstate,
             printTypes: printTypes,
         });
     }

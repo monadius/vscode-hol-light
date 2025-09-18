@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { useVSCode } from './use_vscode';
 import * as React from 'react';
 import "@vscode-elements/elements/dist/vscode-button";
@@ -9,41 +8,41 @@ import "@vscode-elements/elements/dist/vscode-single-select";
 import "@vscode-elements/elements/dist/vscode-tab-header";
 import "@vscode-elements/elements/dist/vscode-tab-panel";
 import "@vscode-elements/elements/dist/vscode-tabs";
-import type { Goal } from './types';
+import type * as types from '../../src/types';
 import './App.css';
 
 if (import.meta.env.DEV) {
   await import("@vscode-elements/webview-playground");
 }
 
-function Goal({ goal }: { goal: Goal }) {
+function Goal({ goal }: { goal: types.Goal }) {
   return (
     <vscode-scrollable>
       <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 mb-2 mt-2">
-        {goal.assumptions.map(([label, assumption], i) => (
+        {goal.hypotheses.map((hyp, i) => (
           <React.Fragment key={i}>
-            <pre className="justify-self-end">{label}:</pre>
+            <pre className="justify-self-end">{`${i}${hyp.label ? ` (${hyp.label})` : ''}`}:</pre>
             <pre className="overflow-x-auto">
-              {assumption}
+              {hyp.term}
             </pre>
           </React.Fragment>
         ))}
       </div>
       <vscode-divider/>
       <pre className="overflow-x-auto mt-2">
-        {goal.conclusion}
+        {goal.term}
       </pre>
     </vscode-scrollable>
   );
 }
 
-function Goals({ goals }: { goals?: Goal[] }) {
-  if (!goals || !goals.length) {
+function Goals({ goalstate }: { goalstate?: types.Goalstate }) {
+  if (!goalstate || !goalstate.goals.length) {
     return <div>No goals</div>;
   }
   return (
     <vscode-tabs>
-      {goals.map((goal, i) => (
+      {goalstate.goals.map((goal, i) => (
           <React.Fragment key={i}>
             <vscode-tab-header slot="header">{`Goal ${i + 1}`}</vscode-tab-header>
             <vscode-tab-panel>
@@ -85,7 +84,7 @@ function Controls(props: ControlProps) {
 export default function App() {
   const vscode = useVSCode();
   const [printTypes, setPrintTypes] = React.useState<number>(1);
-  const [goals, setGoals] = React.useState<Goal[]>();
+  const [goalstate, setGoalstate] = React.useState<types.Goalstate>();
 
   React.useEffect(() => {
     vscode.postMessage({ command: 'refresh' });
@@ -95,8 +94,8 @@ export default function App() {
     const handler = (msg: MessageEvent<{ command: string }>) => {
       switch (msg.data.command) {
         case 'update': {
-          const data = (msg.data as unknown) as { text: string, goals: Goal[], printTypes: number };
-          setGoals(data.goals);
+          const data = (msg.data as unknown) as { goalstate: types.Goalstate, printTypes: number };
+          setGoalstate(data.goalstate);
           setPrintTypes(Math.max(0, Math.min(data.printTypes, 2)));
           break;
         }
@@ -112,7 +111,7 @@ export default function App() {
       <div className="flex flex-col h-screen">
         {/* <div className="flex-1 overflow-auto"> */}
         <div className="flex-1">
-          <Goals goals={goals}/>
+          <Goals goalstate={goalstate}/>
         </div>
         <Controls
           printTypes={printTypes}

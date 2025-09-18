@@ -145,9 +145,6 @@ let write_top_goalstate ~color ob =
   Buffer.add_char ob ',';
   Buffer.add_string ob "\"subgoals\":";
   Json.write_int ob subgoals;
-  Buffer.add_char ob ',';
-  Buffer.add_string ob "\"total\":";
-  Json.write_int ob (List.length goals);
   Buffer.add_char ob '}';;
 
 let json_of_top_goalstate ~color =
