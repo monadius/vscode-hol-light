@@ -21,7 +21,7 @@ if (import.meta.env.DEV) {
 
 function Term({ term }: { term: string }) {
   return (
-    <pre className="overflow-x-auto">{ansiToReact(term)}</pre>
+    <pre className="overflow-x-auto term">{ansiToReact(term)}</pre>
   );
 }
 

@@ -9,24 +9,24 @@ export function escapeHtml(str: string) {
     .replace(/'/g, "&#39;");
 }
 
-const ansiToTailwind: Record<string, string> = {
-  "30": "text-black",
-  "31": "text-red-500",
-  "32": "text-green-500",
-  "33": "text-yellow-500",
-  "34": "text-blue-500",
-  "35": "text-purple-500",
-  "36": "text-cyan-500",
-  "37": "text-white",
+const ansiToCss: Record<string, string> = {
+  "30": "term-black",
+  "31": "term-red",
+  "32": "term-green",
+  "33": "term-yellow",
+  "34": "term-blue",
+  "35": "term-magenta",
+  "36": "term-cyan",
+  "37": "term-white",
 
-  "90": "text-gray-500", // bright black
-  "91": "text-red-400",  // bright red
-  "92": "text-green-400",
-  "93": "text-yellow-400",
-  "94": "text-blue-400",
-  "95": "text-purple-400",
-  "96": "text-cyan-400",
-  "97": "text-gray-100", // bright white
+  "90": "term-bright-black",
+  "91": "term-bright-red",
+  "92": "term-bright-green",
+  "93": "term-bright-yellow",
+  "94": "term-bright-blue",
+  "95": "term-bright-magenta",
+  "96": "term-bright-cyan",
+  "97": "term-bright-white",
 
     // background colors
   "40": "bg-black",
@@ -74,15 +74,15 @@ export function ansiToReact(input: string): React.ReactNode[] {
         activeClasses = []; // reset all
       } else if (code === "1") {
         activeClasses.push("font-bold"); // bold
-      } else if (ansiToTailwind[code]) {
+      } else if (ansiToCss[code]) {
         // remove any previous text-*/bg-* before adding new
         if (code.startsWith("3") || code.startsWith("9")) {
-          activeClasses = activeClasses.filter(c => !c.startsWith("text-"));
+          activeClasses = activeClasses.filter(c => !c.startsWith("term-"));
         }
         if (code.startsWith("4") || code.startsWith("10")) {
           activeClasses = activeClasses.filter(c => !c.startsWith("bg-"));
         }
-        activeClasses.push(ansiToTailwind[code]);
+        activeClasses.push(ansiToCss[code]);
       }
     }
 
