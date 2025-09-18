@@ -247,12 +247,12 @@ export class HolClient extends Terminal implements Executor {
                     }
                     // console.log(`info: ${line}, pid = ${this.serverPid}`);
                 } else if (line.startsWith('stdout:')) {
-                    if (!this.currentCommand?.silent) {
+                    if (this.currentCommand && !this.currentCommand.silent) {
                         // this.writeEmitter.fire('stdout: ');
                         this.write(fixLineBreaks(unescapeString(line.slice(7))));
                     }
                 } else if (line.startsWith('stderr:')) {
-                    if (!this.currentCommand?.silent) {
+                    if (this.currentCommand && !this.currentCommand.silent) {
                         // this.writeEmitter.fire('stderr: ');
                         let text = fixLineBreaks(unescapeString(line.slice(7)));
                         if (this.currentCommand?.location) {
@@ -263,7 +263,7 @@ export class HolClient extends Terminal implements Executor {
                 } else if (line.startsWith('result:') || line.startsWith('rerror:')) {
                     const result = unescapeString(line.slice(7));
                     const err = line.startsWith('rerror:');
-                    if (!this.currentCommand?.silent) {
+                    if (this.currentCommand && !this.currentCommand.silent) {
                         // this.writeEmitter.fire('result: ');
                         let text = fixLineBreaks(unescapeString(line.slice(7)));
                         if (err && this.currentCommand?.location) {
@@ -272,7 +272,7 @@ export class HolClient extends Terminal implements Executor {
                         this.write(colorText(text, err ? 'red' : 'default'));
                         this.markExecutionFinished(err);
                     } else {
-                        suppressPrompt = true;
+                        suppressPrompt = this.currentCommand ? true : false;
                     }
                     if (this.currentCommand) {
                         const command = this.currentCommand;
