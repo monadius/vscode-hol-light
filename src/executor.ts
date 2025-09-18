@@ -15,6 +15,20 @@ export interface CommandOptions {
     proofCommand?: ProofCommand;
 }
 
+export class InterruptedError extends Error {
+    constructor(message?: string) {
+        super(message ?? 'Execution was interrupted');
+        this.name = 'InterruptedError';
+    }
+}
+
+export class CancelledError extends Error {
+    constructor(message?: string) {
+        super(message ?? 'Execution was cancelled');
+        this.name = 'CancelledError';
+    }
+}
+
 export function classifyProofCommand(cmd: string): ProofCommand | undefined {
     const m = cmd.match(/^\s*([gerb]|er)(?=[\(`]|\s+[\(\w`])/);
     if (m) {

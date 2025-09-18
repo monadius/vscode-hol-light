@@ -4,7 +4,7 @@ import * as net from 'node:net';
 
 import * as config from './config';
 import { CommandDecorations, CommandDecorationType } from './decoration';
-import { Executor, CommandOptions, ProofCommand } from './executor';
+import { Executor, CommandOptions, ProofCommand, InterruptedError, CancelledError } from './executor';
 import { Repl } from './repl';
 import { colorText, Terminal } from './terminal';
 
@@ -116,7 +116,7 @@ class CommandWithResult extends Command {
 
     clear(decorations: CommandDecorations, reason?: Error) {
         super.clear(decorations, reason);
-        this.reject(reason ?? new Error('Command cancelled (clear)'));
+        this.reject(reason ?? new CancelledError('Command cancelled (clear)'));
     }
 }
 
@@ -326,7 +326,7 @@ export class HolClient extends Terminal implements Executor {
 
                         if (command instanceof CommandWithResult) {
                             if (command.cancellationToken?.isCancellationRequested) {
-                                command.reject(new Error('Cancelled'));
+                                command.reject(new CancelledError('Cancelled'));
                             } else if (err) {
                                 command.reject(new Error(command.location ? fixErrorLocation(result, command.location) : result));
                             } else {
@@ -364,7 +364,7 @@ export class HolClient extends Terminal implements Executor {
             // The group PID is not known if a script is used to run HOL Light.
             process.kill(this.serverPid, 'SIGINT');
         }
-        this.clearCommands(new Error('Interrupted'));
+        this.clearCommands(new InterruptedError('Interrupted'));
     }
 
     override evaluateInput(input: string): void {
@@ -433,7 +433,7 @@ export class HolClient extends Terminal implements Executor {
                 continue;
             }
             if (command instanceof CommandWithResult && command.cancellationToken?.isCancellationRequested) {
-                command.reject(new Error('Cancelled'));
+                command.reject(new CancelledError('Cancelled'));
                 continue;
             }
             this.executeCommand(command);
@@ -465,7 +465,7 @@ export class HolClient extends Terminal implements Executor {
                     this.decorations.removeRange(command.location);
                 }
                 if (command instanceof CommandWithResult) {
-                    command.reject(cancelReason ?? new Error('Group cancelled'));
+                    command.reject(cancelReason ?? new CancelledError('Group cancelled'));
                 }
             }
             return command.groupId !== groupId;

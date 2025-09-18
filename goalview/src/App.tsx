@@ -31,7 +31,7 @@ function Goal({ goal }: { goal: types.Goal }) {
       <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 mb-2 mt-2">
         {goal.hypotheses.map((hyp, i) => (
           <React.Fragment key={i}>
-            <pre className="justify-self-end">{`${i}${hyp.label ? ` (${hyp.label})` : ''}`}:</pre>
+            <pre className="justify-self-end term">{`${i}${hyp.label ? ` (${hyp.label})` : ''}`}:</pre>
             <Term term={hyp.term}/>
           </React.Fragment>
         ))}

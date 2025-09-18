@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { Repl } from './repl';
 import type { Goalstate } from './types';
+import { InterruptedError } from './executor';
 
 const VIEW_TYPE = 'goalView';
 
@@ -96,7 +97,11 @@ export class GoalViewPanel {
             );
             this.updateGoalview(JSON.parse(goalstate) as Goalstate, +printTypes);
         } catch (e) {
-            console.error('Failed to refresh goal view:', e);
+            if (!(e instanceof InterruptedError)) {
+                console.error('Failed to refresh goal view:', e);
+            } else {
+                console.error('goal view refresh interrupted');
+            }
             return false;
         }
         return true;
