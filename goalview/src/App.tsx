@@ -12,25 +12,16 @@ import "@vscode-elements/elements/dist/vscode-tab-header";
 import "@vscode-elements/elements/dist/vscode-tab-panel";
 import "@vscode-elements/elements/dist/vscode-tabs";
 import type * as types from '../../src/types';
+import { ansiToReact } from './ansi';
 import './App.css';
 
 if (import.meta.env.DEV) {
   await import("@vscode-elements/webview-playground");
 }
 
-function escapeHtml(str: string) {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
 function Term({ term }: { term: string }) {
-  const s = escapeHtml(term);
   return (
-    <pre className="overflow-x-auto" dangerouslySetInnerHTML={{__html: s}}/>
+    <pre className="overflow-x-auto">{ansiToReact(term)}</pre>
   );
 }
 
@@ -94,12 +85,13 @@ function Controls(props: ControlProps) {
         Refresh
       </vscode-button>
       <vscode-single-select
+        value={printTypes.toString()}
         position='above'
         onchange={(e) => onChangePrintTypes(e.target.selectedIndex)}
       >
-        <vscode-option selected={printTypes === 0}>Do not show types</vscode-option>
-        <vscode-option selected={printTypes === 1}>Show invented types</vscode-option>
-        <vscode-option selected={printTypes === 2}>Show all types</vscode-option>
+        <vscode-option value='0'>Do not show types</vscode-option>
+        <vscode-option value='1'>Show invented types</vscode-option>
+        <vscode-option value='2'>Show all types</vscode-option>
       </vscode-single-select>
       <vscode-checkbox
         label="Color"
@@ -149,7 +141,7 @@ export default function App() {
         case 'update': {
           const data = (msg.data as unknown) as { goalstate: types.Goalstate, printTypes: number };
           setGoalstate(data.goalstate);
-          setPrintTypes(Math.max(0, Math.min(data.printTypes, 2)));
+          setPrintTypes(Math.max(0, Math.min(data.printTypes | 0, 2)));
           break;
         }
       }
