@@ -32,6 +32,7 @@ export class GoalViewPanel {
 
     private maxBoxes?: number;
     private margin?: number;
+    private color: boolean = true;
 
     public static createOrShow(extensionUri: vscode.Uri, repl: Repl) {
         const column = vscode.window.activeTextEditor ? vscode.ViewColumn.Beside : vscode.ViewColumn.Two;
@@ -86,7 +87,7 @@ export class GoalViewPanel {
             const maxBoxes = this.maxBoxes !== undefined ? `~max_boxes:${this.maxBoxes}` : '';
             const margin = this.margin !== undefined ? `~margin:${this.margin}` : '';
             const goalstate = await this.repl.executeForResult(
-                `Hol_light_json.json_of_top_goalstate ~color:false ${maxBoxes} ${margin} ()`, 
+                `Hol_light_json.json_of_top_goalstate ~color:${this.color} ${maxBoxes} ${margin} ()`, 
                 { silent: true, evalAsString: true }
             );
             const printTypes = await this.repl.executeForResult(
@@ -150,6 +151,9 @@ export class GoalViewPanel {
                         }
                         if (message.margin !== undefined) {
                             this.margin = message.margin | 0;
+                        }
+                        if (message.color !== undefined) {
+                            this.color = message.color;
                         }
                         this.refresh();
                         break;

@@ -2,7 +2,9 @@
 import { useVSCode } from './use_vscode';
 import * as React from 'react';
 import "@vscode-elements/elements/dist/vscode-button";
+import "@vscode-elements/elements/dist/vscode-checkbox";
 import "@vscode-elements/elements/dist/vscode-divider";
+import "@vscode-elements/elements/dist/vscode-label";
 import "@vscode-elements/elements/dist/vscode-option";
 import "@vscode-elements/elements/dist/vscode-scrollable";
 import "@vscode-elements/elements/dist/vscode-single-select";
@@ -70,6 +72,8 @@ function Goals({ goalstate }: { goalstate?: types.Goalstate }) {
 interface ControlProps {
   printTypes: number;
   onChangePrintTypes: (printTypes: number) => void;
+  color: boolean;
+  onChangeColor: (color: boolean) => void;
   maxBoxes: number;
   onChangeMaxBoxes: (maxBoxes: number) => void;
   margin: number;
@@ -79,6 +83,7 @@ interface ControlProps {
 function Controls(props: ControlProps) {
   const vscode = useVSCode();
   const { printTypes, onChangePrintTypes, 
+    color, onChangeColor,
     maxBoxes, onChangeMaxBoxes,
     margin, onChangeMargin } = props;
   return (
@@ -96,19 +101,26 @@ function Controls(props: ControlProps) {
         <vscode-option selected={printTypes === 1}>Show invented types</vscode-option>
         <vscode-option selected={printTypes === 2}>Show all types</vscode-option>
       </vscode-single-select>
+      <vscode-checkbox
+        label="Color"
+        checked={color}
+        onChange={(e) => onChangeColor(e.currentTarget.checked)}
+      />
+      <vscode-label><span className='normal'>Max&nbsp;boxes</span></vscode-label>
       <vscode-single-select
         value={maxBoxes.toString()}
         position='above'
-        onchange={(e) => onChangeMaxBoxes(+e.target.value)}
+        onchange={(e) => onChangeMaxBoxes(+e.currentTarget.value)}
       >
         <vscode-option>2</vscode-option>
         <vscode-option>5</vscode-option>
         <vscode-option>100</vscode-option>
       </vscode-single-select>
+      <vscode-label><span className='normal'>Margin</span></vscode-label>
       <vscode-single-select
         value={margin.toString()}
         position='above'
-        onchange={(e) => onChangeMargin(+e.target.value)}
+        onchange={(e) => onChangeMargin(+e.currentTarget.value)}
       >
         <vscode-option>10</vscode-option>
         <vscode-option>50</vscode-option>
@@ -122,13 +134,14 @@ function Controls(props: ControlProps) {
 export default function App() {
   const vscode = useVSCode();
   const [printTypes, setPrintTypes] = React.useState<number>(1);
+  const [color, setColor] = React.useState<boolean>(true);
   const [maxBoxes, setMaxBoxes] = React.useState<number>(100);
   const [margin, setMargin] = React.useState<number>(80);
   const [goalstate, setGoalstate] = React.useState<types.Goalstate>();
 
   React.useEffect(() => {
-    vscode.postMessage({ command: 'refresh', maxBoxes: maxBoxes, margin: margin });
-  }, [vscode, maxBoxes, margin]);
+    vscode.postMessage({ command: 'refresh', maxBoxes: maxBoxes, margin: margin, color: color });
+  }, [vscode, maxBoxes, margin, color]);
 
   React.useEffect(() => {
     const handler = (msg: MessageEvent<{ command: string }>) => {
@@ -154,6 +167,8 @@ export default function App() {
           <Goals goalstate={goalstate}/>
         </div>
         <Controls
+          color={color}
+          onChangeColor={(b: boolean) => setColor(b)}
           printTypes={printTypes}
           onChangePrintTypes={(n: number) => {
             setPrintTypes(n);

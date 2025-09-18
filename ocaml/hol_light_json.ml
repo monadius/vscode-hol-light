@@ -119,7 +119,7 @@ let write_goal ~color ?max_boxes ?margin ob =
     Json.write_string ob label;
     Buffer.add_char ob ',';
     Buffer.add_string ob "\"term\":";
-    write_term ~color ?max_boxes:!print_goal_hyp_max_boxes ?margin ob (concl hyp);
+    write_term ~color ?max_boxes ?margin ob (concl hyp);
     Buffer.add_char ob '}'
   in
   fun (goal : goal) ->
