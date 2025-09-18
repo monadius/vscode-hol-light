@@ -31,6 +31,7 @@ export class GoalViewPanel {
     private disposables: vscode.Disposable[] = [];
 
     private maxBoxes?: number;
+    private margin?: number;
 
     public static createOrShow(extensionUri: vscode.Uri, repl: Repl) {
         const column = vscode.window.activeTextEditor ? vscode.ViewColumn.Beside : vscode.ViewColumn.Two;
@@ -82,9 +83,10 @@ export class GoalViewPanel {
             return false;
         }
         try {
-            const max = this.maxBoxes !== undefined ? `~max_boxes:(Some ${this.maxBoxes})` : '~max_boxes:None';
+            const maxBoxes = this.maxBoxes !== undefined ? `~max_boxes:${this.maxBoxes}` : '';
+            const margin = this.margin !== undefined ? `~margin:${this.margin}` : '';
             const goalstate = await this.repl.executeForResult(
-                `Hol_light_json.json_of_top_goalstate ~color:false ${max}`, 
+                `Hol_light_json.json_of_top_goalstate ~color:false ${maxBoxes} ${margin} ()`, 
                 { silent: true, evalAsString: true }
             );
             const printTypes = await this.repl.executeForResult(
@@ -145,6 +147,9 @@ export class GoalViewPanel {
                         // this.updateProofState(testState, 1);
                         if (message.maxBoxes !== undefined) {
                             this.maxBoxes = message.maxBoxes | 0;
+                        }
+                        if (message.margin !== undefined) {
+                            this.margin = message.margin | 0;
                         }
                         this.refresh();
                         break;

@@ -27,9 +27,8 @@ function escapeHtml(str: string) {
 
 function Term({ term }: { term: string }) {
   const s = escapeHtml(term);
-  console.log(s);
   return (
-    <pre className="overflow-x-auto" dangerouslySetInnerHTML={{__html: `<span style="color: red;">${s}</span>`}}/>
+    <pre className="overflow-x-auto" dangerouslySetInnerHTML={{__html: s}}/>
   );
 }
 
@@ -44,10 +43,8 @@ function Goal({ goal }: { goal: types.Goal }) {
           </React.Fragment>
         ))}
       </div>
-      <vscode-divider/>
-      <pre className="overflow-x-auto mt-2">
-        {goal.term}
-      </pre>
+      <vscode-divider className="mb-2"/>
+      <Term term={goal.term}/>
     </vscode-scrollable>
   );
 }
@@ -72,14 +69,18 @@ function Goals({ goalstate }: { goalstate?: types.Goalstate }) {
 
 interface ControlProps {
   printTypes: number;
-  maxBoxes: number;
   onChangePrintTypes: (printTypes: number) => void;
+  maxBoxes: number;
   onChangeMaxBoxes: (maxBoxes: number) => void;
+  margin: number;
+  onChangeMargin: (margin: number) => void;
 };
 
 function Controls(props: ControlProps) {
   const vscode = useVSCode();
-  const { printTypes, maxBoxes, onChangePrintTypes, onChangeMaxBoxes } = props;
+  const { printTypes, onChangePrintTypes, 
+    maxBoxes, onChangeMaxBoxes,
+    margin, onChangeMargin } = props;
   return (
     <div className="flex flex-row mb-2 mt-2 gap-x-2">
       <vscode-button
@@ -100,10 +101,20 @@ function Controls(props: ControlProps) {
         position='above'
         onchange={(e) => onChangeMaxBoxes(+e.target.value)}
       >
-        <vscode-option>0</vscode-option>
-        <vscode-option>10</vscode-option>
+        <vscode-option>2</vscode-option>
+        <vscode-option>5</vscode-option>
         <vscode-option>100</vscode-option>
-      </vscode-single-select>    
+      </vscode-single-select>
+      <vscode-single-select
+        value={margin.toString()}
+        position='above'
+        onchange={(e) => onChangeMargin(+e.target.value)}
+      >
+        <vscode-option>10</vscode-option>
+        <vscode-option>50</vscode-option>
+        <vscode-option>80</vscode-option>
+        <vscode-option>200</vscode-option>
+      </vscode-single-select>
     </div>
   );
 }
@@ -112,11 +123,12 @@ export default function App() {
   const vscode = useVSCode();
   const [printTypes, setPrintTypes] = React.useState<number>(1);
   const [maxBoxes, setMaxBoxes] = React.useState<number>(100);
+  const [margin, setMargin] = React.useState<number>(80);
   const [goalstate, setGoalstate] = React.useState<types.Goalstate>();
 
   React.useEffect(() => {
-    vscode.postMessage({ command: 'refresh', maxBoxes: maxBoxes });
-  }, [vscode, maxBoxes]);
+    vscode.postMessage({ command: 'refresh', maxBoxes: maxBoxes, margin: margin });
+  }, [vscode, maxBoxes, margin]);
 
   React.useEffect(() => {
     const handler = (msg: MessageEvent<{ command: string }>) => {
@@ -143,14 +155,14 @@ export default function App() {
         </div>
         <Controls
           printTypes={printTypes}
-          maxBoxes={maxBoxes}
           onChangePrintTypes={(n: number) => {
             setPrintTypes(n);
             vscode.postMessage({ command: 'print-types', value: n });
           }}
-          onChangeMaxBoxes={(n: number) => {
-            setMaxBoxes(n);
-          }}
+          maxBoxes={maxBoxes}
+          onChangeMaxBoxes={(n: number) => setMaxBoxes(n)}
+          margin={margin}
+          onChangeMargin={(n: number) => setMargin(n)}
         />
       </div>
     </>
