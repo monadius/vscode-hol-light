@@ -17,6 +17,7 @@ const getMultithreadedServerCode = (extensionPath: string, port: number, debug: 
 unset_jrh_lexer;;
 #mod_use "${pathLib.join(extensionPath, 'ocaml', 'server2.ml')}";;
 set_jrh_lexer;;
+#mod_use "${pathLib.join(extensionPath, 'ocaml', 'hol_light_json.ml')}";;
 Server2.debug_flag := ${debug};;
 Server2.start ~single_connection:true ${port};;
 `;
