@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { useVSCode } from './use_vscode';
+import { useVSCode } from './use-vscode';
 import * as React from 'react';
 import "@vscode-elements/elements/dist/vscode-button";
 import "@vscode-elements/elements/dist/vscode-checkbox";
