@@ -44,7 +44,8 @@ function unescapeString(s: string): string {
 
 const fixErrorLocation = (s: string, location: vscode.Location) =>
     s.replace(/^File "\(command-line input\)", line (\d+), characters (\d+)-(\d+)/, (_, line, start, end) => {
-        const newLine = +line + location.range.start.line;
+        // subtract 1 because the line directive is appended to commands with location
+        const newLine = +line + location.range.start.line - 1;
         const newStart = (+line === 1 ? +start + location.range.start.character : +start) + 1;
         const newEnd = (+line === 1 ? +end + location.range.start.character : +end) + 1;
         return `File "${location.uri.fsPath}", line ${newLine}, characters ${newStart}-${newEnd}`;
