@@ -4,6 +4,7 @@ import * as React from 'react';
 import "@vscode-elements/elements/dist/vscode-button";
 import "@vscode-elements/elements/dist/vscode-checkbox";
 import "@vscode-elements/elements/dist/vscode-divider";
+import "@vscode-elements/elements/dist/vscode-icon";
 import "@vscode-elements/elements/dist/vscode-label";
 import "@vscode-elements/elements/dist/vscode-option";
 import "@vscode-elements/elements/dist/vscode-scrollable";
@@ -43,8 +44,11 @@ function Goal({ goal }: { goal: types.Goal }) {
 }
 
 function Goals({ goalstate }: { goalstate?: types.Goalstate }) {
+  if (!goalstate) {
+    return <div></div>;
+  }
   if (!goalstate || !goalstate.goals.length) {
-    return <div>No goals</div>;
+    return <div className='p-4'>No goals</div>;
   }
   return (
     <vscode-tabs>
@@ -72,53 +76,90 @@ interface ControlProps {
 };
 
 function Controls(props: ControlProps) {
-  const vscode = useVSCode();
   const { printTypes, onChangePrintTypes, 
     color, onChangeColor,
     maxBoxes, onChangeMaxBoxes,
     margin, onChangeMargin } = props;
+
+  const vscode = useVSCode();
+  const [showExtra, setShowExtra] = React.useState<boolean>(false);
+
   return (
-    <div className="flex flex-row mb-2 mt-2 gap-x-2">
-      <vscode-button
-        onClick={() => vscode.postMessage({ command: 'refresh' })}
-      >
-        Refresh
-      </vscode-button>
-      <vscode-single-select
-        value={printTypes.toString()}
-        position='above'
-        onchange={(e) => onChangePrintTypes(e.target.selectedIndex)}
-      >
-        <vscode-option value='0'>Do not show types</vscode-option>
-        <vscode-option value='1'>Show invented types</vscode-option>
-        <vscode-option value='2'>Show all types</vscode-option>
-      </vscode-single-select>
-      <vscode-checkbox
-        label="Color"
-        checked={color}
-        onChange={(e) => onChangeColor(e.currentTarget.checked)}
-      />
-      <vscode-label><span className='normal'>Max&nbsp;boxes</span></vscode-label>
-      <vscode-single-select
-        value={maxBoxes.toString()}
-        position='above'
-        onchange={(e) => onChangeMaxBoxes(+e.currentTarget.value)}
-      >
-        <vscode-option>2</vscode-option>
-        <vscode-option>5</vscode-option>
-        <vscode-option>100</vscode-option>
-      </vscode-single-select>
-      <vscode-label><span className='normal'>Margin</span></vscode-label>
-      <vscode-single-select
-        value={margin.toString()}
-        position='above'
-        onchange={(e) => onChangeMargin(+e.currentTarget.value)}
-      >
-        <vscode-option>10</vscode-option>
-        <vscode-option>50</vscode-option>
-        <vscode-option>80</vscode-option>
-        <vscode-option>200</vscode-option>
-      </vscode-single-select>
+    <div className="flex flex-col">
+      <div className={"flex flex-row gap-x-2 overflow-hidden"
+        // + " transition-all duration-300"
+        + (showExtra ? ' max-h-screen opacity-100' : ' max-h-0 opacity-0')}>
+        {/* Margin */}
+        <vscode-label><span className='normal'>Margin</span></vscode-label>
+        <vscode-single-select
+          value={margin.toString()}
+          position='above'
+          onchange={(e) => onChangeMargin(+e.currentTarget.value)}
+        >
+          <vscode-option>10</vscode-option>
+          <vscode-option>20</vscode-option>
+          <vscode-option>40</vscode-option>
+          <vscode-option>80</vscode-option>
+          <vscode-option>100</vscode-option>
+          <vscode-option>200</vscode-option>
+          <vscode-option>1000</vscode-option>
+        </vscode-single-select>
+        {/* Max hypothesis boxes */}
+        <vscode-label><span className='normal'>Max&nbsp;hyp.&nbsp;boxes</span></vscode-label>
+        <vscode-single-select
+          value={maxBoxes.toString()}
+          position='above'
+          onchange={(e) => onChangeMaxBoxes(+e.currentTarget.value)}
+        >
+          <vscode-option>2</vscode-option>
+          <vscode-option>3</vscode-option>
+          <vscode-option>4</vscode-option>
+          <vscode-option>10</vscode-option>
+          <vscode-option>100</vscode-option>
+        </vscode-single-select>
+        {/* Max boxes */}
+        <vscode-label><span className='normal'>Max&nbsp;boxes</span></vscode-label>
+        <vscode-single-select
+          value={maxBoxes.toString()}
+          position='above'
+          onchange={(e) => onChangeMaxBoxes(+e.currentTarget.value)}
+        >
+          <vscode-option>2</vscode-option>
+          <vscode-option>5</vscode-option>
+          <vscode-option>100</vscode-option>
+        </vscode-single-select>
+      </div>
+      <div className="flex flex-row mt-2 mb-2 gap-x-2">
+        {/* Refresh */}
+        <vscode-button
+          onClick={() => vscode.postMessage({ command: 'refresh' })}
+        >
+          Refresh
+        </vscode-button>
+        {/* Show types */}
+        <vscode-single-select
+          value={printTypes.toString()}
+          position='above'
+          onchange={(e) => onChangePrintTypes(e.target.selectedIndex)}
+        >
+          <vscode-option value='0'>Do not show types</vscode-option>
+          <vscode-option value='1'>Show invented types</vscode-option>
+          <vscode-option value='2'>Show all types</vscode-option>
+        </vscode-single-select>
+        {/* Color */}
+        <vscode-checkbox
+          label="Color"
+          checked={color}
+          onChange={(e) => onChangeColor(e.currentTarget.checked)}
+        />
+        {/* Show extra options */}
+        <vscode-icon name={showExtra ? 'remove' : 'add'} actionIcon
+          className='ml-auto'
+          onClick={() => setShowExtra(!showExtra)}
+        >
+          Extra
+        </vscode-icon>
+      </div>
     </div>
   );
 }
