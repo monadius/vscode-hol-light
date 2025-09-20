@@ -6,7 +6,7 @@ import * as pathLib from 'node:path';
 import * as config from './config';
 import { CommandDecorations } from './decoration';
 import { Executor, StandardExecutor, CommandOptions } from './executor';
-import * as client from './hol_client';
+import * as client from './hol-client';
 import * as util from './util';
 
 const getMultithreadedServerCode = (extensionPath: string, port: number, debug: boolean) =>
