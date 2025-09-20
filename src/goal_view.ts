@@ -83,10 +83,16 @@ export class GoalViewPanel {
             return false;
         }
         try {
-            const maxBoxes = this.maxBoxes !== undefined ? `~max_boxes:${this.maxBoxes}` : '';
-            const margin = this.margin !== undefined ? `~margin:${this.margin}` : '';
+            const options = [`color = ${this.color}`];
+            if (this.maxBoxes !== undefined) {
+                options.push(`max_boxes = Some ${this.maxBoxes}`);
+            }
+            if (this.margin !== undefined) {
+                options.push(`margin = Some ${this.margin}`);
+            }
+            const optionsStr = `{Hol_light_json.goal_default_options with ${options.join('; ')} }`;
             const goalstate = await this.repl.executeForResult(
-                `Hol_light_json.json_of_top_goalstate ~color:${this.color} ${maxBoxes} ${margin} ()`, 
+                `Hol_light_json.json_of_top_goalstate ~options:${optionsStr}`, 
                 { silent: true, evalAsString: true }
             );
             const printTypes = await this.repl.executeForResult(
