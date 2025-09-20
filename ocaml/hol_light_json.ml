@@ -88,11 +88,11 @@ let write_to_string ?max_boxes ?margin writer =
   let buf = Buffer.create 1024 in
   let fmt = Format.formatter_of_buffer buf in
   (match max_boxes with
-  | Some n -> Format.pp_set_max_boxes fmt n
-  | None -> ());
+  | None | Some 0 -> ()
+  | Some n -> Format.pp_set_max_boxes fmt n);
   (match margin with
-  |Some n -> Format.pp_set_margin fmt n
-  | None -> ());
+  | None | Some 0 -> ()
+  | Some n -> Format.pp_set_margin fmt n);
   fun arg ->
     Buffer.clear buf;
     let result = writer fmt arg in
@@ -114,16 +114,16 @@ let write_term ~color ?max_boxes ?margin ob t =
 
 type goal_options = {
     color: bool;
-    max_boxes: int option;
-    max_hyp_boxes: int option;
-    margin: int option;
+    max_boxes: int;
+    max_hyp_boxes: int;
+    margin: int;
 };;
 
 let goal_default_options = {
   color = true;
-  max_boxes = None;
-  max_hyp_boxes = None;
-  margin = None;
+  max_boxes = 0;
+  max_hyp_boxes = 0;
+  margin = 0;
 };;
 
 let write_goal ~options ob =
@@ -135,8 +135,8 @@ let write_goal ~options ob =
     Buffer.add_string ob "\"term\":";
     write_term 
       ~color:options.color
-      ?max_boxes:options.max_hyp_boxes
-      ?margin:options.margin
+      ~max_boxes:options.max_hyp_boxes
+      ~margin:options.margin
       ob (concl hyp);
     Buffer.add_char ob '}'
   in
@@ -149,8 +149,8 @@ let write_goal ~options ob =
     Buffer.add_string ob "\"term\":";
     write_term 
       ~color:options.color
-      ?max_boxes:options.max_boxes
-      ?margin:options.margin 
+      ~max_boxes:options.max_boxes
+      ~margin:options.margin 
       ob tm;
     Buffer.add_char ob '}';;
 

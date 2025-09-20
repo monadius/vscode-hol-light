@@ -63,22 +63,22 @@ function Goals({ goalstate }: { goalstate?: types.Goalstate }) {
   );
 }
 
+interface GoalOptions {
+  color?: boolean;
+  margin?: number;
+  maxBoxes?: number;
+  maxHypBoxes?: number;
+};
+
 interface ControlProps {
   printTypes: number;
   onChangePrintTypes: (printTypes: number) => void;
-  color: boolean;
-  onChangeColor: (color: boolean) => void;
-  maxBoxes: number;
-  onChangeMaxBoxes: (maxBoxes: number) => void;
-  margin: number;
-  onChangeMargin: (margin: number) => void;
+  goalOptions: GoalOptions;
+  onChangeGoalOptions: (newOptions: GoalOptions) => void;
 };
 
 function Controls(props: ControlProps) {
-  const { printTypes, onChangePrintTypes, 
-    color, onChangeColor,
-    maxBoxes, onChangeMaxBoxes,
-    margin, onChangeMargin } = props;
+  const { printTypes, onChangePrintTypes, goalOptions, onChangeGoalOptions } = props;
 
   const vscode = useVSCode();
   const [showExtra, setShowExtra] = React.useState<boolean>(false);
@@ -91,9 +91,9 @@ function Controls(props: ControlProps) {
         {/* Margin */}
         <vscode-label><span className='normal'>Margin</span></vscode-label>
         <vscode-single-select
-          value={margin.toString()}
+          value={goalOptions.margin?.toString() ?? '0'}
           position='above'
-          onchange={(e) => onChangeMargin(+e.currentTarget.value)}
+          onchange={(e) => onChangeGoalOptions({ margin: +e.currentTarget.value })}
         >
           <vscode-option>10</vscode-option>
           <vscode-option>20</vscode-option>
@@ -102,30 +102,33 @@ function Controls(props: ControlProps) {
           <vscode-option>100</vscode-option>
           <vscode-option>200</vscode-option>
           <vscode-option>1000</vscode-option>
+          <vscode-option value='0'>default</vscode-option>
         </vscode-single-select>
         {/* Max hypothesis boxes */}
         <vscode-label><span className='normal'>Max&nbsp;hyp.&nbsp;boxes</span></vscode-label>
         <vscode-single-select
-          value={maxBoxes.toString()}
+          value={goalOptions.maxHypBoxes?.toString() ?? '0'}
           position='above'
-          onchange={(e) => onChangeMaxBoxes(+e.currentTarget.value)}
+          onchange={(e) => onChangeGoalOptions({ maxHypBoxes: +e.currentTarget.value })}
         >
           <vscode-option>2</vscode-option>
           <vscode-option>3</vscode-option>
           <vscode-option>4</vscode-option>
           <vscode-option>10</vscode-option>
           <vscode-option>100</vscode-option>
+          <vscode-option value='0'>default</vscode-option>
         </vscode-single-select>
         {/* Max boxes */}
         <vscode-label><span className='normal'>Max&nbsp;boxes</span></vscode-label>
         <vscode-single-select
-          value={maxBoxes.toString()}
+          value={goalOptions.maxBoxes?.toString() ?? '0'}
           position='above'
-          onchange={(e) => onChangeMaxBoxes(+e.currentTarget.value)}
+          onchange={(e) => onChangeGoalOptions({ maxBoxes: +e.currentTarget.value })}
         >
           <vscode-option>2</vscode-option>
           <vscode-option>5</vscode-option>
           <vscode-option>100</vscode-option>
+          <vscode-option value='0'>default</vscode-option>
         </vscode-single-select>
       </div>
       <div className="flex flex-row mb-2 gap-x-2">
@@ -148,8 +151,8 @@ function Controls(props: ControlProps) {
         {/* Color */}
         <vscode-checkbox
           label="Color"
-          checked={color}
-          onChange={(e) => onChangeColor(e.currentTarget.checked)}
+          checked={goalOptions.color ?? true}
+          onChange={(e) => onChangeGoalOptions({ color: e.currentTarget.checked })}
         />
         {/* Show extra options */}
         <vscode-icon name={showExtra ? 'remove' : 'add'} actionIcon
@@ -166,14 +169,15 @@ function Controls(props: ControlProps) {
 export default function App() {
   const vscode = useVSCode();
   const [printTypes, setPrintTypes] = React.useState<number>(1);
-  const [color, setColor] = React.useState<boolean>(true);
-  const [maxBoxes, setMaxBoxes] = React.useState<number>(100);
-  const [margin, setMargin] = React.useState<number>(80);
+  const [goalOptions, setGoalOptions] = React.useState<GoalOptions>({ color: true });
   const [goalstate, setGoalstate] = React.useState<types.Goalstate>();
 
   React.useEffect(() => {
-    vscode.postMessage({ command: 'refresh', maxBoxes: maxBoxes, margin: margin, color: color });
-  }, [vscode, maxBoxes, margin, color]);
+    vscode.postMessage({ 
+      command: 'refresh', 
+      ...goalOptions
+    });
+  }, [vscode, goalOptions]);
 
   React.useEffect(() => {
     const handler = (msg: MessageEvent<{ command: string }>) => {
@@ -199,17 +203,13 @@ export default function App() {
           <Goals goalstate={goalstate}/>
         </div>
         <Controls
-          color={color}
-          onChangeColor={(b: boolean) => setColor(b)}
           printTypes={printTypes}
           onChangePrintTypes={(n: number) => {
             setPrintTypes(n);
             vscode.postMessage({ command: 'print-types', value: n });
           }}
-          maxBoxes={maxBoxes}
-          onChangeMaxBoxes={(n: number) => setMaxBoxes(n)}
-          margin={margin}
-          onChangeMargin={(n: number) => setMargin(n)}
+          goalOptions={goalOptions}
+          onChangeGoalOptions={(newOptions) => setGoalOptions({ ...goalOptions, ...newOptions })}
         />
       </div>
     </>

@@ -30,6 +30,7 @@ export class GoalViewPanel {
     private disposables: vscode.Disposable[] = [];
 
     private maxBoxes?: number;
+    private maxHypBoxes?: number;
     private margin?: number;
     private color: boolean = true;
 
@@ -84,11 +85,14 @@ export class GoalViewPanel {
         }
         try {
             const options = [`color = ${this.color}`];
-            if (this.maxBoxes !== undefined) {
-                options.push(`max_boxes = Some ${this.maxBoxes}`);
-            }
             if (this.margin !== undefined) {
-                options.push(`margin = Some ${this.margin}`);
+                options.push(`margin = ${this.margin}`);
+            }
+            if (this.maxBoxes !== undefined) {
+                options.push(`max_boxes = ${this.maxBoxes}`);
+            }
+            if (this.maxHypBoxes !== undefined) {
+                options.push(`max_hyp_boxes = ${this.maxHypBoxes}`);
             }
             const optionsStr = `{Hol_light_json.goal_default_options with ${options.join('; ')} }`;
             const goalstate = await this.repl.executeForResult(
@@ -162,14 +166,17 @@ export class GoalViewPanel {
                     case 'refresh': {
                         // const testState = "goalstack = 2 subgoals (2 total)\n\n  0 [`FINITE s`]\n  1 [`forall x. x IN s ==> g (f x) = x`]\n\n`forall p q.\n     p permutes s /\\ q = (\\x. if x IN IMAGE f s then f (p (g x)) else x)\n     ==> (evenperm q <=> evenperm p)`\n\n  0 [`FINITE s`]\n  1 [`forall x. x IN s ==> g (f x) = x`]\n\n`forall p q.\n     (forall x. x IN s ==> q (f x) = f (p x)) /\\\n     (forall y. ~(y IN IMAGE f s) ==> q y = y) <=>\n     q = (\\x. if x IN IMAGE f s then f (p (g x)) else x)`\n\n";
                         // this.updateProofState(testState, 1);
-                        if (message.maxBoxes !== undefined) {
-                            this.maxBoxes = message.maxBoxes | 0;
+                        if (message.color !== undefined) {
+                            this.color = message.color;
                         }
                         if (message.margin !== undefined) {
                             this.margin = message.margin | 0;
                         }
-                        if (message.color !== undefined) {
-                            this.color = message.color;
+                        if (message.maxBoxes !== undefined) {
+                            this.maxBoxes = message.maxBoxes | 0;
+                        }
+                        if (message.maxHypBoxes !== undefined) {
+                            this.maxHypBoxes = message.maxHypBoxes | 0;
                         }
                         this.refresh();
                         break;
