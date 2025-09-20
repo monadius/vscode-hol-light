@@ -8,7 +8,7 @@ const VIEW_TYPE = 'goalView';
 function getWebviewOptions(extensionUri: vscode.Uri): vscode.WebviewOptions {
     return {
         enableScripts: true,
-        localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'goalview', 'dist', 'assets')],
+        localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'goalview', 'dist')],
     };
 }
 
@@ -128,7 +128,6 @@ export class GoalViewPanel {
         );
 
         const nonce = getNonce();
-        console.log('html nonce =', nonce);
 
         return `
             <!DOCTYPE html>
