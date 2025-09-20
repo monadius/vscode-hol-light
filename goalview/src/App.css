@@ -1,5 +1,19 @@
 @import "tailwindcss";
 
+.action-icon {
+    padding: 2px;
+    border-radius: 5px;
+    color: var(--vscode-list-deemphasizedForeground);
+}
+
+.action-icon:hover {
+    background-color: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
+}
+
+.react-icons {
+  vertical-align: middle;
+}
+
 .term {
     font-size: var(--vscode-editor-font-size);
     font-family: var(--vscode-editor-font-family);

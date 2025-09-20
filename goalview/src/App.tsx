@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { useVSCode } from './use-vscode';
 import * as React from 'react';
+
 import "@vscode-elements/elements/dist/vscode-button";
 import "@vscode-elements/elements/dist/vscode-checkbox";
 import "@vscode-elements/elements/dist/vscode-divider";
@@ -11,6 +11,9 @@ import "@vscode-elements/elements/dist/vscode-single-select";
 import "@vscode-elements/elements/dist/vscode-tab-header";
 import "@vscode-elements/elements/dist/vscode-tab-panel";
 import "@vscode-elements/elements/dist/vscode-tabs";
+import { VscAdd, VscRemove } from "react-icons/vsc";
+
+import { useVSCode } from './use-vscode';
 import type * as types from '../../src/types';
 import { ansiToReact } from './ansi';
 import './App.css';
@@ -63,6 +66,16 @@ function Goals({ goalstate }: { goalstate?: types.Goalstate }) {
   );
 }
 
+function ExtraSwitch({ showExtra, onClick }: { showExtra: boolean, onClick: () => void }) {
+  const classes = 'w-5 h-5 action-icon';
+  return (
+    <div>
+      {!showExtra ? 
+        <VscAdd className={classes} onClick={onClick}/> : 
+        <VscRemove className={classes} onClick={onClick}/>}
+    </div>
+  );
+}
 interface GoalOptions {
   color?: boolean;
   margin?: number;
@@ -131,7 +144,7 @@ function Controls(props: ControlProps) {
           <vscode-option value='0'>default</vscode-option>
         </vscode-single-select>
       </div>
-      <div className="flex flex-row mb-2 gap-x-2">
+      <div className="flex flex-row mb-2 gap-x-2 items-center">
         {/* Refresh */}
         <vscode-button
           onClick={() => vscode.postMessage({ command: 'refresh' })}
@@ -154,6 +167,7 @@ function Controls(props: ControlProps) {
           checked={goalOptions.color ?? true}
           onChange={(e) => onChangeGoalOptions({ color: e.currentTarget.checked })}
         />
+        <ExtraSwitch showExtra={showExtra} onClick={() => setShowExtra(!showExtra)}/>
         {/* Show extra options */}
         <vscode-icon name={showExtra ? 'remove' : 'add'} actionIcon
           className='ml-auto'
