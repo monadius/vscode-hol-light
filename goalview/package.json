@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && cp ./node_modules/@vscode/codicons/dist/codicon.css ./dist/assets",
     "build:dev": "tsc -b && vite build -m development",
     "lint": "eslint .",
     "preview": "vite preview"

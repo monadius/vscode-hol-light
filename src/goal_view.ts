@@ -7,10 +7,8 @@ const VIEW_TYPE = 'goalView';
 
 function getWebviewOptions(extensionUri: vscode.Uri): vscode.WebviewOptions {
     return {
-        // Enable javascript in the webview
         enableScripts: true,
-        // And restrict the webview to only loading content from our extension's `media` directory.
-        localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'goalview', 'dist')],
+        localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'goalview', 'dist', 'assets')],
     };
 }
 
@@ -122,8 +120,15 @@ export class GoalViewPanel {
         const styleUri = webview.asWebviewUri(
             vscode.Uri.joinPath(this.extensionUri, 'goalview', 'dist', 'assets', 'index.css')
         );
+        // TODO: Is it possible to use codicons without loading codicon.css?
+        // I have to manually copy codicon.css (see goalview/package.json scripts)
+        // from node_modules to dist/assets because Vite combines all css files into index.css.
+        const codiconUri = webview.asWebviewUri(
+            vscode.Uri.joinPath(this.extensionUri, 'goalview', 'dist', 'assets', 'codicon.css')
+        );
 
         const nonce = getNonce();
+        console.log('html nonce =', nonce);
 
         return `
             <!DOCTYPE html>
@@ -131,9 +136,10 @@ export class GoalViewPanel {
             <head>
                 <meta charset="UTF-8">
                 <meta http-equiv="Content-Security-Policy"
-                    content="default-src 'none'; script-src 'nonce-${nonce}'; style-src ${webview.cspSource};">
+                    content="default-src 'none'; script-src 'nonce-${nonce}'; style-src ${webview.cspSource}; font-src ${webview.cspSource};">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <link rel="stylesheet" type="text/css" nonce="${nonce}" href="${styleUri}">
+                <link rel="stylesheet" type="text/css" nonce="${nonce}" href="${codiconUri}" id="vscode-codicon-stylesheet">
                 <title>HOL Light Goal View</title>
             </head>
             <body>

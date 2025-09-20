@@ -7,7 +7,6 @@ import "@vscode-elements/elements/dist/vscode-divider";
 import "@vscode-elements/elements/dist/vscode-icon";
 import "@vscode-elements/elements/dist/vscode-label";
 import "@vscode-elements/elements/dist/vscode-option";
-import "@vscode-elements/elements/dist/vscode-scrollable";
 import "@vscode-elements/elements/dist/vscode-single-select";
 import "@vscode-elements/elements/dist/vscode-tab-header";
 import "@vscode-elements/elements/dist/vscode-tab-panel";
@@ -28,7 +27,7 @@ function Term({ term }: { term: string }) {
 
 function Goal({ goal }: { goal: types.Goal }) {
   return (
-    <vscode-scrollable>
+    <>
       <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 mb-2 mt-2">
         {goal.hypotheses.map((hyp, i) => (
           <React.Fragment key={i}>
@@ -37,9 +36,9 @@ function Goal({ goal }: { goal: types.Goal }) {
           </React.Fragment>
         ))}
       </div>
-      <vscode-divider className="mb-2"/>
+      <vscode-divider className={goal.hypotheses.length ? "mb-2" : "hidden"}/>
       <Term term={goal.term}/>
-    </vscode-scrollable>
+    </>
   );
 }
 
@@ -85,10 +84,10 @@ function Controls(props: ControlProps) {
   const [showExtra, setShowExtra] = React.useState<boolean>(false);
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col mt-2">
       <div className={"flex flex-row gap-x-2 overflow-hidden"
         // + " transition-all duration-300"
-        + (showExtra ? ' max-h-screen opacity-100' : ' max-h-0 opacity-0')}>
+        + (showExtra ? ' max-h-screen opacity-100 mb-2' : ' max-h-0 opacity-0')}>
         {/* Margin */}
         <vscode-label><span className='normal'>Margin</span></vscode-label>
         <vscode-single-select
@@ -129,7 +128,7 @@ function Controls(props: ControlProps) {
           <vscode-option>100</vscode-option>
         </vscode-single-select>
       </div>
-      <div className="flex flex-row mt-2 mb-2 gap-x-2">
+      <div className="flex flex-row mb-2 gap-x-2">
         {/* Refresh */}
         <vscode-button
           onClick={() => vscode.postMessage({ command: 'refresh' })}
