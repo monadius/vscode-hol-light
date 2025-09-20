@@ -4,7 +4,6 @@ import * as React from 'react';
 import "@vscode-elements/elements/dist/vscode-button";
 import "@vscode-elements/elements/dist/vscode-checkbox";
 import "@vscode-elements/elements/dist/vscode-divider";
-import "@vscode-elements/elements/dist/vscode-icon";
 import "@vscode-elements/elements/dist/vscode-label";
 import "@vscode-elements/elements/dist/vscode-option";
 import "@vscode-elements/elements/dist/vscode-single-select";
@@ -66,16 +65,17 @@ function Goals({ goalstate }: { goalstate?: types.Goalstate }) {
   );
 }
 
-function ExtraSwitch({ showExtra, onClick }: { showExtra: boolean, onClick: () => void }) {
+function ExtraSwitch({ showExtra, onClick, className }: { showExtra: boolean, onClick: () => void, className?: string }) {
   const classes = 'w-5 h-5 action-icon';
   return (
-    <div>
+    <div className={className ?? ''}>
       {!showExtra ? 
         <VscAdd className={classes} onClick={onClick}/> : 
         <VscRemove className={classes} onClick={onClick}/>}
     </div>
   );
 }
+
 interface GoalOptions {
   color?: boolean;
   margin?: number;
@@ -98,9 +98,8 @@ function Controls(props: ControlProps) {
 
   return (
     <div className="flex flex-col mt-2">
-      <div className={"flex flex-row gap-x-2 overflow-hidden"
-        // + " transition-all duration-300"
-        + (showExtra ? ' max-h-screen opacity-100 mb-2' : ' max-h-0 opacity-0')}>
+      <div className={"flex flex-row gap-x-2"
+        + (showExtra ? ' mb-2' : ' hidden')}>
         {/* Margin */}
         <vscode-label><span className='normal'>Margin</span></vscode-label>
         <vscode-single-select
@@ -167,14 +166,8 @@ function Controls(props: ControlProps) {
           checked={goalOptions.color ?? true}
           onChange={(e) => onChangeGoalOptions({ color: e.currentTarget.checked })}
         />
-        <ExtraSwitch showExtra={showExtra} onClick={() => setShowExtra(!showExtra)}/>
         {/* Show extra options */}
-        <vscode-icon name={showExtra ? 'remove' : 'add'} actionIcon
-          className='ml-auto'
-          onClick={() => setShowExtra(!showExtra)}
-        >
-          Extra
-        </vscode-icon>
+        <ExtraSwitch className='ml-auto' showExtra={showExtra} onClick={() => setShowExtra(!showExtra)}/>
       </div>
     </div>
   );

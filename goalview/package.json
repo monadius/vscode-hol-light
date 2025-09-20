@@ -5,14 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && cp ./node_modules/@vscode/codicons/dist/codicon.css ./dist/assets",
+    "build": "tsc -b && vite build",
     "build:dev": "tsc -b && vite build -m development",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
     "@vscode-elements/elements": "^2.3.1",
-    "@vscode/codicons": "^0.0.40",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-icons": "^5.5.0"
