@@ -45,14 +45,19 @@ function Goal({ goal }: { goal: types.Goal }) {
 }
 
 function Goals({ goalstate }: { goalstate?: types.Goalstate }) {
+  const [selectedTab, setSelectedTab] = React.useState<number>(0);
   if (!goalstate) {
     return <div></div>;
   }
   if (!goalstate || !goalstate.goals.length) {
     return <div className='p-4'>No goals</div>;
   }
+  // console.log('Updated: ' + selectedTab);
   return (
-    <vscode-tabs>
+    <vscode-tabs 
+      selectedIndex={Math.min(goalstate.goals.length - 1, selectedTab)}
+      onvsc-tabs-select={(e) => setSelectedTab((e.currentTarget as { selectedIndex: number } | null)?.selectedIndex ?? 0)}
+    >
       {goalstate.goals.map((goal, i) => (
           <React.Fragment key={i}>
             <vscode-tab-header slot="header">{`Goal ${i + 1}`}</vscode-tab-header>
@@ -204,7 +209,7 @@ export default function App() {
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
-  });
+  }, []);
 
   React.useEffect(() => {
     bottomGoalRef.current?.scrollIntoView({
