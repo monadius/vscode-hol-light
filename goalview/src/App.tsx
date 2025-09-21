@@ -125,8 +125,9 @@ function Controls(props: ControlProps) {
         >
           <vscode-option>2</vscode-option>
           <vscode-option>3</vscode-option>
-          <vscode-option>4</vscode-option>
+          <vscode-option>5</vscode-option>
           <vscode-option>10</vscode-option>
+          <vscode-option>20</vscode-option>
           <vscode-option>100</vscode-option>
           <vscode-option value='0'>default</vscode-option>
         </vscode-single-select>
@@ -138,7 +139,10 @@ function Controls(props: ControlProps) {
           onchange={(e) => onChangeGoalOptions({ maxBoxes: +e.currentTarget.value })}
         >
           <vscode-option>2</vscode-option>
+          <vscode-option>3</vscode-option>
           <vscode-option>5</vscode-option>
+          <vscode-option>10</vscode-option>
+          <vscode-option>20</vscode-option>
           <vscode-option>100</vscode-option>
           <vscode-option value='0'>default</vscode-option>
         </vscode-single-select>
