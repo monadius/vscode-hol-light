@@ -49,6 +49,7 @@ export function useVSCode(): WebviewApi<unknown> {
         vscodeApi = acquireVsCodeApi();
     } else {
         // For testing and debugging
+        let i = 0;
         vscodeApi = {
             postMessage: (msg: { command?: string, color?: boolean, margin?: number }) => { 
                 if (msg?.command === 'refresh') {
@@ -57,7 +58,8 @@ export function useVSCode(): WebviewApi<unknown> {
                     let goalstate = preprocessProofState(testState);
                     goalstate = {"goals":[{"hypotheses":[],"term":"\u001b[35mforall\u001b[0m (f:\u001b[31m?142840\u001b[0m\u001b[36m->\u001b[0m\u001b[31m?142837\u001b[0m).\n    (\u001b[35mforall\u001b[0m (y:\u001b[31m?142837\u001b[0m).\n         \u001b[35mexists\u001b[0m (x:\u001b[31m?142840\u001b[0m). (f:\u001b[31m?142840\u001b[0m\u001b[36m->\u001b[0m\u001b[31m?142837\u001b[0m) (x:\u001b[31m?142840\u001b[0m) = (y:\u001b[31m?142837\u001b[0m)) <=>\n    (\u001b[35mforall\u001b[0m (y:\u001b[31m?142837\u001b[0m).\n         (f:\u001b[31m?142840\u001b[0m\u001b[36m->\u001b[0m\u001b[31m?142837\u001b[0m)\n         ((\u001b[32minverse\u001b[0m:\u001b[36m(\u001b[0m\u001b[31m?142840\u001b[0m\u001b[36m->\u001b[0m\u001b[31m?142837\u001b[0m\u001b[36m)\u001b[0m\u001b[36m->\u001b[0m\u001b[31m?142837\u001b[0m\u001b[36m->\u001b[0m\u001b[31m?142840\u001b[0m) (f:\u001b[31m?142840\u001b[0m\u001b[36m->\u001b[0m\u001b[31m?142837\u001b[0m)\n         (y:\u001b[31m?142837\u001b[0m)) =\n         (y:\u001b[31m?142837\u001b[0m))"}],"subgoals":1};
                     goalstate = createMultipleGoals(goalstate, 10);
-                    goalstate = addHyps(goalstate, 3);
+                    goalstate = addHyps(goalstate, i);
+                    i = (i + 1) % 7;
                     window.postMessage({ command: 'update', text: testState, goalstate, printTypes: 1 });
                 }
             },

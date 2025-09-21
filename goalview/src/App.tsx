@@ -179,6 +179,7 @@ function Controls(props: ControlProps) {
 
 export default function App() {
   const vscode = useVSCode();
+  const bottomGoalRef = React.useRef<HTMLDivElement>(null);
   const [printTypes, setPrintTypes] = React.useState<number>(1);
   const [goalOptions, setGoalOptions] = React.useState<GoalOptions>({ color: true });
   const [goalstate, setGoalstate] = React.useState<types.Goalstate>();
@@ -205,13 +206,22 @@ export default function App() {
     return () => window.removeEventListener('message', handler);
   });
 
+  React.useEffect(() => {
+    bottomGoalRef.current?.scrollIntoView({
+      // behavior: "smooth",
+      block: "end",
+      inline: "nearest"
+    });
+  }, [goalstate]);
+
   return (
     <>
       {import.meta.env.DEV ? <vscode-dev-toolbar></vscode-dev-toolbar> : null}
       <div className="flex flex-col h-screen">
-        {/* <div className="flex-1 overflow-auto"> */}
-        <div className="flex-1">
+        <div className="flex-1 overflow-auto">
+        {/* <div className="flex-1"> */}
           <Goals goalstate={goalstate}/>
+          <div ref={bottomGoalRef}/>
         </div>
         <Controls
           printTypes={printTypes}
