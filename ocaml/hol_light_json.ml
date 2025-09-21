@@ -29,7 +29,7 @@ let finish_string src start ob =
       src !start (String.length src - !start);
     raise exc
 
-let write_string_body ob s =
+let [@warning "-12"] write_string_body ob s =
   let start = ref 0 in
   for i = 0 to String.length s - 1 do
     match s.[i] with
@@ -40,11 +40,12 @@ let write_string_body ob s =
       | '\n' -> write_special s start i ob "\\n"
       | '\r' -> write_special s start i ob "\\r"
       | '\t' -> write_special s start i ob "\\t"
-      | '\x00'..'\x1F' as c -> write_control_char s start i ob c
+      | '\x00'..'\x1F'
       | '\x7F' as c -> write_control_char s start i ob c
       | _ -> ()
   done;
-  finish_string s start ob
+  finish_string s start ob;;
+
 
 let write_string ob s =
   Buffer.add_char ob '"';
