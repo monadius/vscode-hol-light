@@ -118,7 +118,7 @@
             {
                 "category": "HOL Light",
                 "command": "hol-light.show_goal_view",
-                "title": "Show Goal View",
+                "title": "Show HOL Light Goals",
                 "icon": "$(book)"
             },
             {

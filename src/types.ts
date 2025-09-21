@@ -12,3 +12,14 @@ export type Goalstate = {
   goals: Goal[];
   subgoals: number /*int*/;
 }
+
+export interface GoalOptions {
+  color?: boolean;
+  margin?: number;
+  maxBoxes?: number;
+  maxHypBoxes?: number;
+};
+
+export interface GoalviewState {
+    options: GoalOptions;
+}

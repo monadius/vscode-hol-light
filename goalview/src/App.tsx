@@ -13,7 +13,7 @@ import "@vscode-elements/elements/dist/vscode-tabs";
 import { VscAdd, VscRemove } from "react-icons/vsc";
 
 import { useVSCode } from './use-vscode';
-import type * as types from '../../src/types';
+import type { Goalstate, Goal, GoalviewState, GoalOptions } from '../../src/types';
 import { ansiToReact } from './ansi';
 import './App.css';
 
@@ -27,7 +27,7 @@ function Term({ term }: { term: string }) {
   );
 }
 
-function Goal({ goal }: { goal: types.Goal }) {
+function Goal({ goal }: { goal: Goal }) {
   return (
     <>
       <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 mb-2 mt-2">
@@ -44,7 +44,7 @@ function Goal({ goal }: { goal: types.Goal }) {
   );
 }
 
-function Goals({ goalstate }: { goalstate?: types.Goalstate }) {
+function Goals({ goalstate }: { goalstate?: Goalstate }) {
   const [selectedTab, setSelectedTab] = React.useState<number>(0);
   if (!goalstate) {
     return <div></div>;
@@ -81,13 +81,6 @@ function ExtraSwitch({ showExtra, onClick, className }: { showExtra: boolean, on
   );
 }
 
-interface GoalOptions {
-  color?: boolean;
-  margin?: number;
-  maxBoxes?: number;
-  maxHypBoxes?: number;
-};
-
 interface ControlProps {
   printTypes: number;
   onChangePrintTypes: (printTypes: number) => void;
@@ -112,6 +105,7 @@ function Controls(props: ControlProps) {
           position='above'
           onchange={(e) => onChangeGoalOptions({ margin: +e.currentTarget.value })}
         >
+          <vscode-option value='0'>default</vscode-option>
           <vscode-option>10</vscode-option>
           <vscode-option>20</vscode-option>
           <vscode-option>40</vscode-option>
@@ -119,7 +113,6 @@ function Controls(props: ControlProps) {
           <vscode-option>100</vscode-option>
           <vscode-option>200</vscode-option>
           <vscode-option>1000</vscode-option>
-          <vscode-option value='0'>default</vscode-option>
         </vscode-single-select>
         {/* Max hypothesis boxes */}
         <vscode-label><span className='normal'>Max&nbsp;hyp.&nbsp;boxes</span></vscode-label>
@@ -128,13 +121,18 @@ function Controls(props: ControlProps) {
           position='above'
           onchange={(e) => onChangeGoalOptions({ maxHypBoxes: +e.currentTarget.value })}
         >
+          <vscode-option value='0'>default</vscode-option>
           <vscode-option>2</vscode-option>
           <vscode-option>3</vscode-option>
+          <vscode-option>4</vscode-option>
           <vscode-option>5</vscode-option>
+          <vscode-option>6</vscode-option>
+          <vscode-option>7</vscode-option>
+          <vscode-option>8</vscode-option>
+          <vscode-option>9</vscode-option>
           <vscode-option>10</vscode-option>
           <vscode-option>20</vscode-option>
           <vscode-option>100</vscode-option>
-          <vscode-option value='0'>default</vscode-option>
         </vscode-single-select>
         {/* Max boxes */}
         <vscode-label><span className='normal'>Max&nbsp;boxes</span></vscode-label>
@@ -143,13 +141,18 @@ function Controls(props: ControlProps) {
           position='above'
           onchange={(e) => onChangeGoalOptions({ maxBoxes: +e.currentTarget.value })}
         >
+          <vscode-option value='0'>default</vscode-option>
           <vscode-option>2</vscode-option>
           <vscode-option>3</vscode-option>
+          <vscode-option>4</vscode-option>
           <vscode-option>5</vscode-option>
+          <vscode-option>6</vscode-option>
+          <vscode-option>7</vscode-option>
+          <vscode-option>8</vscode-option>
+          <vscode-option>9</vscode-option>
           <vscode-option>10</vscode-option>
           <vscode-option>20</vscode-option>
           <vscode-option>100</vscode-option>
-          <vscode-option value='0'>default</vscode-option>
         </vscode-single-select>
       </div>
       <div className="flex flex-row mb-2 gap-x-2 items-center">
@@ -186,23 +189,34 @@ export default function App() {
   const vscode = useVSCode();
   const bottomGoalRef = React.useRef<HTMLDivElement>(null);
   const [printTypes, setPrintTypes] = React.useState<number>(1);
-  const [goalOptions, setGoalOptions] = React.useState<GoalOptions>({ color: true });
-  const [goalstate, setGoalstate] = React.useState<types.Goalstate>();
+  const [goalOptions, setGoalOptions] = React.useState<GoalOptions>(
+    vscode.getState()?.options ?? { color: true }
+  );
+  const [goalstate, setGoalstate] = React.useState<Goalstate>();
 
   React.useEffect(() => {
+    if (vscode.getState() === undefined) {
+      vscode.postMessage({ command: 'restoreViewState' });
+    }
     vscode.postMessage({ 
       command: 'refresh', 
       ...goalOptions
     });
+    vscode.setState<GoalviewState>({ options: goalOptions })
   }, [vscode, goalOptions]);
 
   React.useEffect(() => {
     const handler = (msg: MessageEvent<{ command: string }>) => {
       switch (msg.data.command) {
         case 'update': {
-          const data = (msg.data as unknown) as { goalstate: types.Goalstate, printTypes: number };
+          const data = (msg.data as unknown) as { goalstate: Goalstate, printTypes: number };
           setGoalstate(data.goalstate);
           setPrintTypes(Math.max(0, Math.min(data.printTypes | 0, 2)));
+          break;
+        }
+        case 'restoreViewState': {
+          const data = (msg.data as unknown) as { options: GoalOptions };
+          setGoalOptions(data.options)
           break;
         }
       }
