@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
 import { Repl } from './repl';
 import type { Goalstate } from './types';
-import { InterruptedError } from './executor';
+import { InterruptedError, CancelledError } from './executor';
+import { cancelPreviousCall } from './util';
 
 const VIEW_TYPE = 'goalView';
 
@@ -79,7 +80,7 @@ export class GoalViewPanel {
         this.disposables = [];
     }
 
-    public async refresh() {
+    public refresh = cancelPreviousCall(async function(this: GoalViewPanel, cancellationToken): Promise<boolean> {
         if (!this.repl.canExecuteForResult()) {
             return false;
         }
@@ -97,23 +98,27 @@ export class GoalViewPanel {
             const optionsStr = `{Hol_light_json.goal_default_options with ${options.join('; ')} }`;
             const goalstate = await this.repl.executeForResult(
                 `Hol_light_json.json_of_top_goalstate ~options:${optionsStr}`, 
-                { silent: true, evalAsString: true }
+                { silent: true, evalAsString: true },
+                cancellationToken
             );
             const printTypes = await this.repl.executeForResult(
                 'string_of_int !print_types_of_subterms', 
-                { silent: true, evalAsString: true }
+                { silent: true, evalAsString: true },
+                cancellationToken
             );
             this.updateGoalview(JSON.parse(goalstate) as Goalstate, +printTypes);
         } catch (e) {
-            if (!(e instanceof InterruptedError)) {
-                console.error('Failed to refresh goal view:', e);
+            if (e instanceof CancelledError) {
+                // console.log('goal view refresh cancelled');
+            } else if (e instanceof InterruptedError) {
+                console.log('goal view refresh interrupted');
             } else {
-                console.error('goal view refresh interrupted');
+                console.error('Failed to refresh goal view:', e);
             }
             return false;
         }
         return true;
-    }
+    });
 
     private updateGoalview(goalstate: Goalstate, printTypes: number) {
         this.panel.webview.postMessage({
