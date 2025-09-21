@@ -13,7 +13,7 @@ import "@vscode-elements/elements/dist/vscode-tabs";
 import { VscAdd, VscRemove } from "react-icons/vsc";
 
 import { useVSCode } from './use-vscode';
-import type { Goalstate, Goal, GoalviewState, GoalOptions } from '../../src/types';
+import type { Goalstate, Goal, GoalviewState, GoalOptions, GoalviewMessage, MessageCommands } from '../../src/types';
 import { ansiToReact } from './ansi';
 import './App.css';
 
@@ -190,33 +190,41 @@ export default function App() {
   const bottomGoalRef = React.useRef<HTMLDivElement>(null);
   const [printTypes, setPrintTypes] = React.useState<number>(1);
   const [goalOptions, setGoalOptions] = React.useState<GoalOptions>(
-    vscode.getState()?.options ?? { color: true }
+    vscode.getState()?.options ?? {}
   );
   const [goalstate, setGoalstate] = React.useState<Goalstate>();
 
   React.useEffect(() => {
+    console.log('currentState:', vscode.getState());
+    // If there is no saved state then request state restoration
     if (vscode.getState() === undefined) {
-      vscode.postMessage({ command: 'restoreViewState' });
+      vscode.postMessage({ 
+        command: 'restore' 
+      } satisfies GoalviewMessage<'restore'>);
     }
     vscode.postMessage({ 
       command: 'refresh', 
-      ...goalOptions
-    });
+      data: goalOptions
+    } satisfies GoalviewMessage<'refresh'>);
+    // Note: Do not save undefined state to avoid sending the restore message several times
     vscode.setState<GoalviewState>({ options: goalOptions })
   }, [vscode, goalOptions]);
 
   React.useEffect(() => {
-    const handler = (msg: MessageEvent<{ command: string }>) => {
-      switch (msg.data.command) {
+    const handler = (msg: MessageEvent<GoalviewMessage<MessageCommands>>) => {
+      const message = msg.data;
+      switch (message.command) {
         case 'update': {
-          const data = (msg.data as unknown) as { goalstate: Goalstate, printTypes: number };
-          setGoalstate(data.goalstate);
-          setPrintTypes(Math.max(0, Math.min(data.printTypes | 0, 2)));
+          if (message.data) {
+            setGoalstate(message.data.goalstate);
+            setPrintTypes(Math.max(0, Math.min(message.data.printTypes | 0, 2)));
+          }
           break;
         }
-        case 'restoreViewState': {
-          const data = (msg.data as unknown) as { options: GoalOptions };
-          setGoalOptions(data.options)
+        case 'restore': {
+          if (message.data) {
+            setGoalOptions(message.data.options);
+          }
           break;
         }
       }
@@ -246,7 +254,10 @@ export default function App() {
           printTypes={printTypes}
           onChangePrintTypes={(n: number) => {
             setPrintTypes(n);
-            vscode.postMessage({ command: 'print-types', value: n });
+            vscode.postMessage({ 
+              command: 'print-types', 
+              data: n 
+            } satisfies GoalviewMessage<'print-types'>);
           }}
           goalOptions={goalOptions}
           onChangeGoalOptions={(newOptions) => setGoalOptions({ ...goalOptions, ...newOptions })}

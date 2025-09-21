@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { Repl } from './repl';
-import type { Goalstate } from './types';
+import type { Goalstate, GoalviewMessage, GoalviewState, MessageCommands } from './types';
 import { InterruptedError, CancelledError } from './executor';
 import { cancelPreviousCall } from './util';
 
@@ -30,10 +30,7 @@ export class GoalViewPanel {
     private readonly extensionUri: vscode.Uri;
     private disposables: vscode.Disposable[] = [];
 
-    private maxBoxes?: number;
-    private maxHypBoxes?: number;
-    private margin?: number;
-    private color: boolean = true;
+    private goalviewState: GoalviewState;
 
     public static createOrShow(extensionUri: vscode.Uri, repl: Repl) {
         const column = vscode.window.activeTextEditor ? vscode.ViewColumn.Beside : vscode.ViewColumn.Two;
@@ -53,6 +50,7 @@ export class GoalViewPanel {
     }
 
     public static deserialize(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, repl: Repl, _state: any) {
+        // console.log('Deserializing goal view panel', JSON.stringify(_state));
         GoalViewPanel.currentPanel = new GoalViewPanel(panel, extensionUri, repl);
     }
 
@@ -67,6 +65,7 @@ export class GoalViewPanel {
         this.panel = panel;
         this.extensionUri = extensionUri;
         this.repl = repl;
+        this.goalviewState = { options: {} };
 
         this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
         this.panel.webview.html = this.getHtmlForWebview(this.panel.webview);
@@ -85,17 +84,23 @@ export class GoalViewPanel {
             return false;
         }
         try {
-            const options = [`color = ${this.color}`];
-            if (this.margin !== undefined) {
-                options.push(`margin = ${this.margin}`);
+            const goalOptions = this.goalviewState.options;
+            const options = [];
+            if (goalOptions.color !== undefined) {
+                options.push(`color = ${goalOptions.color}`);
             }
-            if (this.maxBoxes !== undefined) {
-                options.push(`max_boxes = ${this.maxBoxes}`);
+            if (goalOptions.margin !== undefined) {
+                options.push(`margin = ${goalOptions.margin}`);
             }
-            if (this.maxHypBoxes !== undefined) {
-                options.push(`max_hyp_boxes = ${this.maxHypBoxes}`);
+            if (goalOptions.maxBoxes !== undefined) {
+                options.push(`max_boxes = ${goalOptions.maxBoxes}`);
             }
-            const optionsStr = `{Hol_light_json.goal_default_options with ${options.join('; ')} }`;
+            if (goalOptions.maxHypBoxes !== undefined) {
+                options.push(`max_hyp_boxes = ${goalOptions.maxHypBoxes}`);
+            }
+            const optionsStr = options.length
+                ? `{Hol_light_json.goal_default_options with ${options.join('; ')} }`
+                : 'Hol_light_json.goal_default_options';
             const goalstate = await this.repl.executeForResult(
                 `Hol_light_json.json_of_top_goalstate ~options:${optionsStr}`, 
                 { silent: true, evalAsString: true },
@@ -123,9 +128,11 @@ export class GoalViewPanel {
     private updateGoalview(goalstate: Goalstate, printTypes: number) {
         this.panel.webview.postMessage({
             command: 'update',
-            goalstate: goalstate,
-            printTypes: printTypes,
-        });
+            data: {
+                goalstate: goalstate,
+                printTypes: printTypes,
+            },
+        } satisfies GoalviewMessage<'update'>);
     }
 
     private getHtmlForWebview(webview: vscode.Webview) {
@@ -159,26 +166,15 @@ export class GoalViewPanel {
 
     private setMessageListener(webview: vscode.Webview) {
         webview.onDidReceiveMessage(
-            message => {
+            (message: GoalviewMessage<MessageCommands>) => {
                 switch (message.command) {
                     case 'refresh': {
-                        if (message.color !== undefined) {
-                            this.color = message.color;
-                        }
-                        if (message.margin !== undefined) {
-                            this.margin = message.margin | 0;
-                        }
-                        if (message.maxBoxes !== undefined) {
-                            this.maxBoxes = message.maxBoxes | 0;
-                        }
-                        if (message.maxHypBoxes !== undefined) {
-                            this.maxHypBoxes = message.maxHypBoxes | 0;
-                        }
+                        this.goalviewState.options = message.data;
                         this.refresh();
                         break;
                     }
                     case 'print-types': {
-                        const value = message.value | 0;
+                        const value = message.data | 0;
                         this.repl.execute(`print_types_of_subterms := ${value}`, { silent: true });
                         this.refresh();
                         break;
