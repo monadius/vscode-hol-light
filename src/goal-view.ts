@@ -5,6 +5,7 @@ import { InterruptedError, CancelledError } from './executor';
 import { cancelPreviousCall } from './util';
 
 const VIEW_TYPE = 'goalView';
+const SAVED_STATE_KEY = 'goalviewState';
 
 function getWebviewOptions(extensionUri: vscode.Uri): vscode.WebviewOptions {
     return {
@@ -23,35 +24,45 @@ function getNonce() {
 }
 
 export class GoalViewPanel {
-    public static currentPanel?: GoalViewPanel;
+    private static _currentPanel?: GoalViewPanel;
 
+    public static get currentPanel(): GoalViewPanel | undefined {
+        return this._currentPanel;
+    }
+
+    private static set currentPanel(panel: GoalViewPanel | undefined) {
+        this._currentPanel = panel;
+    }
+
+    private readonly extensionContext: vscode.ExtensionContext;
     private readonly repl: Repl;
     private readonly panel: vscode.WebviewPanel;
-    private readonly extensionUri: vscode.Uri;
     private disposables: vscode.Disposable[] = [];
 
     private goalviewState: GoalviewState;
 
-    public static createOrShow(extensionUri: vscode.Uri, repl: Repl) {
+    public static createOrShow(context: vscode.ExtensionContext, repl: Repl) {
         const column = vscode.window.activeTextEditor ? vscode.ViewColumn.Beside : vscode.ViewColumn.Two;
         if (GoalViewPanel.currentPanel) {
             GoalViewPanel.currentPanel.panel.reveal(column, true);
             return;
         }
 
+        const savedState = context.workspaceState.get<GoalviewState>(SAVED_STATE_KEY);
+
         const panel = vscode.window.createWebviewPanel(
             VIEW_TYPE,
             'Goals',
             { viewColumn: column, preserveFocus: true },
-            getWebviewOptions(extensionUri),
+            getWebviewOptions(context.extensionUri),
         );
 
-        GoalViewPanel.currentPanel = new GoalViewPanel(panel, extensionUri, repl);
+        GoalViewPanel.currentPanel = new GoalViewPanel(context, panel, repl, savedState);
     }
 
-    public static deserialize(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, repl: Repl, _state: any) {
+    public static deserialize(context: vscode.ExtensionContext, panel: vscode.WebviewPanel, repl: Repl, state: GoalviewState) {
         // console.log('Deserializing goal view panel', JSON.stringify(_state));
-        GoalViewPanel.currentPanel = new GoalViewPanel(panel, extensionUri, repl);
+        GoalViewPanel.currentPanel = new GoalViewPanel(context, panel, repl, state);
     }
 
     public static async refresh() {
@@ -61,11 +72,11 @@ export class GoalViewPanel {
         return this.currentPanel.refresh();
     }
 
-    private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, repl: Repl) {
+    private constructor(context: vscode.ExtensionContext, panel: vscode.WebviewPanel, repl: Repl, savedState: GoalviewState | undefined) {
         this.panel = panel;
-        this.extensionUri = extensionUri;
+        this.extensionContext = context;
         this.repl = repl;
-        this.goalviewState = { options: {} };
+        this.goalviewState = savedState ?? { options: {} };
 
         this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
         this.panel.webview.html = this.getHtmlForWebview(this.panel.webview);
@@ -77,6 +88,8 @@ export class GoalViewPanel {
         this.panel.dispose();
         this.disposables.forEach(x => x.dispose());
         this.disposables = [];
+        // Save the current state
+        this.extensionContext.workspaceState.update(SAVED_STATE_KEY, this.goalviewState);
     }
 
     public refresh = cancelPreviousCall(async function(this: GoalViewPanel, cancellationToken): Promise<boolean> {
@@ -125,6 +138,13 @@ export class GoalViewPanel {
         return true;
     });
 
+    private restoreGoalviewState() {
+        this.panel.webview.postMessage({
+            command: 'restore',
+            data: this.goalviewState,
+        } satisfies GoalviewMessage<'restore'>);
+    }
+
     private updateGoalview(goalstate: Goalstate, printTypes: number) {
         this.panel.webview.postMessage({
             command: 'update',
@@ -137,10 +157,10 @@ export class GoalViewPanel {
 
     private getHtmlForWebview(webview: vscode.Webview) {
         const scriptUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this.extensionUri, 'goalview', 'dist', 'index.js')
+            vscode.Uri.joinPath(this.extensionContext.extensionUri, 'goalview', 'dist', 'index.js')
         );
         const styleUri = webview.asWebviewUri(
-            vscode.Uri.joinPath(this.extensionUri, 'goalview', 'dist', 'assets', 'index.css')
+            vscode.Uri.joinPath(this.extensionContext.extensionUri, 'goalview', 'dist', 'assets', 'index.css')
         );
 
         const nonce = getNonce();
@@ -168,6 +188,10 @@ export class GoalViewPanel {
         webview.onDidReceiveMessage(
             (message: GoalviewMessage<MessageCommands>) => {
                 switch (message.command) {
+                    case 'restore': {
+                        this.restoreGoalviewState();
+                        break;
+                    }
                     case 'refresh': {
                         this.goalviewState.options = message.data;
                         this.refresh();

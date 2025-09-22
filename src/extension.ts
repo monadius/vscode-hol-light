@@ -14,6 +14,7 @@ import * as selection from './selection';
 import * as tactic from './tactic';
 import * as util from './util';
 import { classifyProofCommand } from './executor';
+import type { GoalviewState } from './types';
 
 const LANG_ID = 'hol-light-ocaml';
 
@@ -228,7 +229,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.show_goal_view', () => {
-            GoalViewPanel.createOrShow(context.extensionUri, repl);
+            GoalViewPanel.createOrShow(context, repl);
         })
     );
 
@@ -236,9 +237,9 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.registerWebviewPanelSerializer('goalView', {
             async deserializeWebviewPanel(webviewPanel, state) {
                 // Re-create the GoalViewPanel instance
-                GoalViewPanel.deserialize(webviewPanel, context.extensionUri, repl, state);
+                GoalViewPanel.deserialize(context, webviewPanel, repl, state);
             }
-        })
+        } satisfies vscode.WebviewPanelSerializer<GoalviewState>)
     );
 
     // HOL Light REPL commands
