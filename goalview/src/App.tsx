@@ -33,7 +33,7 @@ function Goal({ goal }: { goal: Goal }) {
       <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 mb-2 mt-2">
         {goal.hypotheses.map((hyp, i) => (
           <React.Fragment key={i}>
-            <pre className="justify-self-end term">{`${i}${hyp.label ? ` (${hyp.label})` : ''}`}:</pre>
+            <pre className="justify-self-end term">{`${hyp.label ? `(${hyp.label}) ` : ''}${i}`}:</pre>
             <Term term={hyp.term}/>
           </React.Fragment>
         ))}
@@ -82,6 +82,7 @@ function ExtraSwitch({ showExtra, onClick, className }: { showExtra: boolean, on
 }
 
 interface ControlProps {
+  onRefresh: () => void;
   printTypes: number;
   onChangePrintTypes: (printTypes: number) => void;
   goalOptions: GoalOptions;
@@ -89,9 +90,7 @@ interface ControlProps {
 };
 
 function Controls(props: ControlProps) {
-  const { printTypes, onChangePrintTypes, goalOptions, onChangeGoalOptions } = props;
-
-  const vscode = useVSCode();
+  const { onRefresh, printTypes, onChangePrintTypes, goalOptions, onChangeGoalOptions } = props;
   const [showExtra, setShowExtra] = React.useState<boolean>(false);
 
   return (
@@ -158,7 +157,7 @@ function Controls(props: ControlProps) {
       <div className="flex flex-row mb-2 gap-x-2 items-center">
         {/* Refresh */}
         <vscode-button
-          onClick={() => vscode.postMessage({ command: 'refresh' })}
+          onClick={onRefresh}
         >
           Refresh
         </vscode-button>
@@ -189,13 +188,13 @@ export default function App() {
   const vscode = useVSCode();
   const bottomGoalRef = React.useRef<HTMLDivElement>(null);
   const [printTypes, setPrintTypes] = React.useState<number>(1);
+  const [errorMessage, setErrorMessage] = React.useState<string>();
   const [goalOptions, setGoalOptions] = React.useState<GoalOptions>(
     vscode.getState()?.options ?? {}
   );
   const [goalstate, setGoalstate] = React.useState<Goalstate>();
 
   React.useEffect(() => {
-    console.log('currentState:', vscode.getState());
     // If there is no saved state then request state restoration
     if (vscode.getState() === undefined) {
       vscode.postMessage({ 
@@ -219,12 +218,17 @@ export default function App() {
             setGoalstate(message.data.goalstate);
             setPrintTypes(Math.max(0, Math.min(message.data.printTypes | 0, 2)));
           }
+          setErrorMessage('');
           break;
         }
         case 'restore': {
           if (message.data) {
             setGoalOptions(message.data.options);
           }
+          break;
+        }
+        case 'error': {
+          setErrorMessage(message.data);
           break;
         }
       }
@@ -250,7 +254,14 @@ export default function App() {
           <Goals goalstate={goalstate}/>
           <div ref={bottomGoalRef}/>
         </div>
+        <div className={errorMessage ? 'term' : 'hidden'}>{errorMessage ? errorMessage : ''}</div>
         <Controls
+          onRefresh={() => {
+            vscode.postMessage({ 
+              command: 'refresh', 
+              data: goalOptions
+            } satisfies GoalviewMessage<'refresh'>);
+          }}
           printTypes={printTypes}
           onChangePrintTypes={(n: number) => {
             setPrintTypes(n);

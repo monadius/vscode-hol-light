@@ -24,7 +24,7 @@ export type GoalviewState = {
     options: GoalOptions;
 }
 
-export type MessageCommands = 'update' | 'refresh' | 'restore' | 'print-types';
+export type MessageCommands = 'update' | 'refresh' | 'restore' | 'print-types' | 'error';
 
 type Message<Command extends MessageCommands, T> = {
   command: Command;
@@ -40,10 +40,12 @@ type UpdateMessage = Message<'update', { goalstate: Goalstate; printTypes: numbe
 type RefreshMessage = Message<'refresh', GoalOptions>;
 type RestoreMessage = MessageOpt<'restore', GoalviewState>; 
 type PrintTypesMessage = Message<'print-types', number>;
+type ErrorMessage = Message<'error', string>;
 
 export type GoalviewMessage<Command extends MessageCommands> =
   Command extends 'update' ? UpdateMessage :
   Command extends 'refresh' ? RefreshMessage :
   Command extends 'restore' ? RestoreMessage :
   Command extends 'print-types' ? PrintTypesMessage :
+  Command extends 'error' ? ErrorMessage :
   never;

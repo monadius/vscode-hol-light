@@ -76,7 +76,11 @@ export class GoalViewPanel {
         this.panel = panel;
         this.extensionContext = context;
         this.repl = repl;
-        this.goalviewState = savedState ?? { options: {} };
+        this.goalviewState = savedState && typeof savedState === 'object' ? savedState : { options: {} };
+        // Safety check
+        if (!this.goalviewState.options) {
+            this.goalviewState.options = {};
+        }
 
         this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
         this.panel.webview.html = this.getHtmlForWebview(this.panel.webview);
@@ -94,22 +98,26 @@ export class GoalViewPanel {
 
     public refresh = cancelPreviousCall(async function(this: GoalViewPanel, cancellationToken): Promise<boolean> {
         if (!this.repl.canExecuteForResult()) {
+            this.sendErrorMessage('Start a HOL Light server to display goals.')
             return false;
         }
         try {
             const goalOptions = this.goalviewState.options;
             const options = [];
-            if (goalOptions.color !== undefined) {
-                options.push(`color = ${goalOptions.color}`);
-            }
-            if (goalOptions.margin !== undefined) {
-                options.push(`margin = ${goalOptions.margin}`);
-            }
-            if (goalOptions.maxBoxes !== undefined) {
-                options.push(`max_boxes = ${goalOptions.maxBoxes}`);
-            }
-            if (goalOptions.maxHypBoxes !== undefined) {
-                options.push(`max_hyp_boxes = ${goalOptions.maxHypBoxes}`);
+            // Safety check: goalOptions could be saved with errors so make sure that goalOptions is defined
+            if (goalOptions) {
+                if (goalOptions.color !== undefined) {
+                    options.push(`color = ${goalOptions.color}`);
+                }
+                if (goalOptions.margin !== undefined) {
+                    options.push(`margin = ${goalOptions.margin}`);
+                }
+                if (goalOptions.maxBoxes !== undefined) {
+                    options.push(`max_boxes = ${goalOptions.maxBoxes}`);
+                }
+                if (goalOptions.maxHypBoxes !== undefined) {
+                    options.push(`max_hyp_boxes = ${goalOptions.maxHypBoxes}`);
+                }
             }
             const optionsStr = options.length
                 ? `{Hol_light_json.goal_default_options with ${options.join('; ')} }`
@@ -137,6 +145,13 @@ export class GoalViewPanel {
         }
         return true;
     });
+
+    private sendErrorMessage(message: string) {
+        this.panel.webview.postMessage({
+            command: 'error',
+            data: message,
+        } satisfies GoalviewMessage<'error'>);
+    }
 
     private restoreGoalviewState() {
         this.panel.webview.postMessage({
