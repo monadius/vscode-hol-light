@@ -1,5 +1,8 @@
 # Change Log
 
+## 2.7.0
+- Show decorations in the overview ruler.
+
 ## 2.6.0
 - The HOL Light server terminal supports shell integration (https://code.visualstudio.com/docs/terminal/shell-integration).
 - Top level expressions are automatically bound to `it` when using a HOL Light server.
