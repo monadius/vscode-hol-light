@@ -1,15 +1,24 @@
 import * as vscode from 'vscode';
 
-export function createDecorationType(highlightColor: string) {
-    if (!highlightColor) {
+export interface DecorationOptions {
+    highlightColor?: string;
+    overviewRulerColor?: string;
+    overviewRulerLane?: vscode.OverviewRulerLane;
+}
+
+export function createDecorationType(context: vscode.ExtensionContext, options: DecorationOptions) {
+    if (!options.highlightColor) {
         return;
     }
-    const color = /^#[\dA-F]+$/.test(highlightColor) ? highlightColor : new vscode.ThemeColor(highlightColor);
+    const color = /^#[\dA-F]+$/.test(options.highlightColor) ? options.highlightColor : new vscode.ThemeColor(options.highlightColor);
     const decoration = vscode.window.createTextEditorDecorationType({
         rangeBehavior: vscode.DecorationRangeBehavior.ClosedClosed,
         // backgroundColor: new vscode.ThemeColor("searchEditor.findMatchBackground"),
-        backgroundColor: color
+        backgroundColor: color,
+        overviewRulerColor: options.overviewRulerColor ?? color,
+        overviewRulerLane: options.overviewRulerLane,
     });
+    context.subscriptions.push(decoration);
     return decoration;
 }
 

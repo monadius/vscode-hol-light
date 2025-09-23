@@ -23,9 +23,30 @@ export function activate(context: vscode.ExtensionContext) {
     // A helper class for managing highlighted regions in editors
     // const decorations = new decoration.Decorations(config.getReplDecorationType());
     const decorations = new CommandDecorations({
-        pending: createDecorationType(config.getConfigOption(config.HIGHLIGHT_COLOR, '')),
-        success: createDecorationType(config.getConfigOption(config.HIGHLIGHT_COLOR_SUCCESS, '')),
-        failure: createDecorationType(config.getConfigOption(config.HIGHLIGHT_COLOR_FAILURE, '')),
+        pending: createDecorationType(
+            context, 
+            { 
+                highlightColor: config.getConfigOption(config.HIGHLIGHT_COLOR, ''),
+                overviewRulerColor: '#20b2aa80',
+                overviewRulerLane: vscode.OverviewRulerLane.Right,
+            }
+        ),
+        success: createDecorationType(
+            context,
+            { 
+                highlightColor: config.getConfigOption(config.HIGHLIGHT_COLOR_SUCCESS, ''),
+                overviewRulerColor: 'green',
+                overviewRulerLane: vscode.OverviewRulerLane.Left,
+            }
+        ),
+        failure: createDecorationType(
+            context,
+            { 
+                highlightColor: config.getConfigOption(config.HIGHLIGHT_COLOR_FAILURE, ''),
+                overviewRulerColor: 'red',
+                overviewRulerLane: vscode.OverviewRulerLane.Left,
+            }
+        ),
     });
 
     const repl = new Repl(context, decorations);
@@ -123,13 +144,34 @@ export function activate(context: vscode.ExtensionContext) {
                     loadBaseHolLightFiles(holPath, true);
                 }
             } else if (config.affectsConfiguration(e, config.HIGHLIGHT_COLOR)) {
-                const decor = createDecorationType(config.getConfigOption(config.HIGHLIGHT_COLOR, ''));
+                const decor = createDecorationType(
+                    context,
+                    { 
+                        highlightColor: config.getConfigOption(config.HIGHLIGHT_COLOR, ''),
+                        overviewRulerColor: '#20b2aa80',
+                        overviewRulerLane: vscode.OverviewRulerLane.Right,
+                    }
+                );
                 decorations.setDecorationStyle(CommandDecorationType.pending, decor);
             } else if (config.affectsConfiguration(e, config.HIGHLIGHT_COLOR_SUCCESS)) {
-                const decor = createDecorationType(config.getConfigOption(config.HIGHLIGHT_COLOR_SUCCESS, ''));
+                const decor = createDecorationType(
+                    context,
+                    { 
+                        highlightColor: config.getConfigOption(config.HIGHLIGHT_COLOR_SUCCESS, ''),
+                        overviewRulerColor: 'green',
+                        overviewRulerLane: vscode.OverviewRulerLane.Left,
+                    }
+                );
                 decorations.setDecorationStyle(CommandDecorationType.success, decor);
             } else if (config.affectsConfiguration(e, config.HIGHLIGHT_COLOR_FAILURE)) {
-                const decor = createDecorationType(config.getConfigOption(config.HIGHLIGHT_COLOR_FAILURE, ''));
+                const decor = createDecorationType(
+                    context,
+                    { 
+                        highlightColor: config.getConfigOption(config.HIGHLIGHT_COLOR_FAILURE, ''),
+                        overviewRulerColor: 'red',
+                        overviewRulerLane: vscode.OverviewRulerLane.Left,
+                    }
+                );
                 decorations.setDecorationStyle(CommandDecorationType.failure, decor);
             } else if (config.affectsConfiguration(e, config.AUTO_INDEX)) {
                 if (config.getConfigOption(config.AUTO_INDEX, false) && vscode.window.activeTextEditor) {
