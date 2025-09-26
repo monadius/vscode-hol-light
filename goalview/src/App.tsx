@@ -248,7 +248,7 @@ export default function App() {
   return (
     <>
       {import.meta.env.DEV ? <vscode-dev-toolbar></vscode-dev-toolbar> : null}
-      <div className="flex flex-col h-screen">
+      <div className="flex flex-col h-screen ml-2 mr-2">
         <div className="flex-1 overflow-auto">
         {/* <div className="flex-1"> */}
           <Goals goalstate={goalstate}/>
