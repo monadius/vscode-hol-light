@@ -10,19 +10,20 @@ import "@vscode-elements/elements/dist/vscode-tab-header";
 import "@vscode-elements/elements/dist/vscode-tab-panel";
 import "@vscode-elements/elements/dist/vscode-tabs";
 
-import { useVSCode } from './utils/use-vscode';
+import { getVsCodeApi } from './utils/vscode';
 import { Goals } from './components/Goals';
 import { Controls } from './components/Controls';
 import type { Goalstate, GoalviewState, GoalOptions, GoalviewMessage, MessageCommands } from '../../src/types';
 
 import './App.css';
+import { resolveConstantInfo } from './utils/info';
 
 if (import.meta.env.DEV) {
   await import("@vscode-elements/webview-playground");
 }
 
 export default function App() {
-  const vscode = useVSCode();
+  const vscode = getVsCodeApi();
   const bottomGoalRef = React.useRef<HTMLDivElement>(null);
   const [printTypes, setPrintTypes] = React.useState<number>(1);
   const [errorMessage, setErrorMessage] = React.useState<string>();
@@ -62,6 +63,10 @@ export default function App() {
           if (message.data) {
             setGoalOptions(message.data.options);
           }
+          break;
+        }
+        case 'constant-info': {
+          resolveConstantInfo(message.data.id, message.data.text);
           break;
         }
         case 'error': {

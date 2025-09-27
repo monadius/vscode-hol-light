@@ -18,7 +18,7 @@ function addHyps(goalstate: Goalstate, n: number = 3): Goalstate {
     };
 }
 
-export function useVSCode(): WebviewApi<GoalviewState> {
+export function getVsCodeApi(): WebviewApi<GoalviewState> {
     if (vscodeApi) {
         return vscodeApi;
     }
@@ -56,13 +56,16 @@ export function useVSCode(): WebviewApi<GoalviewState> {
                         break;
                     }
                     case 'constant-info': {
-                        window.postMessage({
-                            command: 'constant-info',
-                            data: {
-                                id: msg.data.id,
-                                text: `Info for ${msg.data.text}`,
-                            },
-                        } satisfies GoalviewMessage<'constant-info'>)
+                        setTimeout(() =>
+                            window.postMessage({
+                                command: 'constant-info',
+                                data: {
+                                    id: msg.data.id,
+                                    text: `Info for ${msg.data.text}`,
+                                },
+                            } satisfies GoalviewMessage<'constant-info'>),
+                            500
+                        );
                         break;
                     }
                 }

@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from "react";
+import { requestConstantInfo } from "../utils/info";
 
 const HoverText: React.FC<{ text: string }> = ({ text }) => {
   const [data, setData] = useState<string | null>(null);
@@ -10,9 +11,7 @@ const HoverText: React.FC<{ text: string }> = ({ text }) => {
     setLoading(true);
     try {
       // simulate async API call
-      const response = await new Promise<string>((resolve) =>
-        setTimeout(() => resolve(`Fetched info about "${text}"`), 1000)
-      );
+      const response = await requestConstantInfo(text);
       setData(response);
     } finally {
       setLoading(false);
