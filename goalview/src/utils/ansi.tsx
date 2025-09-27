@@ -1,5 +1,6 @@
 import React from 'react';
 import colors from './ansi-colors.module.css';
+import HoverText from '../components/HoverText';
 
 export function escapeHtml(str: string) {
   return str
@@ -51,8 +52,8 @@ const ansiToCss: Record<string, string> = {
 
 const colorClasses = new Set(Object.values(colors));
 
-export function ansiToReact(input: string): React.ReactNode[] {
-  console.log(colorClasses);
+export function ansiToReact(input: string, wordPattern?: RegExp): React.ReactNode[] {
+  const fullWordPattern = new RegExp(`^${wordPattern?.source}$`, wordPattern?.flags);
   // eslint-disable-next-line no-control-regex
   const regex = /\x1b\[(\d+(;\d+)*)m/g; 
   // matches sequences like \x1b[1;31m (bold + red)
@@ -61,11 +62,16 @@ export function ansiToReact(input: string): React.ReactNode[] {
   let match;
   let activeClasses: string[] = [];
 
-  const addSpan = (start: number, end: number) => result.push(
-    <span key={result.length} className={activeClasses.join(" ")}>
-     {input.slice(start, end)}
-    </span>
-  );
+  const addSpan = (start: number, end: number) => {
+    const text = input.slice(start, end);
+    result.push(
+      <span key={result.length} className={activeClasses.join(" ")}>
+        {!wordPattern ? text : text.split(wordPattern).map((s, i) => 
+          fullWordPattern.test(s) ? <HoverText key={`${i}-${s}`} text={s}/> : s
+        )}
+      </span>
+    );
+  };
 
   while ((match = regex.exec(input)) !== null) {
     if (match.index > lastIndex) {

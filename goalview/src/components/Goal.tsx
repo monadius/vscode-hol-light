@@ -3,9 +3,11 @@ import * as React from 'react';
 import { ansiToReact } from '../utils/ansi';
 import type { Goal } from '../../../src/types';
 
+const wordPattern = /([a-z_][\da-z_]*)/i;
+
 function Term({ term }: { term: string }) {
   return (
-    <pre className="overflow-x-auto term">{ansiToReact(term)}</pre>
+    <pre className="overflow-x-auto term">{ansiToReact(term, wordPattern)}</pre>
   );
 }
 
