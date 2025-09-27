@@ -1,5 +1,5 @@
 import type { WebviewApi } from "vscode-webview";
-import type { Goalstate, GoalviewMessage, GoalviewState, MessageCommands } from '../../src/types';
+import type { Goalstate, GoalviewMessage, GoalviewState, MessageCommands } from '../../../src/types';
 
 let vscodeApi : WebviewApi<GoalviewState> | undefined;
 
