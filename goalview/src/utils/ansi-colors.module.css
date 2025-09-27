@@ -1,0 +1,63 @@
+.black {
+    color: var(--vscode-terminal-ansiBlack);
+}
+
+.red {
+    color: var(--vscode-terminal-ansiRed);
+}
+
+.green {
+    color: var(--vscode-terminal-ansiGreen);
+}
+
+.yellow {
+    color: var(--vscode-terminal-ansiYellow);
+}
+
+.blue {
+    color: var(--vscode-terminal-ansiBlue);
+}
+
+.magenta {
+    color: var(--vscode-terminal-ansiMagenta);
+}
+
+.cyan {
+    color: var(--vscode-terminal-ansiCyan);
+}
+
+.white {
+    color: var(--vscode-terminal-ansiWhite);
+}
+
+.black {
+    color: var(--vscode-terminal-ansiBrightBlack);
+}
+
+.bright-blue {
+    color: var(--vscode-terminal-ansiBrightBlue);
+}
+
+.bright-cyan {
+    color: var(--vscode-terminal-ansiBrightCyan);
+}
+
+.bright-green {
+    color: var(--vscode-terminal-ansiBrightGreen);
+}
+
+.bright-magenta {
+    color: var(--vscode-terminal-ansiBrightMagenta);
+}
+
+.bright-red {
+    color: var(--vscode-terminal-ansiBrightRed);
+}
+
+.bright-white {
+    color: var(--vscode-terminal-ansiBrightWhite);
+}
+
+.bright-yellow {
+    color: var(--vscode-terminal-ansiBrightYellow);
+}

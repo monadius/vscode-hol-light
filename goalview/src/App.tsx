@@ -90,7 +90,7 @@ export default function App() {
           <Goals goalstate={goalstate}/>
           <div ref={bottomGoalRef}/>
         </div>
-        <div className={errorMessage ? 'term' : 'hidden'}>{errorMessage ? errorMessage : ''}</div>
+        <div className={errorMessage ? 'message' : 'hidden'}>{errorMessage ? errorMessage : ''}</div>
         <Controls
           onRefresh={() => {
             vscode.postMessage({ 

@@ -1,4 +1,5 @@
-import * as React from 'react';
+import React from 'react';
+import colors from './ansi-colors.module.css';
 
 export function escapeHtml(str: string) {
   return str
@@ -10,23 +11,23 @@ export function escapeHtml(str: string) {
 }
 
 const ansiToCss: Record<string, string> = {
-  "30": "term-black",
-  "31": "term-red",
-  "32": "term-green",
-  "33": "term-yellow",
-  "34": "term-blue",
-  "35": "term-magenta",
-  "36": "term-cyan",
-  "37": "term-white",
+  "30": colors.black,
+  "31": colors.red,
+  "32": colors.green,
+  "33": colors.yellow,
+  "34": colors.blue,
+  "35": colors.magenta,
+  "36": colors.cyan,
+  "37": colors.white,
 
-  "90": "term-bright-black",
-  "91": "term-bright-red",
-  "92": "term-bright-green",
-  "93": "term-bright-yellow",
-  "94": "term-bright-blue",
-  "95": "term-bright-magenta",
-  "96": "term-bright-cyan",
-  "97": "term-bright-white",
+  "90": colors['bright-black'],
+  "91": colors['bright-red'],
+  "92": colors['bright-green'],
+  "93": colors['bright-yellow'],
+  "94": colors['bright-blue'],
+  "95": colors['bright-magenta'],
+  "96": colors['bright-cyan'],
+  "97": colors['bright-white'],
 
     // background colors
   "40": "bg-black",
@@ -48,7 +49,10 @@ const ansiToCss: Record<string, string> = {
   "107": "bg-gray-100",
 };
 
+const colorClasses = new Set(Object.values(colors));
+
 export function ansiToReact(input: string): React.ReactNode[] {
+  console.log(colorClasses);
   // eslint-disable-next-line no-control-regex
   const regex = /\x1b\[(\d+(;\d+)*)m/g; 
   // matches sequences like \x1b[1;31m (bold + red)
@@ -77,7 +81,7 @@ export function ansiToReact(input: string): React.ReactNode[] {
       } else if (ansiToCss[code]) {
         // remove any previous text-*/bg-* before adding new
         if (code.startsWith("3") || code.startsWith("9")) {
-          activeClasses = activeClasses.filter(c => !c.startsWith("term-"));
+          activeClasses = activeClasses.filter(c => !colorClasses.has(c));
         }
         if (code.startsWith("4") || code.startsWith("10")) {
           activeClasses = activeClasses.filter(c => !c.startsWith("bg-"));

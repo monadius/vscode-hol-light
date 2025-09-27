@@ -10,76 +10,13 @@
     background-color: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
 }
 
-.react-icons {
-  vertical-align: middle;
-}
-
 .term {
     font-size: var(--vscode-editor-font-size);
     font-family: var(--vscode-editor-font-family);
 }
 
-.term-black {
-    color: var(--vscode-terminal-ansiBlack);
-}
-
-.term-red {
-    color: var(--vscode-terminal-ansiRed);
-}
-
-.term-green {
-    color: var(--vscode-terminal-ansiGreen);
-}
-
-.term-yellow {
-    color: var(--vscode-terminal-ansiYellow);
-}
-
-.term-blue {
-    color: var(--vscode-terminal-ansiBlue);
-}
-
-.term-magenta {
-    color: var(--vscode-terminal-ansiMagenta);
-}
-
-.term-cyan {
-    color: var(--vscode-terminal-ansiCyan);
-}
-
-.term-white {
-    color: var(--vscode-terminal-ansiWhite);
-}
-
-.term-bright-black {
-    color: var(--vscode-terminal-ansiBrightBlack);
-}
-
-.term-bright-blue {
-    color: var(--vscode-terminal-ansiBrightBlue);
-}
-
-.term-bright-cyan {
-    color: var(--vscode-terminal-ansiBrightCyan);
-}
-
-.term-bright-green {
-    color: var(--vscode-terminal-ansiBrightGreen);
-}
-
-.term-bright-magenta {
-    color: var(--vscode-terminal-ansiBrightMagenta);
-}
-
-.term-bright-red {
-    color: var(--vscode-terminal-ansiBrightRed);
-}
-
-.term-bright-white {
-    color: var(--vscode-terminal-ansiBrightWhite);
-}
-
-.term-bright-yellow {
-    color: var(--vscode-terminal-ansiBrightYellow);
+.message {
+    font-size: var(--vscode-editor-font-size);
+    font-family: var(--vscode-editor-font-family);
 }
 
