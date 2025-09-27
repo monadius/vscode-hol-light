@@ -271,7 +271,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('hol-light.show_goal_view', () => {
-            GoalViewPanel.createOrShow(context, repl);
+            GoalViewPanel.createOrShow(context, repl, database);
         })
     );
 
@@ -279,7 +279,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.registerWebviewPanelSerializer('goalView', {
             async deserializeWebviewPanel(webviewPanel, state) {
                 // Re-create the GoalViewPanel instance
-                GoalViewPanel.deserialize(context, webviewPanel, repl, state);
+                GoalViewPanel.deserialize(context, repl, database, webviewPanel, state);
             }
         } satisfies vscode.WebviewPanelSerializer<GoalviewState>)
     );
@@ -497,23 +497,22 @@ export function activate(context: vscode.ExtensionContext) {
             // console.timeEnd('select goal');
 
             if (!editor.selection.isEmpty) {
-              // Use the selected text as the goal.
-              let text = editor.document.getText(editor.selection);
-              const location = new vscode.Location(editor.document.uri, editor.selection);
-              repl.execute(`g(${text});;\n`, { location, proofCommand: 'g' });
-              return;
-            }
-
-            const term = selection.selectTerm(editor.document, pos);
-            if (!term) {
-                vscode.window.showWarningMessage('Not inside a term');
+                // Use the selected text as the goal.
+                const text = editor.document.getText(editor.selection);
+                const location = new vscode.Location(editor.document.uri, editor.selection);
+                repl.execute(`g(${text});;\n`, { location, proofCommand: 'g' });
+                GoalViewPanel.refresh(location);
                 return;
+            } else {
+                const term = selection.selectTerm(editor.document, pos);
+                if (!term) {
+                    vscode.window.showWarningMessage('Not inside a term');
+                    return;
+                }
+                const location = util.locationStartEnd(editor.document, term.documentStart, term.documentEnd);
+                repl.execute(`g(${term.text});;`, { location, proofCommand: 'g' });
+                GoalViewPanel.refresh(location);
             }
-            repl.execute(`g(${term.text});;`, {
-                location: util.locationStartEnd(editor.document, term.documentStart, term.documentEnd),
-                proofCommand: 'g'
-            });
-            GoalViewPanel.refresh();
         })
     );
 
@@ -531,7 +530,7 @@ export function activate(context: vscode.ExtensionContext) {
             text = text.replace(tacticRe, '').trim();
             const location = new vscode.Location(editor.document.uri, editor.selection);
             repl.execute(`e(${text});;\n`, { location, proofCommand: 'e' });
-            GoalViewPanel.refresh();
+            GoalViewPanel.refresh(location);
             return;
         }
         const maxLines = multiline ? config.getConfigOption(config.TACTIC_MAX_LINES, 30) : 1;
@@ -539,21 +538,22 @@ export function activate(context: vscode.ExtensionContext) {
         const pos = editor.selection.active;
         let newPos: vscode.Position;
         if (selection && !selection.range.isEmpty) {
+            const location = new vscode.Location(editor.document.uri, selection.range);
             if (selection.endsWithSemicolon && repl.erSupportedByHOL()) {
                 // If the selected tactic ends with ';', this is a part of the tactic
                 // list after THENL. Use 'er' which rotates to the next subgoal after
                 // 'e tac'.
                 repl.execute(`er(${editor.document.getText(selection.range)});;\n`, {
-                    location: new vscode.Location(editor.document.uri, selection.range),
+                    location,
                     proofCommand: 'er'
                 });
             } else {
                 repl.execute(`e(${editor.document.getText(selection.range)});;\n`, {
-                    location: new vscode.Location(editor.document.uri, selection.range),
+                    location,
                     proofCommand: 'e'
                 });
             }
-            GoalViewPanel.refresh();
+            GoalViewPanel.refresh(location);
             newPos = selection.newline ? 
                 new vscode.Position(selection.range.end.line + 1, pos.character) :
                 new vscode.Position(selection.range.end.line, selection.range.end.character + 1);
@@ -596,7 +596,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             repl.execute('b();;', { proofCommand: 'b' });
-            GoalViewPanel.refresh();
+            GoalViewPanel.refresh(undefined);
             decorations.clearAll(editor.document.uri);
         })
     );
@@ -608,7 +608,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             repl.execute('p();;');
-            GoalViewPanel.refresh();
+            GoalViewPanel.refresh(undefined);
         })
     );
 
@@ -619,7 +619,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             repl.execute('r(1);;', { proofCommand: 'r' });
-            GoalViewPanel.refresh();
+            GoalViewPanel.refresh(undefined);
         })
     );
 

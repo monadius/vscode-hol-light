@@ -3,6 +3,7 @@ import { Repl } from './repl';
 import type { Goalstate, GoalviewMessage, GoalviewState, MessageCommands } from './types';
 import { InterruptedError, CancelledError } from './executor';
 import { cancelPreviousCall } from './util';
+import { Database } from './database';
 
 const VIEW_TYPE = 'goalView';
 const SAVED_STATE_KEY = 'goalviewState';
@@ -36,12 +37,18 @@ export class GoalViewPanel {
 
     private readonly extensionContext: vscode.ExtensionContext;
     private readonly repl: Repl;
+    private readonly database: Database;
     private readonly panel: vscode.WebviewPanel;
+    
     private disposables: vscode.Disposable[] = [];
 
     private goalviewState: GoalviewState;
+    // Location is used to provide info for constants in the goal view.
+    // The empty location means that only global constants are available.
+    // TODO: it is not clear how to determine the initial location.
+    private location?: vscode.Location;
 
-    public static createOrShow(context: vscode.ExtensionContext, repl: Repl) {
+    public static createOrShow(context: vscode.ExtensionContext, repl: Repl, database: Database) {
         const column = vscode.window.activeTextEditor ? vscode.ViewColumn.Beside : vscode.ViewColumn.Two;
         if (GoalViewPanel.currentPanel) {
             GoalViewPanel.currentPanel.panel.reveal(column, true);
@@ -57,25 +64,26 @@ export class GoalViewPanel {
             getWebviewOptions(context.extensionUri),
         );
 
-        GoalViewPanel.currentPanel = new GoalViewPanel(context, panel, repl, savedState);
+        GoalViewPanel.currentPanel = new GoalViewPanel(context, repl, database, panel, savedState);
     }
 
-    public static deserialize(context: vscode.ExtensionContext, panel: vscode.WebviewPanel, repl: Repl, state: GoalviewState) {
+    public static deserialize(context: vscode.ExtensionContext, repl: Repl, database: Database, panel: vscode.WebviewPanel, state: GoalviewState) {
         // console.log('Deserializing goal view panel', JSON.stringify(_state));
-        GoalViewPanel.currentPanel = new GoalViewPanel(context, panel, repl, state);
+        GoalViewPanel.currentPanel = new GoalViewPanel(context, repl, database, panel, state);
     }
 
-    public static async refresh() {
+    public static async refresh(location: vscode.Location | undefined): Promise<boolean> {
         if (!this.currentPanel) {
             return false;
         }
-        return this.currentPanel.refresh();
+        return this.currentPanel.refresh(location);
     }
 
-    private constructor(context: vscode.ExtensionContext, panel: vscode.WebviewPanel, repl: Repl, savedState: GoalviewState | undefined) {
+    private constructor(context: vscode.ExtensionContext, repl: Repl, database: Database, panel: vscode.WebviewPanel, savedState: GoalviewState | undefined) {
         this.panel = panel;
         this.extensionContext = context;
         this.repl = repl;
+        this.database = database;
         this.goalviewState = savedState && typeof savedState === 'object' ? savedState : { options: {} };
         // Safety check
         if (!this.goalviewState.options) {
@@ -96,7 +104,8 @@ export class GoalViewPanel {
         this.extensionContext.workspaceState.update(SAVED_STATE_KEY, this.goalviewState);
     }
 
-    public refresh = cancelPreviousCall(async function(this: GoalViewPanel, cancellationToken): Promise<boolean> {
+    public refresh = cancelPreviousCall(async function(this: GoalViewPanel, cancellationToken, location?: vscode.Location): Promise<boolean> {
+        this.location = location ?? this.location;
         if (!this.repl.canExecuteForResult()) {
             this.sendErrorMessage('Start a HOL Light server to display goals.')
             return false;
