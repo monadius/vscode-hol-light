@@ -11,10 +11,11 @@ import "@vscode-elements/elements/dist/vscode-tab-panel";
 import "@vscode-elements/elements/dist/vscode-tabs";
 
 import { useVSCode } from './utils/use-vscode';
-import type { Goalstate, GoalviewState, GoalOptions, GoalviewMessage, MessageCommands } from '../../src/types';
-import './App.css';
 import { Goals } from './components/Goals';
 import { Controls } from './components/Controls';
+import type { Goalstate, GoalviewState, GoalOptions, GoalviewMessage, MessageCommands } from '../../src/types';
+
+import './App.css';
 
 if (import.meta.env.DEV) {
   await import("@vscode-elements/webview-playground");

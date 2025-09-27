@@ -40,6 +40,7 @@ type Messages = {
   'restore': MessageOpt<'restore', GoalviewState>; 
   'print-types': Message<'print-types', number>;
   'error': Message<'error', string>;
+  'constant-info': Message<'constant-info', { id: string, text: string }>;
 }
 
 export type MessageCommands = keyof Messages;
