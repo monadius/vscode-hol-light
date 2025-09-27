@@ -4,6 +4,7 @@ import type { Goalstate, GoalviewMessage, GoalviewState, MessageCommands } from 
 import { InterruptedError, CancelledError } from './executor';
 import { cancelPreviousCall } from './util';
 import { Database } from './database';
+import { DefinitionType } from './parser';
 
 const VIEW_TYPE = 'goalView';
 const SAVED_STATE_KEY = 'goalviewState';
@@ -179,6 +180,36 @@ export class GoalViewPanel {
         } satisfies GoalviewMessage<'update'>);
     }
 
+    private async getConstantInfo(word: string): Promise<string | null> {
+        const { defs } = this.database.findDefinitionsAndModules(
+            word, 
+            this.location?.uri.fsPath ?? '', 
+            this.location?.range.start ?? new vscode.Position(0, 0)
+        );
+        if (defs[0] && defs[0].type === DefinitionType.definition) {
+            // if (defs[0].type === DefinitionType.other && this.replProvider) {
+            //     return this.replProvider.provideHover(document, position, token)
+            //                 .then(r => r ?? defs[0].toHoverItem(range))
+            //                 .catch(() => defs[0].toHoverItem(range));
+            // }
+            return defs[0].toString();
+        }
+        return null;
+    }
+
+    private async provideConstantInfo(id: string, word: string | null) {
+        let text = null;
+        try {
+            text = word ? await this.getConstantInfo(word) : null;
+        } catch (e) {
+            console.error('Failed to get constant info:', e);
+        }
+        this.panel.webview.postMessage({
+            command: 'constant-info',
+            data: { id, text },
+        } satisfies GoalviewMessage<'constant-info'>);
+    }
+
     private getHtmlForWebview(webview: vscode.Webview) {
         const scriptUri = webview.asWebviewUri(
             vscode.Uri.joinPath(this.extensionContext.extensionUri, 'goalview', 'dist', 'index.js')
@@ -225,6 +256,10 @@ export class GoalViewPanel {
                         const value = message.data | 0;
                         this.repl.execute(`print_types_of_subterms := ${value}`, { silent: true });
                         this.refresh();
+                        break;
+                    }
+                    case 'constant-info': {
+                        this.provideConstantInfo(message.data.id, message.data.text);
                         break;
                     }
                 }
