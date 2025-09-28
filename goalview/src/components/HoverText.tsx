@@ -1,9 +1,10 @@
 import React, { useState, useCallback } from "react";
 import { useFloating, offset, flip, shift, autoUpdate } from "@floating-ui/react";
 import { requestConstantInfo } from "../utils/info";
+import { markdownToReact } from "../utils/markdown";
 
 const HoverText: React.FC<{ text: string }> = ({ text }) => {
-  const [data, setData] = useState<string | null>(null);
+  const [data, setData] = useState<React.ReactNode[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [visible, setVisible] = useState(false);
 
@@ -11,7 +12,7 @@ const HoverText: React.FC<{ text: string }> = ({ text }) => {
     setLoading(true);
     try {
       const response = await requestConstantInfo(text);
-      setData(response);
+      setData(response ? markdownToReact(response) : null);
     } finally {
       setLoading(false);
     }
@@ -39,13 +40,13 @@ const HoverText: React.FC<{ text: string }> = ({ text }) => {
     >
       {text}
       {visible && data !== null && (
-        <span 
-          ref={refs.setFloating}
-          style={floatingStyles}
-          className="tooltip"
-        >
-          {data}
-        </span>
+          <span
+            ref={refs.setFloating}
+            style={floatingStyles}
+            className="tooltip"
+          >
+            {data}
+          </span>
       )}
     </span>
   );

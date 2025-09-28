@@ -40,6 +40,7 @@ export function Controls(props: ControlProps) {
           <vscode-option>10</vscode-option>
           <vscode-option>20</vscode-option>
           <vscode-option>40</vscode-option>
+          <vscode-option>60</vscode-option>
           <vscode-option>80</vscode-option>
           <vscode-option>100</vscode-option>
           <vscode-option>200</vscode-option>

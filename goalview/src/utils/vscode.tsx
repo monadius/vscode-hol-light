@@ -56,12 +56,13 @@ export function getVsCodeApi(): WebviewApi<GoalviewState> {
                         break;
                     }
                     case 'constant-info': {
+                        const text = `Definition \`${msg.data.text}\`\n\`\`\`\n\`|- ${Array(200).fill(msg.data.text).join(' ')}\`\n\`\`\``;
                         setTimeout(() =>
                             window.postMessage({
                                 command: 'constant-info',
                                 data: {
                                     id: msg.data.id,
-                                    text: `Info for ${msg.data.text}`,
+                                    text: text,
                                 },
                             } satisfies GoalviewMessage<'constant-info'>),
                             500
