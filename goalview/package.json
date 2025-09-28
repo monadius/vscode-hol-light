@@ -11,6 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@floating-ui/react": "^0.27.16",
     "@vscode-elements/elements": "^2.3.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",

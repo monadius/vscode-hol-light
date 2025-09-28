@@ -1,5 +1,7 @@
 import React, { useState, useCallback } from "react";
+import { useFloating, offset, flip, shift, autoUpdate } from "@floating-ui/react";
 import { requestConstantInfo } from "../utils/info";
+
 
 const HoverText: React.FC<{ text: string }> = ({ text }) => {
   const [data, setData] = useState<string | null>(null);
@@ -18,9 +20,18 @@ const HoverText: React.FC<{ text: string }> = ({ text }) => {
     }
   }, [text]);
 
+  const {refs, floatingStyles } = useFloating({
+    open: visible,
+    onOpenChange: setVisible,
+    middleware: [offset(3), flip(), shift()],
+    whileElementsMounted: autoUpdate,
+    placement: 'top',
+  });
+
   return (
     <span
-      className="relative group cursor-pointer"
+      ref={refs.setReference}
+      className="cursor-pointer"
       onMouseEnter={() => {
         setVisible(true);
         if (!data && !loading) {
@@ -31,9 +42,16 @@ const HoverText: React.FC<{ text: string }> = ({ text }) => {
     >
       {text}
       {visible && (
-        <span className="absolute left-0 top-full mt-1 w-max rounded bg-gray-800 px-2 py-1 text-sm text-white">
+        <span 
+          ref={refs.setFloating}
+          style={floatingStyles}
+          className="rounded bg-gray-800 px-2 py-1 text-sm text-white"
+        >
           {loading ? "Loading…" : data}
         </span>
+        // <span className="absolute left-0 top-full mt-1 w-max >
+        //   {loading ? "Loading…" : data}
+        // </span>
       )}
     </span>
   );
