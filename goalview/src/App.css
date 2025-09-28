@@ -20,3 +20,13 @@
     font-family: var(--vscode-editor-font-family);
 }
 
+.tooltip {
+    background: var(--vscode-editorHoverWidget-background);
+    color: var(--vscode-editorHoverWidget-foreground);
+    border: 1px solid var(--vscode-editorHoverWidget-border);
+    padding: 6px 8px;
+    border-radius: 4px;
+    /* max-width: 400px;
+    overflow: scroll; */
+    /* box-shadow: 0 2px 8px rgba(0,0,0,0.3); */
+}

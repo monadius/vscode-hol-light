@@ -2,17 +2,14 @@ import React, { useState, useCallback } from "react";
 import { useFloating, offset, flip, shift, autoUpdate } from "@floating-ui/react";
 import { requestConstantInfo } from "../utils/info";
 
-
 const HoverText: React.FC<{ text: string }> = ({ text }) => {
   const [data, setData] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [visible, setVisible] = useState(false);
 
   const fetchData = useCallback(async () => {
-    // if (data || loading) return; // don’t re-fetch if already loaded
     setLoading(true);
     try {
-      // simulate async API call
       const response = await requestConstantInfo(text);
       setData(response);
     } finally {
@@ -21,9 +18,9 @@ const HoverText: React.FC<{ text: string }> = ({ text }) => {
   }, [text]);
 
   const {refs, floatingStyles } = useFloating({
-    open: visible,
+    open: visible && data !== null,
     onOpenChange: setVisible,
-    middleware: [offset(3), flip(), shift()],
+    middleware: [offset(1), flip(), shift()],
     whileElementsMounted: autoUpdate,
     placement: 'top',
   });
@@ -34,24 +31,21 @@ const HoverText: React.FC<{ text: string }> = ({ text }) => {
       className="cursor-pointer"
       onMouseEnter={() => {
         setVisible(true);
-        if (!data && !loading) {
+        if (data === null && !loading) {
             fetchData();
         }
       }}
       onMouseLeave={() => setVisible(false)}
     >
       {text}
-      {visible && (
+      {visible && data !== null && (
         <span 
           ref={refs.setFloating}
           style={floatingStyles}
-          className="rounded bg-gray-800 px-2 py-1 text-sm text-white"
+          className="tooltip"
         >
-          {loading ? "Loading…" : data}
+          {data}
         </span>
-        // <span className="absolute left-0 top-full mt-1 w-max >
-        //   {loading ? "Loading…" : data}
-        // </span>
       )}
     </span>
   );
