@@ -16,7 +16,7 @@ import { Controls } from './components/Controls';
 import type { Goalstate, GoalviewState, GoalOptions, GoalviewMessage, MessageCommands } from '../../src/types';
 
 import './App.css';
-import { resolveConstantInfo } from './utils/info';
+import { resolveConstantInfo, resetConstantInfoCache } from './utils/info';
 
 if (import.meta.env.DEV) {
   await import("@vscode-elements/webview-playground");
@@ -80,6 +80,7 @@ export default function App() {
   }, []);
 
   React.useEffect(() => {
+    resetConstantInfoCache();
     bottomGoalRef.current?.scrollIntoView({
       // behavior: "smooth",
       block: "end",
