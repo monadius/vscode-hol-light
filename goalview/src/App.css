@@ -34,4 +34,5 @@
     overflow-wrap: break-word;
     max-width: 80%;
     max-height: 30%;
+    z-index: 9999;
 }
