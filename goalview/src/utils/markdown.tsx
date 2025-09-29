@@ -25,7 +25,7 @@ export function markdownToReact(input: string): React.ReactNode[] {
         if (match[0].length >= 3) {
           result.push(<br key={result.length}/>);
         }
-        result.push(<code key={result.length}>{input.slice(regex.lastIndex, i)}</code>)
+        result.push(<code key={result.length} className="!bg-transparent font-bold">{input.slice(regex.lastIndex, i)}</code>)
         regex.lastIndex = i + 1;
     } else if (match[0][0] === '\n') {
         result.push(<br key={result.length}/>)
