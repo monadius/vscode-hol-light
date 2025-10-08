@@ -148,8 +148,11 @@ export class GoalViewPanel {
                 // console.log('goal view refresh cancelled');
             } else if (e instanceof InterruptedError) {
                 console.log('goal view refresh interrupted');
-            } else {
+            } else if (e instanceof Error) {
                 console.error('Failed to refresh goal view:', e);
+                if (/Error:.*Hol_light_json/s.test(e.message)) {
+                    this.sendErrorMessage('Make sure that the `hol_light_json.ml` file is loaded.');
+                }
             }
             return false;
         }
