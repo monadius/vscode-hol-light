@@ -42,6 +42,10 @@ Completion suggestions are also provided for imports after `needs`, `loads`, `lo
 
 If a HOL Light server is active then hover messages are provided for all global definitions which are available in the current HOL Light session.
 
+## Goal View
+
+The extension includes a special view for displaying the current goals. This view can be shown by clicking the book icon in the editor toolbar. Alternatively, it can be shown by executing the command `HOL Light: Show HOL Light Goals` from the command palette. The goal view requires an active HOL Light server. It is automatically updated after each successful tactic execution. It is also possible to refresh the view manually by clicking the refresh button.
+
 ## Interactive Notebooks
 
 It is possible to open HOL Light files as interactive notebooks by right cliking a HOL Light file and selecting `Open with...` and then selecting `HOL Light Notebook`. Notebook cells contain statements separated by `;;`. In order to execute notebook cells, it is required to start a HOL Light server.
