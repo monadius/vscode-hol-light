@@ -115,6 +115,13 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
+        helpProvider,
+        vscode.commands.registerCommand(help.SHOW_HELP_COMMAND, (itemName: string, fromName?: string) =>
+            helpProvider.showHelp(itemName, fromName)
+        )
+    );
+
+    context.subscriptions.push(
         vscode.languages.registerDefinitionProvider(LANG_ID, database)
     );
 
