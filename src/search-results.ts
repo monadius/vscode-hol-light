@@ -1,3 +1,4 @@
+import stripAnsi from 'strip-ansi';
 import * as vscode from 'vscode';
 
 export const SEARCH_VIEW_ID = 'searchList';
@@ -24,6 +25,7 @@ export class SearchResultsProvider implements vscode.TreeDataProvider<SearchItem
     onDidChangeTreeData = this.onDidChangeEmitter.event;
 
     updateSearchResults(searchResult: string) {
+        searchResult = stripAnsi(searchResult);
         this.searchResults = [];
         for (let i = searchResult.indexOf('"'), j; i >= 0; i = searchResult.indexOf('"', j)) {
             j = searchResult.indexOf('"', i + 1);
