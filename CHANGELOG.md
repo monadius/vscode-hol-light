@@ -1,6 +1,7 @@
 # Change Log
 
 ## 2.8.0
+- Clickable `SEEALSO` links in help hover tooltips now open in a side Help panel.
 - Improved HOL Light and OCaml syntax highlighting (added missing OCaml keywords and common HOL Light tacticals).
 - Bug fixes.
 
