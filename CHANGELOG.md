@@ -1,6 +1,7 @@
 # Change Log
 
 ## 2.8.0
+- Improved HOL Light and OCaml syntax highlighting (added missing OCaml keywords and common HOL Light tacticals).
 
 ## 2.7.0
 - New view "HOL Light Goals" which shows the current goals.

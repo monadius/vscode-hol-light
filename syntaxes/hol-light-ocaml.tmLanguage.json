@@ -66,7 +66,7 @@
             "name": "string.quoted.double.ocaml"
         },
         {
-            "match": "'([^'\\\\]|\\\\(x[a-fA-F0-9][a-fA-F0-9]|o[0-3][0-7][0-7]|[0-2]\\d\\d|[ bnrt'\"\\\\]))'",
+            "match": "(?<![a-zA-Z0-9_'])'([^'\\\\\\r\\n]|\\\\(x[a-fA-F0-9]{2}|o[0-3][0-7]{2}|25[0-5]|2[0-4]\\d|[01]\\d\\d|[ bnrt'\"\\\\]))'(?![a-zA-Z0-9_'])",
             "name": "constant.character.ocaml"
         },
         {
@@ -74,12 +74,12 @@
             "name": "constant.language.boolean.ocaml"
         },
         {
-            "match": "\\b[-]?(\\d[\\d_]*|(0x|0X)[\\dA-Fa-f][\\dA-Fa-f_]*|(0o|0O)[0-7][0-7_]*|(0b|0B)[01][01_]*)(?![.eEpP])\\b",
-            "name": "constant.numeric.integer.ocaml"
+            "match": "(?<![a-zA-Z0-9_'])(?:0[xX][\\dA-Fa-f][\\dA-Fa-f_]*(?:\\.[\\dA-Fa-f_]*(?:[pP][+-]?\\d[\\d_]*)?|[pP][+-]?\\d[\\d_]*)|\\d[\\d_]*(?:\\.[\\d_]*(?:[eE][+-]?\\d[\\d_]*)?|[eE][+-]?\\d[\\d_]*))(?![a-zA-Z0-9_'])",
+            "name": "constant.numeric.float.ocaml"
         },
         {
-            "match": "\\b[-]?\\d[\\d_]*(\\.[\\d_]*)?([eE][+-]?\\d[\\d_]*)?\\b|\\b[-]?(0x|0X)[\\dA-Fa-f][\\dA-Fa-f_]*(\\.[\\dA-Fa-f_]*)?([pP][+-]?\\d[\\d_]*)?\\b",
-            "name": "constant.numeric.float.ocaml"
+            "match": "(?<![a-zA-Z0-9_'])(?:0[xX][\\dA-Fa-f][\\dA-Fa-f_]*|0[oO][0-7][0-7_]*|0[bB][01][01_]*|\\d[\\d_]*)[lLn]?(?![a-zA-Z0-9_'])",
+            "name": "constant.numeric.integer.ocaml"
         },
         {
             "match": "\\bnot\\b|&&|\\|\\|",
