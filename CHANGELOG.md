@@ -1,5 +1,7 @@
 # Change Log
 
+## 2.8.0
+
 ## 2.7.0
 - New view "HOL Light Goals" which shows the current goals.
 - Show decorations in the overview ruler.
