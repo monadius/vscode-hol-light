@@ -82,30 +82,29 @@
             "name": "constant.numeric.float.ocaml"
         },
         {
-            "match": "[*+/-]\\.?|\\b(mod|land|lor|lxor|lsl|lsr|asr)\\b",
-            "name": "keyword.operator.ocaml"
-        },
-        {
             "match": "\\bnot\\b|&&|\\|\\|",
             "name": "keyword.operator.logical.ocaml"
+        },
+        {
+            "match": "->|<-|::|:=|<>|<=|>=|==|!=|\\*\\*|\\|>|@@|[+*/\\-]\\.?|[=<>@^|!]|\\b(mod|land|lor|lxor|lsl|lsr|asr)\\b",
+            "name": "keyword.operator.ocaml"
         },
         {
             "match": ";;",
             "name": "punctuation.terminator.expression.ocaml"
         },
         {
-            "match": "\\b(let|in|and|rec|open|include|module|sig|struct|fun|function|begin|end|ref|mutable|type|as|of|exception)\\b",
+            "match": "\\b(?:let|and)[*+]|\\b(let|in|and|rec|nonrec|open|include|module|functor|sig|struct|val|external|constraint|private|virtual|fun|function|begin|end|ref|mutable|type|as|of|exception|lazy|class|object|method|inherit|initializer|new)\\b",
             "name": "keyword.other.ocaml"
         },
         {
-            "match": "\\b(if|then|else|while|match|when|with|for|to|downto|done|try|raise)\\b",
+            "match": "\\b(if|then|else|while|do|done|match|when|with|for|to|downto|try|raise|assert)\\b",
             "name": "keyword.control.ocaml"
         },
 
         {
-            "match": "\\b(THEN|THENL|ORELSE)\\b",
-            "name": "keyword.other.hol-light",
-            "name2": "support.function.hol-light"
+            "match": "\\b(THEN|THENL|ORELSE|THEN_TCL|ORELSE_TCL|REPEAT|REPEAT_TCL|REPLICATE_TAC|TRY|CHANGED_TAC|VALID|EVERY|FIRST|MAP_EVERY|MAP_FIRST|EVERY_TCL|FIRST_TCL|ALL_TAC|NO_TAC|ALL_THEN|NO_THEN)\\b",
+            "name": "keyword.other.hol-light"
         },
         {
             "match": "\\b(needs|loads|loadt)\\b",
