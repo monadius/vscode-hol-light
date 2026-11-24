@@ -48,7 +48,7 @@
             {
                 "category": "HOL Light",
                 "command": "hol-light.set_path",
-                "title": "Set HOL Light path"
+                "title": "Set HOL Light Path"
             },
             {
                 "category": "HOL Light",
@@ -397,17 +397,17 @@
                 "hol-light.highlightColor": {
                     "type": "string",
                     "default": "editor.wordHighlightStrongBackground",
-                    "description": "Color for highlighting text sent to a HOL Light REPL. Could be either a reference to a color theme or a color in the format ##RRGGBBAA. If this value is empty then the text is not highlighted"
+                    "description": "Color for highlighting text sent to a HOL Light REPL. Can be either a reference to a color theme or a color in the format #RRGGBBAA. If this value is empty then the text is not highlighted"
                 },
                 "hol-light.highlightColorSuccess": {
                     "type": "string",
                     "default": "diffEditor.insertedTextBackground",
-                    "description": "Color for highlighting successfully executed statements. Could be either a reference to a color theme or a color in the format ##RRGGBBAA. If this value is empty then successfully executed statements are not highlighted"
+                    "description": "Color for highlighting successfully executed statements. Can be either a reference to a color theme or a color in the format #RRGGBBAA. If this value is empty then successfully executed statements are not highlighted"
                 },
                 "hol-light.highlightColorFailure": {
                     "type": "string",
                     "default": "diffEditor.removedTextBackground",
-                    "description": "Color for highlighting statements which executed with errors. Could be either a reference to a color theme or a color in the format ##RRGGBBAA. If this value is empty then failed statements are not highlighted"
+                    "description": "Color for highlighting statements which executed with errors. Can be either a reference to a color theme or a color in the format #RRGGBBAA. If this value is empty then failed statements are not highlighted"
                 }
             }
         },
